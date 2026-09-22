@@ -14,7 +14,7 @@ import dev.fallingcloud.slate.core.theme.Theme;
 import dev.fallingcloud.slate.core.widget.SlateIconButton;
 import dev.fallingcloud.slate.core.widget.SlateLabel;
 import dev.fallingcloud.slate.core.widget.SlateScrollPanel;
-import dev.fallingcloud.slate.core.widget.SlateSearchField;
+import dev.fallingcloud.slate.config.ui.ConfigSearchField;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -59,7 +59,7 @@ public final class FileEditorScreen extends SlateScreen {
             OptionResolvers.invalidate(doc.kind());
             rebuild();
         }));
-        final SlateSearchField search = new SlateSearchField(0, 0, 140, t -> { if (!t.equals(filter)) { filter = t; keepScroll = 0; rebuild(); } });
+        final ConfigSearchField search = new ConfigSearchField(0, 0, 140, t -> { if (!t.equals(filter)) { filter = t; keepScroll = 0; rebuild(); } });
         search.setValue(filter);
         addHeaderAction(search);
 
@@ -124,7 +124,7 @@ public final class FileEditorScreen extends SlateScreen {
     @Override
     public boolean keyPressed(final int keyCode, final int scanCode, final int modifiers) {
         if ((keyCode == 47 || (keyCode == 70 && hasControlDown())) && !(getFocused() instanceof net.minecraft.client.gui.components.EditBox)) {
-            for (final var r : renderableList()) if (r instanceof SlateSearchField f) { setFocused(f); return true; }
+            for (final var r : renderableList()) if (r instanceof ConfigSearchField f) { setFocused(f); return true; }
         }
         return super.keyPressed(keyCode, scanCode, modifiers);
     }

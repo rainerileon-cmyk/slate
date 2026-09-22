@@ -91,10 +91,15 @@ public final class VanillaOptions {
 
     private static void intRange(final String key, final String caption, final Function<Options, OptionInstance<Integer>> f,
                                  final int min, final int max, final int def, final DoubleFunction<Component> fmt, @Nullable final Runnable after) {
+        intRange(key, caption, f, min, max, 1, def, fmt, after);
+    }
+
+    private static void intRange(final String key, final String caption, final Function<Options, OptionInstance<Integer>> f,
+                                 final int min, final int max, final int step, final int def, final DoubleFunction<Component> fmt, @Nullable final Runnable after) {
         DEFS.put(key, () -> base(key, caption, OptionType.INT)
             .getter(() -> f.apply(opts()).get())
             .setter(v -> { apply(f.apply(opts()), OptionValues.asInt(v, def)); if (after != null) after.run(); })
-            .def(def).range(NumberRange.ints(min, max))
+            .def(def).range(NumberRange.of(min, max, step))
             .format(v -> fmt.apply(OptionValues.asDouble(v, def))));
     }
 
@@ -174,7 +179,7 @@ public final class VanillaOptions {
             () -> ApplyQueue.later("guiScale", 300, () -> mc.resizeDisplay()));
         bool("fullscreen", "options.fullscreen", Options::fullscreen, false);
         bool("enableVsync", "options.vsync", Options::enableVsync, true);
-        intRange("maxFps", "options.framerateLimit", Options::framerateLimit, 10, 260, 120, v -> v >= 260 ? Component.translatable("options.framerateLimit.max") : Component.translatable("options.framerate", (int) Math.round(v)), null);
+        intRange("maxFps", "options.framerateLimit", Options::framerateLimit, 10, 260, 10, 120, v -> v >= 260 ? Component.translatable("options.framerateLimit.max") : Component.translatable("options.framerate", (int) Math.round(v)), null);
         intRange("mipmapLevels", "options.mipmapLevels", Options::mipmapLevels, 0, 4, 4, v -> off(v, num(v)),
             () -> ApplyQueue.later("mipmap", 600, () -> { mc.updateMaxMipLevel(opts().mipmapLevels().get()); mc.delayTextureReload(); }));
         choice("particles", "options.particles", Options::particles, "ALL");

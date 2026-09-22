@@ -19,7 +19,7 @@ import dev.fallingcloud.slate.core.widget.SlateDropdown;
 import dev.fallingcloud.slate.core.widget.SlateLabel;
 import dev.fallingcloud.slate.core.widget.SlateModal;
 import dev.fallingcloud.slate.core.widget.SlateScrollPanel;
-import dev.fallingcloud.slate.core.widget.SlateTextField;
+import dev.fallingcloud.slate.config.ui.ConfigTextField;
 import dev.fallingcloud.slate.core.widget.SlateToasts;
 import java.util.ArrayList;
 import java.util.List;
@@ -79,7 +79,7 @@ public final class PresetsPage extends SidebarPage {
     }
 
     private void saveDialog() {
-        final SlateTextField name = new SlateTextField(0, 0, 200, Component.translatable("slate_config.presets.name"));
+        final ConfigTextField name = new ConfigTextField(0, 0, 200, Component.translatable("slate_config.presets.name"));
         name.placeholder(Component.translatable("slate_config.presets.name"));
         final OptionPageBase last = screen instanceof ConfigHubScreen hub ? hub.lastOptionPage() : null;
         final List<Source> sources = new ArrayList<>(List.of(Source.FAVOURITES, Source.VIDEO));

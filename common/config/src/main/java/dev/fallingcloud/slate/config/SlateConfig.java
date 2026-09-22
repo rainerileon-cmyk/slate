@@ -70,6 +70,7 @@ public final class SlateConfig implements SlateModule {
         SlateEvents.CLIENT_TICK_END.register(ApplyQueue::tick);
         installSwaps();
         LOGGER.info("[Slate Config] client init ({} curated page(s))", CuratedPages.load().size());
+        if (System.getenv("SLATE_CONFIG_SMOKE") != null) SmokeTest.install();
     }
 
     /** Vanilla option sub-screens open the matching hub page; Sodium's screen too. Switched off by config.json. */

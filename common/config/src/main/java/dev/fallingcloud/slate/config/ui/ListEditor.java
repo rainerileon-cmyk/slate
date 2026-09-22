@@ -7,7 +7,7 @@ import dev.fallingcloud.slate.core.theme.Theme;
 import dev.fallingcloud.slate.core.widget.SlateButton;
 import dev.fallingcloud.slate.core.widget.SlateList;
 import dev.fallingcloud.slate.core.widget.SlateModal;
-import dev.fallingcloud.slate.core.widget.SlateTextField;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
@@ -28,7 +28,7 @@ public final class ListEditor {
             g.drawString(SlateDraw.font(), SlateDraw.truncate(Component.literal(item), w - 8), x + 4, y + 3, selected ? p.text() : p.textMuted(), Theme.current().isVanilla());
         }).gap(1).emptyText(Component.translatable("slate_config.list.empty"));
         list.items(items);
-        final SlateTextField field = new SlateTextField(0, 0, SlateModal.WIDTH - 24, Component.translatable("slate_config.list.value"));
+        final ConfigTextField field = new ConfigTextField(0, 0, SlateModal.WIDTH - 24, Component.translatable("slate_config.list.value"));
         field.placeholder(Component.translatable("slate_config.list.placeholder"));
         field.maxLength(1024);
         final Runnable commit = () -> {

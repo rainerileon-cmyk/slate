@@ -22,11 +22,14 @@ import dev.fallingcloud.slate.core.screen.SidebarPage;
 import dev.fallingcloud.slate.core.screen.SidebarScreen;
 import dev.fallingcloud.slate.core.widget.SlateIconButton;
 import dev.fallingcloud.slate.core.widget.SlateModal;
-import dev.fallingcloud.slate.core.widget.SlateSearchField;
+import dev.fallingcloud.slate.config.ui.ConfigSearchField;
 import dev.fallingcloud.slate.core.widget.popup.Popups;
 import java.util.List;
 import net.minecraft.client.Minecraft;
+import dev.fallingcloud.slate.config.ui.ConfigTextField;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.components.events.ContainerEventHandler;
+import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.options.OptionsScreen;
 import net.minecraft.network.chat.Component;
@@ -40,7 +43,7 @@ import org.jetbrains.annotations.Nullable;
 public final class ConfigHubScreen extends SidebarScreen {
 
     @Nullable private String pendingPage;
-    @Nullable private SlateSearchField searchField;
+    @Nullable private ConfigSearchField searchField;
     @Nullable private SearchIndex index;
     @Nullable private SearchPopup popup;
     @Nullable private OptionPageBase lastOptionPage;
@@ -77,7 +80,7 @@ public final class ConfigHubScreen extends SidebarScreen {
             ScreenSwaps.runUnswapped(() -> mc.setScreen(new OptionsScreen(this, mc.options)));
         }));
         addHeaderAction(new SlateIconButton(0, 0, 20, Icon.UNDO, Component.translatable("slate_config.hub.reset_page"), this::resetPage));
-        final SlateSearchField f = new SlateSearchField(0, 0, Math.min(150, Math.max(90, width / 4)), this::onSearch);
+        final ConfigSearchField f = new ConfigSearchField(0, 0, Math.min(150, Math.max(90, width / 4)), this::onSearch);
         f.setValue(searchText);
         addHeaderAction(f);
         searchField = f;
@@ -148,7 +151,7 @@ public final class ConfigHubScreen extends SidebarScreen {
         final List<SearchIndex.Hit> hits = index().query(q, cur, 24);
         if (hits.isEmpty()) { closePopup(); return; }
         if (popup == null || Popups.top() != popup) {
-            popup = new SearchPopup(searchField.frameX(), searchField.frameY() + searchField.frameHeight() + 2, Math.max(220, searchField.frameWidth() + 80), this::jumpTo);
+            popup = new SearchPopup(searchField.getX(), searchField.getY() + searchField.getHeight() + 2, Math.max(220, searchField.getWidth() + 80), this::jumpTo);
             Popups.open(popup);
         }
         popup.setHits(hits);
@@ -179,12 +182,26 @@ public final class ConfigHubScreen extends SidebarScreen {
     @Override
     public boolean keyPressed(final int keyCode, final int scanCode, final int modifiers) {
         if (currentPage() instanceof ControlsPage cp && cp.captureKey(keyCode, scanCode, modifiers)) return true;
-        final boolean typing = getFocused() instanceof EditBox || (getFocused() != null && getFocused().isFocused() && searchField != null && searchField.isFocused());
-        if (!typing && searchField != null && (keyCode == 47 || (keyCode == 70 && hasControlDown()))) {
+        if (!typing() && searchField != null && (keyCode == 47 || (keyCode == 70 && hasControlDown()))) {
             setFocused(searchField);
             return true;
         }
         return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    /** True when the innermost focused element is a text field (so "/" must type, not jump to search). */
+    private boolean typing() {
+        GuiEventListener f = getFocused();
+        int guard = 0;
+        while (f instanceof ContainerEventHandler c && c.getFocused() != null && guard++ < 8) f = c.getFocused();
+        return f instanceof EditBox || f instanceof ConfigTextField;
+    }
+
+    /** Test hook: type into the header search as a user would. */
+    public void debugSearch(final String text) {
+        if (searchField == null) return;
+        setFocused(searchField);
+        searchField.setValue(text);
     }
 
     @Override

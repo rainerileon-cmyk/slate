@@ -20,7 +20,7 @@ import dev.fallingcloud.slate.core.widget.SlateCard;
 import dev.fallingcloud.slate.core.widget.SlateIconButton;
 import dev.fallingcloud.slate.core.widget.SlateLabel;
 import dev.fallingcloud.slate.core.widget.SlateScrollPanel;
-import dev.fallingcloud.slate.core.widget.SlateSearchField;
+import dev.fallingcloud.slate.config.ui.ConfigSearchField;
 import dev.fallingcloud.slate.core.widget.SlateWidget;
 import dev.fallingcloud.slate.core.widget.popup.MenuPopup;
 import dev.fallingcloud.slate.core.widget.popup.Popups;
@@ -83,7 +83,7 @@ public final class ModsPage extends SidebarPage {
     @Override
     public void build(final SidebarScreen screen, final Rect area) {
         this.screen = screen;
-        final SlateSearchField field = new SlateSearchField(area.x(), area.y(), Math.min(260, area.w()), this::filter);
+        final ConfigSearchField field = new ConfigSearchField(area.x(), area.y(), Math.min(260, area.w()), this::filter);
         field.setValue(search);
         field.placeholder(Component.translatable("slate_config.mods.search"));
         screen.addPageWidget(field);
@@ -98,18 +98,20 @@ public final class ModsPage extends SidebarPage {
                 if (!hay.contains(q)) continue;
             }
             final boolean open = expanded.contains(m.id());
-            final List<net.minecraft.util.FormattedCharSequence> desc = SlateDraw.font().split(Component.literal(m.description() == null ? "" : m.description().trim()), w - 60);
+            final int textW = Math.max(60, w - 40 - 140);           // icon column, Configure button, chevron
+            final String description = m.description() == null ? "" : m.description().trim();
+            final List<net.minecraft.util.FormattedCharSequence> desc = SlateDraw.font().split(Component.literal(description), textW);
             final int h = open ? 44 + Math.max(1, desc.size()) * 10 + 4 : 44;
             final SlateCard card = new SlateCard(0, y, w, h).flat();
             card.add(new ModIcon(m), 8, 10);
-            card.add(new SlateLabel(40, 7, w - 260, Component.literal(m.name())).style(SlateLabel.Style.TITLE), 40, 7);
+            card.add(new SlateLabel(40, 7, textW, Component.literal(m.name())).style(SlateLabel.Style.TITLE), 40, 7);
             final String meta = "v" + m.version() + (m.authors().isEmpty() ? "" : "  ·  " + String.join(", ", m.authors()));
-            card.add(new SlateLabel(40, 19, w - 260, Component.literal(meta)).style(SlateLabel.Style.CAPTION), 40, 19);
+            card.add(new SlateLabel(40, 19, textW, Component.literal(meta)).style(SlateLabel.Style.CAPTION), 40, 19);
             if (!open) {
-                final Component first = desc.isEmpty() ? Component.empty() : Component.literal(m.description().trim().split("\\r?\\n")[0]);
-                card.add(new SlateLabel(40, 30, w - 260, first).style(SlateLabel.Style.MUTED), 40, 30);
+                final Component first = desc.isEmpty() ? Component.empty() : Component.literal(description.split("\\r?\\n")[0]);
+                card.add(new SlateLabel(40, 30, textW, first).style(SlateLabel.Style.MUTED), 40, 30);
             } else {
-                card.add(new SlateLabel(40, 32, w - 60, Component.literal(m.description() == null ? "" : m.description().trim())).style(SlateLabel.Style.MUTED).wrap(true), 40, 32);
+                card.add(new SlateLabel(40, 32, textW, Component.literal(description)).style(SlateLabel.Style.MUTED).wrap(true), 40, 32);
             }
             final List<ModConfigTargets.Target> ts = targetsOf(m);
             final SlateButton cfg = new SlateButton(w - 128, 8, 96, Component.translatable("slate_config.mods.configure"), () -> openTargets(m, ts)).icon(Icon.SETTINGS);

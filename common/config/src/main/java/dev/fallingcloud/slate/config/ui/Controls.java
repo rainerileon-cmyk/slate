@@ -8,11 +8,11 @@ import dev.fallingcloud.slate.config.option.OptionType;
 import dev.fallingcloud.slate.config.option.OptionValues;
 import dev.fallingcloud.slate.core.gfx.Icon;
 import dev.fallingcloud.slate.core.widget.SlateButton;
-import dev.fallingcloud.slate.core.widget.SlateColorField;
+import dev.fallingcloud.slate.config.ui.ConfigColorField;
 import dev.fallingcloud.slate.core.widget.SlateDropdown;
 import dev.fallingcloud.slate.core.widget.SlateKeybindButton;
 import dev.fallingcloud.slate.core.widget.SlateSlider;
-import dev.fallingcloud.slate.core.widget.SlateTextField;
+
 import dev.fallingcloud.slate.core.widget.SlateToggle;
 import java.util.List;
 import java.util.function.Consumer;
@@ -38,12 +38,11 @@ public final class Controls {
                 final boolean integer = b.type() == OptionType.INT;
                 if (r != null && r.isBounded()) {
                     final double step = integer ? Math.max(1, Math.round(r.effectiveStep())) : r.effectiveStep();
-                    final SlateSlider s = new SlateSlider(x, y, w, Component.empty(), r.min(), r.max(), step, OptionValues.asDouble(v, r.min()),
+                    return new ConfigSlider(x, y, w, r.min(), r.max(), step, OptionValues.asDouble(v, r.min()),
                         d -> b.valueText(integer ? (Object) Math.round(d) : (Object) d).getString(),
-                        d -> onChange.accept(integer ? (Object) Math.round(d) : (Object) d)).compact(true);
-                    return s;
+                        d -> onChange.accept(integer ? (Object) Math.round(d) : (Object) d));
                 }
-                final SlateTextField f = new SlateTextField(x, y, w, Component.empty());
+                final ConfigTextField f = new ConfigTextField(x, y, w, Component.empty());
                 f.setValue(v == null ? "" : integer ? Long.toString(OptionValues.asLong(v, 0)) : OptionValues.formatDouble(OptionValues.asDouble(v, 0)));
                 f.maxLength(64);
                 f.onChange(s -> {
@@ -66,14 +65,14 @@ public final class Controls {
                 return new SlateDropdown<>(x, y, w, choices, cur, Choice::label, c -> onChange.accept(c.id()));
             }
             case STRING -> {
-                final SlateTextField f = new SlateTextField(x, y, w, Component.empty());
+                final ConfigTextField f = new ConfigTextField(x, y, w, Component.empty());
                 f.maxLength(4096);
                 f.setValue(OptionValues.asString(v));
                 f.onChange(s -> ApplyQueue.later("field:" + b.id(), 500, () -> onChange.accept(s)));
                 return f;
             }
             case COLOR -> {
-                return new SlateColorField(x, y, w, OptionValues.asColor(v, 0xFFFFFFFF), c -> onChange.accept(c));
+                return new ConfigColorField(x, y, w, OptionValues.asColor(v, 0xFFFFFFFF), c -> onChange.accept(c));
             }
             case LIST -> {
                 final List<String> items = OptionValues.asList(v);
@@ -104,9 +103,9 @@ public final class Controls {
             @SuppressWarnings("unchecked") final SlateDropdown<Choice> dd = (SlateDropdown<Choice>) d;
             final String id = OptionValues.asString(v);
             for (final Choice c : b.choices()) if (c.id().equals(id)) { dd.setValue(c); break; }
-        } else if (control instanceof SlateColorField c) c.setColor(OptionValues.asColor(v, 0xFFFFFFFF));
+        } else if (control instanceof ConfigColorField c) c.setColor(OptionValues.asColor(v, 0xFFFFFFFF));
         else if (control instanceof SlateKeybindButton k) k.refresh();
-        else if (control instanceof SlateTextField f) {
+        else if (control instanceof ConfigTextField f) {
             final String text = b.type() == OptionType.INT ? Long.toString(OptionValues.asLong(v, 0))
                 : b.type() == OptionType.DOUBLE ? OptionValues.formatDouble(OptionValues.asDouble(v, 0)) : OptionValues.asString(v);
             if (!f.getValue().equals(text)) f.setValue(text);

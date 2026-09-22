@@ -9,7 +9,7 @@ import dev.fallingcloud.slate.core.theme.Palette;
 import dev.fallingcloud.slate.core.theme.Theme;
 import dev.fallingcloud.slate.core.widget.SlateButton;
 import dev.fallingcloud.slate.core.widget.SlateList;
-import dev.fallingcloud.slate.core.widget.SlateSearchField;
+import dev.fallingcloud.slate.config.ui.ConfigSearchField;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -47,7 +47,7 @@ public final class LanguagePage extends OptionPageBase {
         if (selected == null) selected = Minecraft.getInstance().getLanguageManager().getSelected();
         final List<Section> out = new ArrayList<>();
         final Section pick = Section.of("pick", Component.translatable("slate_config.language.pick")).fixed();
-        pick.custom(w -> new SlateSearchField(0, 0, Math.min(w, 260), s -> { search = s; rebuild(); }));
+        pick.custom(w -> new ConfigSearchField(0, 0, Math.min(w, 260), s -> { search = s; rebuild(); }));
         pick.custom(w -> {
             final SlateList<Lang> list = new SlateList<Lang>(0, 0, w, 190, 16, (g, item, index, x, y, rw, h, hovered, sel, mx, my) -> {
                 final Palette p = Theme.current().palette();
