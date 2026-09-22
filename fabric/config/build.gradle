@@ -7,5 +7,5 @@ loom {
 dependencies {
     implementation project(path: ':core', configuration: 'namedElements')
     modCompileOnly "com.terraformersmc:modmenu:11.0.3"
-    compileOnly fileTree(dir: rootProject.slateLibsDir, include: ['sodium*.jar', 'iris*.jar'])
+    compileOnly fileTree(dir: rootProject.slateLibsDir, include: ['sodium*.jar', 'iris*.jar', 'voicechat*.jar'])
 }

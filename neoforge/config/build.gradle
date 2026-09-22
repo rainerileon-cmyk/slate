@@ -7,5 +7,5 @@ neoForge {
 dependencies {
     implementation project(':core')
     // Sodium 0.8's config model (soft dep). This is the extracted INNER mod jar - see libs/README.md.
-    compileOnly fileTree(dir: rootProject.slateLibsDir, include: ['sodium*.jar', 'iris*.jar'])
+    compileOnly fileTree(dir: rootProject.slateLibsDir, include: ['sodium*.jar', 'iris*.jar', 'voicechat*.jar'])
 }
