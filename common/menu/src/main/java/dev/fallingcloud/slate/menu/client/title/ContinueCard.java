@@ -55,8 +55,9 @@ public class ContinueCard extends SlateCard {
         play = add(new SlateButton(0, 0, 56, 20, Component.translatable("slate_menu.title.play"), this::play)
             .variant(SlateButton.Variant.PRIMARY).icon(Icon.PLAY), w - 64, h - 27);
         play.visible = false;
-        create = add(new SlateButton(0, 0, 110, 20, Component.translatable("slate_menu.title.create_world"), () -> WorldActions.createNew(parent))
-            .variant(SlateButton.Variant.SECONDARY).icon(Icon.NEW_WORLD), w - 118, h - 27);
+        // Empty state: the CTA sits top-right next to the caption so the two text lines below keep the full width.
+        create = add(new SlateButton(0, 0, 104, 18, Component.translatable("slate_menu.title.create_world"), () -> WorldActions.createNew(parent))
+            .variant(SlateButton.Variant.SECONDARY).icon(Icon.NEW_WORLD), w - 112, 5);
         create.visible = false;
         onClick(this::play);
         appear.snap(0);
@@ -118,8 +119,8 @@ public class ContinueCard extends SlateCard {
         }
         final float a = appear.get();
         if (target == null) {
-            g.drawString(SlateDraw.font(), Component.translatable("slate_menu.title.nothing_yet"), x + 10, y + 22, Colors.scaleAlpha(p.text(), a), van);
-            g.drawString(SlateDraw.font(), SlateDraw.truncate(Component.translatable("slate_menu.title.nothing_yet_hint"), w - 130), x + 10, y + 33, Colors.scaleAlpha(muted, a), van);
+            g.drawString(SlateDraw.font(), SlateDraw.truncate(Component.translatable("slate_menu.title.nothing_yet"), w - 124), x + 10, y + 26, Colors.scaleAlpha(p.text(), a), van);
+            g.drawString(SlateDraw.font(), SlateDraw.truncate(Component.translatable("slate_menu.title.nothing_yet_hint"), w - 20), x + 10, y + 40, Colors.scaleAlpha(muted, a), van);
             return;
         }
         ensureIcon();

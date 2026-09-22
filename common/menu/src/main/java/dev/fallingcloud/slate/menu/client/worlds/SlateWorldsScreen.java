@@ -125,16 +125,16 @@ public final class SlateWorldsScreen extends SlateScreen {
         }
 
         final int by = c.bottom() - 22;
-        add(new SlateButton(c.x(), by, 112, Component.translatable("selectWorld.create"), () -> WorldActions.createNew(this))
+        add(new SlateButton(c.x(), by, 130, Component.translatable("selectWorld.create"), () -> WorldActions.createNew(this))
             .variant(SlateButton.Variant.PRIMARY).icon(Icon.NEW_WORLD));
-        add(new SlateIconButton(c.x() + 118, by, 20, Icon.FOLDER, Component.translatable("slate_menu.worlds.open_saves"), WorldActions::openSavesFolder));
+        add(new SlateIconButton(c.x() + 136, by, 20, Icon.FOLDER, Component.translatable("slate_menu.worlds.open_saves"), WorldActions::openSavesFolder));
         if (!showDetails) {
             int bx = c.right();
             bx -= 20;
             final int moreX = bx;
             selectionButtons.add(add(new SlateIconButton(moreX, by, 20, Icon.DOTS, Component.translatable("slate_menu.more"), () -> { if (selected != null) contextMenuAt(selected, moreX, by); })));
             bx -= 66; selectionButtons.add(add(new SlateButton(bx, by, 62, Component.translatable("selectWorld.edit"), () -> { if (selected != null) edit(selected); }).icon(Icon.EDIT)));
-            bx -= 70; selectionButtons.add(add(new SlateButton(bx, by, 66, Component.translatable("selectWorld.select"), () -> { if (selected != null) play(selected); })
+            bx -= 70; selectionButtons.add(add(new SlateButton(bx, by, 66, Component.translatable("slate_menu.worlds.play"), () -> { if (selected != null) play(selected); })
                 .variant(SlateButton.Variant.PRIMARY).icon(Icon.PLAY)));
         } else {
             final int px = detailsRect.x() + 8, pw = detailsRect.w() - 16, half = (pw - 4) / 2;
@@ -280,8 +280,8 @@ public final class SlateWorldsScreen extends SlateScreen {
         select(e, true);
         final LevelSummary s = e.summary;
         final List<MenuPopup.Item> items = new ArrayList<>();
-        items.add(s.primaryActionActive() ? MenuPopup.Item.of(Component.translatable("selectWorld.select"), Icon.PLAY, () -> play(e))
-            : MenuPopup.Item.disabled(Component.translatable("selectWorld.select"), Icon.PLAY));
+        items.add(s.primaryActionActive() ? MenuPopup.Item.of(Component.translatable("slate_menu.worlds.play"), Icon.PLAY, () -> play(e))
+            : MenuPopup.Item.disabled(Component.translatable("slate_menu.worlds.play"), Icon.PLAY));
         items.add(s.canEdit() ? MenuPopup.Item.of(Component.translatable("selectWorld.edit"), Icon.EDIT, () -> edit(e))
             : MenuPopup.Item.disabled(Component.translatable("selectWorld.edit"), Icon.EDIT));
         items.add(MenuPopup.Item.of(Component.translatable("slate_menu.worlds.backup"), Icon.BACKUP, () -> backup(e)));
