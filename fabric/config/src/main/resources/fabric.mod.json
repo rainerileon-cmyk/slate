@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "slate_config",
+  "version": "${version}",
+  "name": "Slate Config",
+  "description": "Slate's unified settings: one themed screen for video (Sodium included), audio, controls, chat, interface, multiplayer and every installed mod's config, with search, favourites, presets and curated modpack pages.",
+  "authors": ["falling_colud"],
+  "license": "MIT",
+  "icon": "assets/slate_config/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["dev.fallingcloud.slate.config.fabric.SlateConfigFabric"],
+    "modmenu": ["dev.fallingcloud.slate.config.fabric.SlateConfigModMenu"]
+  },
+  "mixins": ["slate_config.mixins.json"],
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "minecraft": "~1.21.1",
+    "java": ">=21",
+    "fabric-api": "*",
+    "slate": ">=1.0.0"
+  },
+  "suggests": {
+    "sodium": "*",
+    "modmenu": "*"
+  }
+}

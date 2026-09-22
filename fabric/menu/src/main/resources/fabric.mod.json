@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "slate_menu",
+  "version": "${version}",
+  "name": "Slate Menu",
+  "description": "Slate's rebuilt main menus: title, worlds, servers, pause, options, and a screenshot gallery - favourites, search, live pings, quick connect, animated and themed.",
+  "authors": ["falling_colud"],
+  "license": "MIT",
+  "icon": "assets/slate_menu/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["dev.fallingcloud.slate.menu.fabric.SlateMenuFabric"]
+  },
+  "mixins": ["slate_menu.mixins.json"],
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "minecraft": "~1.21.1",
+    "java": ">=21",
+    "fabric-api": "*",
+    "slate": ">=1.0.0"
+  }
+}

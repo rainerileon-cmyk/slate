@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "slate",
+  "version": "${version}",
+  "name": "Slate",
+  "description": "The core of the Slate UI suite: the dark modern (and polished vanilla) theme, the widget toolkit, animations, the screen-layout dev mode, and the services every other Slate module builds on.",
+  "authors": ["falling_colud"],
+  "license": "MIT",
+  "icon": "assets/slate/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["dev.fallingcloud.slate.core.fabric.SlateFabric"],
+    "client": ["dev.fallingcloud.slate.core.fabric.SlateFabricClient"],
+    "modmenu": ["dev.fallingcloud.slate.core.fabric.SlateModMenu"]
+  },
+  "mixins": ["slate.mixins.json"],
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "minecraft": "~1.21.1",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}

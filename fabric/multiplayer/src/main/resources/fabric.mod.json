@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "slate_multiplayer",
+  "version": "${version}",
+  "name": "Slate Multiplayer",
+  "description": "Slate's social layer: friends and friend groups, presence, direct and group messages with images, GIFs and voice clips, invites, screen sharing, and Simple Voice Chat integration. Runs a social hub on any server that has it.",
+  "authors": ["falling_colud"],
+  "license": "MIT",
+  "icon": "assets/slate_multiplayer/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["dev.fallingcloud.slate.multiplayer.fabric.SlateMultiplayerFabric"],
+    "client": ["dev.fallingcloud.slate.multiplayer.fabric.SlateMultiplayerFabricClient"]
+  },
+  "mixins": ["slate_multiplayer.mixins.json"],
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "minecraft": "~1.21.1",
+    "java": ">=21",
+    "fabric-api": "*",
+    "slate": ">=1.0.0"
+  },
+  "suggests": {
+    "voicechat": "*"
+  }
+}

@@ -1,0 +1,36 @@
+modLoader = "javafml"
+loaderVersion = "[1,)"
+license = "MIT"
+
+[[mods]]
+modId = "slate_menu"
+version = "${version}"
+displayName = "Slate Menu"
+authors = "falling_colud"
+logoFile = "assets/slate_menu/icon.png"
+displayTest = "IGNORE_ALL_VERSION"
+description = '''Slate's rebuilt main menus: title, worlds, servers, pause, options, and a screenshot gallery - favourites, search, live pings, quick connect, animated and themed.'''
+
+[[mixins]]
+config = "slate_menu.mixins.json"
+
+[[dependencies.slate_menu]]
+modId = "slate"
+type = "required"
+versionRange = "[1.0,)"
+ordering = "AFTER"
+side = "CLIENT"
+
+[[dependencies.slate_menu]]
+modId = "neoforge"
+type = "required"
+versionRange = "[21.1,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.slate_menu]]
+modId = "minecraft"
+type = "required"
+versionRange = "[1.21.1,1.22)"
+ordering = "NONE"
+side = "BOTH"

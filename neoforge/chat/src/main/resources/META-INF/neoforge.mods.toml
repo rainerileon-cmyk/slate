@@ -1,0 +1,57 @@
+modLoader = "javafml"
+loaderVersion = "[1,)"
+license = "MIT"
+
+[[mods]]
+modId = "slate_chat"
+version = "${version}"
+displayName = "Slate Chat"
+authors = "falling_colud"
+logoFile = "assets/slate_chat/icon.png"
+displayTest = "IGNORE_ALL_VERSION"
+description = '''Slate's in-game chat: channels for global, friends and groups, grouped messages with heads, images, GIFs, voice clips and video, emotes, mentions, history and search - the Chatterbox feature set in the Slate style.'''
+
+[[mixins]]
+config = "slate_chat.mixins.json"
+
+[[dependencies.slate_chat]]
+modId = "slate"
+type = "required"
+versionRange = "[1.0,)"
+ordering = "AFTER"
+side = "BOTH"
+
+[[dependencies.slate_chat]]
+modId = "slate_multiplayer"
+type = "required"
+versionRange = "[1.0,)"
+ordering = "AFTER"
+side = "BOTH"
+
+[[dependencies.slate_chat]]
+modId = "neoforge"
+type = "required"
+versionRange = "[21.1,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.slate_chat]]
+modId = "minecraft"
+type = "required"
+versionRange = "[1.21.1,1.22)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.slate_chat]]
+modId = "voicechat"
+type = "optional"
+versionRange = "[1.21.1-2.6.0,)"
+ordering = "AFTER"
+side = "CLIENT"
+
+[[dependencies.slate_chat]]
+modId = "mcef"
+type = "optional"
+versionRange = "[2.0,)"
+ordering = "AFTER"
+side = "CLIENT"

@@ -1,0 +1,12 @@
+base { archivesName = 'slate-multiplayer-neoforge-1.21.1' }
+
+neoForge {
+    mods { slate_multiplayer { sourceSet sourceSets.main } }
+}
+
+dependencies {
+    implementation project(':core')
+    // Simple Voice Chat and MCEF are SOFT dependencies: compileOnly, every call behind a mod-presence
+    // check in a class that is only loaded once that check passed. Jars vendored from the pack.
+    compileOnly fileTree(dir: rootProject.slateLibsDir, include: ['voicechat*.jar', 'mcef*.jar'])
+}

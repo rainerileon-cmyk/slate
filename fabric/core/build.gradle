@@ -1,0 +1,10 @@
+base { archivesName = 'slate-core-fabric-1.21.1' }
+
+loom {
+    mods { slate { sourceSet sourceSets.main } }
+}
+
+dependencies {
+    // ModMenu entrypoint so the Slate hub shows up in its mod list (soft: only the API is compiled against).
+    modCompileOnly "com.terraformersmc:modmenu:11.0.3"
+}

@@ -1,0 +1,12 @@
+base { archivesName = 'slate-multiplayer-fabric-1.21.1' }
+
+loom {
+    mods { slate_multiplayer { sourceSet sourceSets.main } }
+}
+
+dependencies {
+    implementation project(path: ':core', configuration: 'namedElements')
+    // Soft deps. The vendored jars are the NeoForge builds; only their loader-independent API/impl
+    // classes are referenced, and every use is behind a mod-presence check.
+    compileOnly fileTree(dir: rootProject.slateLibsDir, include: ['voicechat*.jar', 'mcef*.jar'])
+}

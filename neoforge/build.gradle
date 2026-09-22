@@ -1,0 +1,66 @@
+// Root of the NeoForge build. Every module is a subproject that applies ModDevGradle itself; this file
+// holds the configuration they all share. The shared (loader-agnostic) sources live in
+// ../common/<module>/src/main and are simply added to each subproject's main source set, so there is
+// no separate "common" Gradle project and no second Minecraft toolchain.
+plugins {
+    id 'net.neoforged.moddev' version '2.0.141' apply false
+}
+
+
+// Vendored soft-dependency jars (Sodium inner jar, Simple Voice Chat, MCEF, Iris). The tree normally sits
+// at MinecraftMods/Source/libs three levels up; a worktree or checkout elsewhere can point at it with
+// -Pslate.libs=<dir>. Missing dir = soft deps simply do not compile (the modules guard every use).
+def slateLibsCandidates = [project.findProperty('slate.libs'), "${rootDir}/../../../libs", "C:/Users/leonr/Coding/MinecraftMods/Source/libs"]
+ext.slateLibsDir = slateLibsCandidates.findAll { it != null }.collect { file(it.toString()) }.find { it.isDirectory() } ?: file("${rootDir}/../../../libs")
+
+subprojects {
+    apply plugin: 'java'
+    apply plugin: 'net.neoforged.moddev'
+
+    version = rootProject.mod_version
+    group = rootProject.maven_group
+
+    repositories {
+        mavenCentral()
+        exclusiveContent {
+            forRepository { maven { name = 'Modrinth'; url = 'https://api.modrinth.com/maven' } }
+            filter { includeGroup 'maven.modrinth' }
+        }
+        maven { name = 'BlameJared'; url = 'https://maven.blamejared.com/' }
+    }
+
+    neoForge {
+        version = rootProject.neoforge_version
+    }
+
+    def targetJavaVersion = 21
+    tasks.withType(JavaCompile).configureEach {
+        it.options.encoding = 'UTF-8'
+        it.options.release = targetJavaVersion
+        // The common tree is shared with the Fabric build and must stay warning-clean on both.
+        it.options.compilerArgs.addAll(['-Xlint:-options'])
+    }
+    java {
+        def v = JavaVersion.toVersion(targetJavaVersion)
+        if (JavaVersion.current() < v) toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
+    }
+
+    // Shared source tree for this module (skipped for the dev runner, which has none).
+    def commonDir = file("${rootDir}/../common/${project.name}/src/main")
+    if (commonDir.exists()) {
+        sourceSets.main.java.srcDir "${commonDir}/java"
+        sourceSets.main.resources.srcDir "${commonDir}/resources"
+    }
+
+    processResources {
+        def props = ['version': project.version]
+        inputs.properties(props)
+        filesMatching('META-INF/neoforge.mods.toml') { expand props }
+        // The Fabric-only manifest lives in the shared resources; keep it out of the NeoForge jar.
+        exclude 'fabric.mod.json'
+    }
+
+    jar {
+        from(rootProject.file('../LICENSE')) { rename { "${it}_slate-${project.name}" } }
+    }
+}

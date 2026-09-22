@@ -1,0 +1,43 @@
+modLoader = "javafml"
+loaderVersion = "[1,)"
+license = "MIT"
+
+[[mods]]
+modId = "slate_config"
+version = "${version}"
+displayName = "Slate Config"
+authors = "falling_colud"
+logoFile = "assets/slate_config/icon.png"
+displayTest = "IGNORE_ALL_VERSION"
+description = '''Slate's unified settings: one themed screen for video (Sodium included), audio, controls, chat, interface, multiplayer and every installed mod's config, with search, favourites, presets and curated modpack pages.'''
+
+[[mixins]]
+config = "slate_config.mixins.json"
+
+[[dependencies.slate_config]]
+modId = "slate"
+type = "required"
+versionRange = "[1.0,)"
+ordering = "AFTER"
+side = "CLIENT"
+
+[[dependencies.slate_config]]
+modId = "neoforge"
+type = "required"
+versionRange = "[21.1,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.slate_config]]
+modId = "minecraft"
+type = "required"
+versionRange = "[1.21.1,1.22)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.slate_config]]
+modId = "sodium"
+type = "optional"
+versionRange = "[0.6,)"
+ordering = "AFTER"
+side = "CLIENT"

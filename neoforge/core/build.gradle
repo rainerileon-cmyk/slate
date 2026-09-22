@@ -1,0 +1,8 @@
+base { archivesName = 'slate-core-neoforge-1.21.1' }
+
+neoForge {
+    mods { slate { sourceSet sourceSets.main } }
+}
+
+dependencies {
+}

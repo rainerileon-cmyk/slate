@@ -1,0 +1,50 @@
+modLoader = "javafml"
+loaderVersion = "[1,)"
+license = "MIT"
+
+[[mods]]
+modId = "slate_multiplayer"
+version = "${version}"
+displayName = "Slate Multiplayer"
+authors = "falling_colud"
+logoFile = "assets/slate_multiplayer/icon.png"
+displayTest = "IGNORE_ALL_VERSION"
+description = '''Slate's social layer: friends and friend groups, presence, direct and group messages with images, GIFs and voice clips, invites, screen sharing, and Simple Voice Chat integration. Runs a social hub on any server that has it.'''
+
+[[mixins]]
+config = "slate_multiplayer.mixins.json"
+
+[[dependencies.slate_multiplayer]]
+modId = "slate"
+type = "required"
+versionRange = "[1.0,)"
+ordering = "AFTER"
+side = "BOTH"
+
+[[dependencies.slate_multiplayer]]
+modId = "neoforge"
+type = "required"
+versionRange = "[21.1,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.slate_multiplayer]]
+modId = "minecraft"
+type = "required"
+versionRange = "[1.21.1,1.22)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.slate_multiplayer]]
+modId = "voicechat"
+type = "optional"
+versionRange = "[1.21.1-2.6.0,)"
+ordering = "AFTER"
+side = "CLIENT"
+
+[[dependencies.slate_multiplayer]]
+modId = "mcef"
+type = "optional"
+versionRange = "[2.0,)"
+ordering = "AFTER"
+side = "CLIENT"

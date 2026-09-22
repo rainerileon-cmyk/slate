@@ -1,0 +1,11 @@
+base { archivesName = 'slate-chat-neoforge-1.21.1' }
+
+neoForge {
+    mods { slate_chat { sourceSet sourceSets.main } }
+}
+
+dependencies {
+    implementation project(':core')
+    implementation project(':multiplayer')
+    compileOnly fileTree(dir: rootProject.slateLibsDir, include: ['voicechat*.jar', 'mcef*.jar'])
+}

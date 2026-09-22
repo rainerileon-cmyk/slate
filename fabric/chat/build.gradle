@@ -1,0 +1,11 @@
+base { archivesName = 'slate-chat-fabric-1.21.1' }
+
+loom {
+    mods { slate_chat { sourceSet sourceSets.main } }
+}
+
+dependencies {
+    implementation project(path: ':core', configuration: 'namedElements')
+    implementation project(path: ':multiplayer', configuration: 'namedElements')
+    compileOnly fileTree(dir: rootProject.slateLibsDir, include: ['voicechat*.jar', 'mcef*.jar'])
+}

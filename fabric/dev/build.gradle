@@ -1,0 +1,26 @@
+// Dev runner: `./gradlew :dev:runClient` loads every module from the sibling projects' named jars.
+base { archivesName = 'slate-dev' }
+
+loom {
+    runs {
+        client {
+            client()
+            runDir 'run'
+        }
+        server {
+            server()
+            runDir 'run-server'
+        }
+    }
+}
+
+dependencies {
+    implementation project(path: ':core', configuration: 'namedElements')
+    implementation project(path: ':menu', configuration: 'namedElements')
+    implementation project(path: ':multiplayer', configuration: 'namedElements')
+    implementation project(path: ':chat', configuration: 'namedElements')
+    implementation project(path: ':config', configuration: 'namedElements')
+}
+
+tasks.named('jar') { enabled = false }
+tasks.named('remapJar') { enabled = false }

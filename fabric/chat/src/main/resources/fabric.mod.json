@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "slate_chat",
+  "version": "${version}",
+  "name": "Slate Chat",
+  "description": "Slate's in-game chat: channels for global, friends and groups, grouped messages with heads, images, GIFs, voice clips and video, emotes, mentions, history and search - the Chatterbox feature set in the Slate style.",
+  "authors": ["falling_colud"],
+  "license": "MIT",
+  "icon": "assets/slate_chat/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["dev.fallingcloud.slate.chat.fabric.SlateChatFabric"],
+    "client": ["dev.fallingcloud.slate.chat.fabric.SlateChatFabricClient"]
+  },
+  "mixins": ["slate_chat.mixins.json"],
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "minecraft": "~1.21.1",
+    "java": ">=21",
+    "fabric-api": "*",
+    "slate": ">=1.0.0",
+    "slate_multiplayer": ">=1.0.0"
+  },
+  "suggests": {
+    "voicechat": "*"
+  }
+}

@@ -1,0 +1,31 @@
+modLoader = "javafml"
+loaderVersion = "[1,)"
+license = "MIT"
+issueTrackerURL = "https://github.com/falling-colud/Slate/issues"
+
+[[mods]]
+modId = "slate"
+version = "${version}"
+displayName = "Slate"
+authors = "falling_colud"
+logoFile = "assets/slate/icon.png"
+# Never block joining: the suite is UI, and its network channels are optional.
+displayTest = "IGNORE_ALL_VERSION"
+description = '''The core of the Slate UI suite: the dark modern (and polished vanilla) theme, the widget toolkit, animations, the screen-layout dev mode, and the services every other Slate module builds on.'''
+
+[[mixins]]
+config = "slate.mixins.json"
+
+[[dependencies.slate]]
+modId = "neoforge"
+type = "required"
+versionRange = "[21.1,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.slate]]
+modId = "minecraft"
+type = "required"
+versionRange = "[1.21.1,1.22)"
+ordering = "NONE"
+side = "BOTH"

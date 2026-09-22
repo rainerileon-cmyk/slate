@@ -1,0 +1,12 @@
+.gradle/
+build/
+run/
+run-server/
+runs/
+*.iml
+.idea/
+out/
+eclipse/
+bin/
+*.log
+tools/__pycache__/

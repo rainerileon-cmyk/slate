@@ -1,0 +1,9 @@
+base { archivesName = 'slate-menu-neoforge-1.21.1' }
+
+neoForge {
+    mods { slate_menu { sourceSet sourceSets.main } }
+}
+
+dependencies {
+    implementation project(':core')
+}

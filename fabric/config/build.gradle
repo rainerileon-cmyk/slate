@@ -1,0 +1,11 @@
+base { archivesName = 'slate-config-fabric-1.21.1' }
+
+loom {
+    mods { slate_config { sourceSet sourceSets.main } }
+}
+
+dependencies {
+    implementation project(path: ':core', configuration: 'namedElements')
+    modCompileOnly "com.terraformersmc:modmenu:11.0.3"
+    compileOnly fileTree(dir: rootProject.slateLibsDir, include: ['sodium*.jar', 'iris*.jar'])
+}

@@ -1,0 +1,70 @@
+// Root of the Fabric build. Mirrors ../neoforge/build.gradle: every module is a loom subproject whose
+// main source set also includes ../common/<module>/src/main. Loom keeps one mapped Minecraft jar per
+// root project, so the subprojects share it.
+plugins {
+    id 'fabric-loom' version '1.17.14' apply false
+}
+
+
+// Vendored soft-dependency jars (Sodium inner jar, Simple Voice Chat, MCEF, Iris). The tree normally sits
+// at MinecraftMods/Source/libs three levels up; a worktree or checkout elsewhere can point at it with
+// -Pslate.libs=<dir>. Missing dir = soft deps simply do not compile (the modules guard every use).
+def slateLibsCandidates = [project.findProperty('slate.libs'), "${rootDir}/../../../libs", "C:/Users/leonr/Coding/MinecraftMods/Source/libs"]
+ext.slateLibsDir = slateLibsCandidates.findAll { it != null }.collect { file(it.toString()) }.find { it.isDirectory() } ?: file("${rootDir}/../../../libs")
+
+subprojects {
+    apply plugin: 'java'
+    apply plugin: 'fabric-loom'
+
+    version = rootProject.mod_version
+    group = rootProject.maven_group
+
+    repositories {
+        mavenCentral()
+        exclusiveContent {
+            forRepository { maven { name = 'Modrinth'; url = 'https://api.modrinth.com/maven' } }
+            filter { includeGroup 'maven.modrinth' }
+        }
+        maven { name = 'TerraformersMC'; url = 'https://maven.terraformersmc.com/releases/' }
+        maven { name = 'BlameJared'; url = 'https://maven.blamejared.com/' }
+    }
+
+    dependencies {
+        minecraft "com.mojang:minecraft:${rootProject.minecraft_version}"
+        mappings loom.officialMojangMappings()
+        modImplementation "net.fabricmc:fabric-loader:${rootProject.fabric_loader_version}"
+        modImplementation "net.fabricmc.fabric-api:fabric-api:${rootProject.fabric_api_version}"
+    }
+
+    def targetJavaVersion = 21
+    tasks.withType(JavaCompile).configureEach {
+        it.options.encoding = 'UTF-8'
+        it.options.release = targetJavaVersion
+        it.options.compilerArgs.addAll(['-Xlint:-options'])
+    }
+    java {
+        def v = JavaVersion.toVersion(targetJavaVersion)
+        if (JavaVersion.current() < v) toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
+    }
+
+    def commonDir = file("${rootDir}/../common/${project.name}/src/main")
+    if (commonDir.exists()) {
+        sourceSets.main.java.srcDir "${commonDir}/java"
+        sourceSets.main.resources.srcDir "${commonDir}/resources"
+    }
+
+    processResources {
+        def props = ['version': project.version]
+        inputs.properties(props)
+        filesMatching('fabric.mod.json') {
+            // escapeBackslash keeps \n escapes in the JSON intact (plain expand mangles them).
+            expand(props) { escapeBackslash = true }
+        }
+        // The NeoForge manifest lives in the shared resources; keep it out of the Fabric jar.
+        exclude 'META-INF/neoforge.mods.toml'
+    }
+
+    jar {
+        from(rootProject.file('../LICENSE')) { rename { "${it}_slate-${project.name}" } }
+    }
+}

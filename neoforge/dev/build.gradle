@@ -1,0 +1,41 @@
+// Dev runner: no sources of its own, just a client run with every module loaded.
+// `./gradlew :dev:runClient`
+evaluationDependsOn(':core')
+evaluationDependsOn(':menu')
+evaluationDependsOn(':multiplayer')
+evaluationDependsOn(':chat')
+evaluationDependsOn(':config')
+
+base { archivesName = 'slate-dev' }
+
+neoForge {
+    mods {
+        slate { sourceSet project(':core').sourceSets.main }
+        slate_menu { sourceSet project(':menu').sourceSets.main }
+        slate_multiplayer { sourceSet project(':multiplayer').sourceSets.main }
+        slate_chat { sourceSet project(':chat').sourceSets.main }
+        slate_config { sourceSet project(':config').sourceSets.main }
+    }
+    runs {
+        client {
+            client()
+            gameDirectory = file('run')
+        }
+        server {
+            server()
+            gameDirectory = file('run-server')
+            programArgument '--nogui'
+        }
+    }
+}
+
+dependencies {
+    implementation project(':core')
+    implementation project(':menu')
+    implementation project(':multiplayer')
+    implementation project(':chat')
+    implementation project(':config')
+}
+
+// Nothing to ship from here.
+tasks.named('jar') { enabled = false }
