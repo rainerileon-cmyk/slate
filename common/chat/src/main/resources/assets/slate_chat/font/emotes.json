@@ -1,0 +1,15 @@
+{
+  "providers": [
+    {
+      "type": "bitmap",
+      "file": "slate_chat:font/emotes.png",
+      "ascent": 7,
+      "height": 8,
+      "chars": [
+        "",
+        "",
+        ""
+      ]
+    }
+  ]
+}
