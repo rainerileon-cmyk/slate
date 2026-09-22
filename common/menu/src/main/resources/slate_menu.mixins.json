@@ -4,7 +4,13 @@
   "package": "dev.fallingcloud.slate.menu.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [],
-  "client": [],
+  "client": [
+    "DisconnectedScreenAccessor",
+    "JoinMultiplayerScreenAccessor",
+    "OptionsScreenAccessor",
+    "SelectWorldScreenAccessor",
+    "SplashRendererAccessor"
+  ],
   "injectors": {
     "defaultRequire": 1
   }
