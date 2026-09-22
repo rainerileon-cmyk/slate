@@ -8,7 +8,18 @@
     "MinecraftMixin",
     "ScreenMixin",
     "MouseHandlerMixin",
-    "KeyboardHandlerMixin"
+    "KeyboardHandlerMixin",
+    "AbstractWidgetMixin",
+    "AbstractButtonMixin",
+    "AbstractSliderButtonMixin",
+    "EditBoxMixin",
+    "CheckboxMixin",
+    "AbstractSelectionListMixin",
+    "ScreenBackgroundMixin",
+    "TooltipRenderUtilMixin",
+    "TabButtonMixin",
+    "TabNavigationBarMixin",
+    "TitleScreenMixin"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -11,7 +11,7 @@ import dev.fallingcloud.slate.core.theme.Palette;
 import dev.fallingcloud.slate.core.theme.Theme;
 import dev.fallingcloud.slate.core.widget.SlateBadge;
 import dev.fallingcloud.slate.core.widget.SlateSounds;
-import dev.fallingcloud.slate.core.widget.SlateWidget;
+import dev.fallingcloud.slate.core.widget.SlateTooltips;
 import dev.fallingcloud.slate.core.widget.popup.Popups;
 import java.util.ArrayList;
 import java.util.List;
@@ -27,14 +27,20 @@ import org.jetbrains.annotations.Nullable;
 /**
  * A screen with a left navigation column and a page area. The nav collapses to icons when the window is
  * narrow. Pages are {@link SidebarPage}s; switching rebuilds only the page widgets, with an entrance
- * animation. Used by the Config hub, the Multiplayer hub and Menu's options.
+ * animation. The page title sits at the top of the page area in the heading font, with room on the
+ * right for page-level actions ({@link #addPageAction}). Ctrl+Tab / Ctrl+Shift+Tab and Ctrl+1..9 switch
+ * pages; the last page is remembered per screen key. Used by the Config hub, the Multiplayer hub and
+ * Menu's options.
  */
 public abstract class SidebarScreen extends SlateScreen {
 
-    public static final int NAV_W = 118, NAV_W_NARROW = 30, ROW_H = 20;
+    public static final int NAV_W = 118, NAV_W_NARROW = 30, ROW_H = 20, NAV_TOP = 6;
+    /** Height of the page title row (title + page actions) above the page area. */
+    public static final int PAGE_TITLE_H = 22;
 
     private final List<SidebarPage> pages = new ArrayList<>();
     private final List<AbstractWidget> pageWidgets = new ArrayList<>();
+    private final List<AbstractWidget> pageActions = new ArrayList<>();
     private int current;
     private final Anim navHighlight = new Anim(0, 200, Ease.OUT_CUBIC);
     private int hoverRow = -1;
@@ -62,10 +68,16 @@ public abstract class SidebarScreen extends SlateScreen {
 
     public Rect navRect() { return new Rect(0, HEADER_H, navWidth(), height - HEADER_H); }
 
-    /** Where pages build their widgets. */
+    /** The row holding the page title and the page actions. */
+    public Rect pageTitleRect() {
+        return new Rect(navWidth() + PAD, HEADER_H + 6, width - navWidth() - PAD * 2, PAGE_TITLE_H);
+    }
+
+    /** Where pages build their widgets (below the title row). */
     public Rect pageRect() {
-        final Rect c = contentRect();
-        return new Rect(navWidth() + PAD, c.y() + 4, width - navWidth() - PAD * 2, c.h() - 4);
+        final Rect t = pageTitleRect();
+        final int top = t.bottom() + 6;
+        return new Rect(t.x(), top, t.w(), height - top - PAD);
     }
 
     @Override
@@ -74,6 +86,7 @@ public abstract class SidebarScreen extends SlateScreen {
         if (current >= pages.size()) current = 0;
         navHighlight.snap(current);
         pageWidgets.clear();
+        pageActions.clear();
         final SidebarPage page = currentPage();
         if (page != null) page.build(this, pageRect());
     }
@@ -84,13 +97,31 @@ public abstract class SidebarScreen extends SlateScreen {
         return addRenderableWidget(widget);
     }
 
+    /** Adds a widget to the right end of the page title row (right-to-left). Removed with the page. */
+    public <T extends AbstractWidget> T addPageAction(final T widget) {
+        final Rect t = pageTitleRect();
+        int x = t.right();
+        for (final AbstractWidget a : pageActions) x = a.getX();
+        widget.setX(x - widget.getWidth() - (pageActions.isEmpty() ? 0 : 4));
+        widget.setY(t.y() + (t.h() - widget.getHeight()) / 2);
+        pageActions.add(widget);
+        pageWidgets.add(widget);
+        addRenderableWidget(widget);
+        return widget;
+    }
+
+    private void tearDownPage() {
+        for (final AbstractWidget w : pageWidgets) removeWidget(w);
+        pageWidgets.clear();
+        pageActions.clear();
+    }
+
     public void showPage(final int index) {
         if (index < 0 || index >= pages.size() || index == current) return;
         final SidebarPage old = currentPage();
         if (old != null) old.onHide();
         Popups.closeAll();
-        for (final AbstractWidget w : pageWidgets) removeWidget(w);
-        pageWidgets.clear();
+        tearDownPage();
         current = index;
         LAST_PAGE.put(rememberKey, index);
         navHighlight.set(index);
@@ -98,7 +129,7 @@ public abstract class SidebarScreen extends SlateScreen {
         final SidebarPage page = currentPage();
         if (page != null) page.build(this, pageRect());
         int i = 0;
-        for (final AbstractWidget w : pageWidgets) if (w instanceof SlateWidget sw) sw.playEntrance(Math.min(160, i++ * 14));
+        for (final AbstractWidget w : pageWidgets) i = entrance(w, i);
         setFocused(null);
     }
 
@@ -108,8 +139,7 @@ public abstract class SidebarScreen extends SlateScreen {
 
     /** Rebuild the current page in place (after a data change). */
     public void refreshPage() {
-        for (final AbstractWidget w : pageWidgets) removeWidget(w);
-        pageWidgets.clear();
+        tearDownPage();
         final SidebarPage page = currentPage();
         if (page != null) page.build(this, pageRect());
     }
@@ -130,8 +160,8 @@ public abstract class SidebarScreen extends SlateScreen {
 
     private int rowAt(final double mx, final double my) {
         final Rect nav = navRect();
-        if (!nav.contains(mx, my)) return -1;
-        final int i = (int) ((my - nav.y() - 6) / ROW_H);
+        if (!nav.contains(mx, my) || my < nav.y() + NAV_TOP) return -1;
+        final int i = (int) ((my - nav.y() - NAV_TOP) / ROW_H);
         return i >= 0 && i < pages.size() ? i : -1;
     }
 
@@ -146,10 +176,13 @@ public abstract class SidebarScreen extends SlateScreen {
 
     @Override
     public boolean keyPressed(final int keyCode, final int scanCode, final int modifiers) {
-        // Ctrl+Tab / Ctrl+Shift+Tab cycle pages.
-        if (keyCode == 258 && hasControlDown()) {
-            showPage(((current + (hasShiftDown() ? -1 : 1)) % pages.size() + pages.size()) % pages.size());
-            return true;
+        if (!pages.isEmpty() && hasControlDown()) {
+            // Ctrl+Tab / Ctrl+Shift+Tab cycle pages; Ctrl+1..9 jump.
+            if (keyCode == 258) {
+                showPage(((current + (hasShiftDown() ? -1 : 1)) % pages.size() + pages.size()) % pages.size());
+                return true;
+            }
+            if (keyCode >= 49 && keyCode <= 57 && keyCode - 49 < pages.size()) { showPage(keyCode - 49); return true; }
         }
         return super.keyPressed(keyCode, scanCode, modifiers);
     }
@@ -159,6 +192,7 @@ public abstract class SidebarScreen extends SlateScreen {
         hoverRow = rowAt(mouseX, mouseY);
         renderBackground(g, mouseX, mouseY, partialTick);
         renderNav(g, mouseX, mouseY);
+        renderPageTitle(g);
         final SidebarPage page = currentPage();
         if (page != null) page.render(this, g, pageRect(), mouseX, mouseY, partialTick);
         for (final Renderable r : renderableList()) r.render(g, mouseX, mouseY, partialTick);
@@ -179,8 +213,8 @@ public abstract class SidebarScreen extends SlateScreen {
             SlateDraw.vline(g, nav.right() - 1, nav.y(), nav.h(), p.border());
         }
         // Sliding highlight
-        final float s = navHighlight.get();
-        final int hy = nav.y() + 6 + Math.round(s * ROW_H);
+        final float s = Math.max(0, Math.min(Math.max(0, pages.size() - 1), navHighlight.get()));
+        final int hy = nav.y() + NAV_TOP + Math.round(s * ROW_H);
         if (t.isVanilla()) {
             g.fill(nav.x() + 3, hy, nav.right() - 4, hy + ROW_H, 0x60FFFFFF);
             SlateDraw.outline(g, nav.x() + 3, hy, nav.w() - 7, ROW_H, 0xFFFFFFFF, 0);
@@ -190,23 +224,34 @@ public abstract class SidebarScreen extends SlateScreen {
         }
         for (int i = 0; i < pages.size(); i++) {
             final SidebarPage page = pages.get(i);
-            final int ry = nav.y() + 6 + i * ROW_H;
+            final int ry = nav.y() + NAV_TOP + i * ROW_H;
             final boolean sel = i == current, hov = i == hoverRow;
             if (hov && !sel && !t.isVanilla()) SlateDraw.pixelRound(g, nav.x() + 4, ry, nav.w() - 8, ROW_H, p.surfaceHover(), t.radius());
             final int fg = sel ? p.text() : hov ? p.textMuted() : (t.isVanilla() ? 0xFFC0C0C0 : p.textDim());
-            Icons.draw(g, page.icon(), nav.x() + 10, ry + (ROW_H - 12) / 2, 12, sel && !t.isVanilla() ? p.accent() : fg);
+            final int ix = icons ? nav.x() + (nav.w() - 12) / 2 : nav.x() + 10;
+            Icons.draw(g, page.icon(), ix, ry + (ROW_H - 12) / 2, 12, sel && !t.isVanilla() ? p.accent() : fg);
             if (!icons) {
-                g.drawString(font, SlateDraw.truncate(page.title(), nav.w() - 40), nav.x() + 26, ry + (ROW_H - 9) / 2 + 1, fg, t.isVanilla());
-                if (page.badge() > 0) SlateBadge.drawCount(g, page.badge(), nav.right() - 18, ry + (ROW_H - 10) / 2);
-            } else if (page.badge() > 0) {
-                SlateDraw.rect(g, nav.x() + 20, ry + 3, 3, 3, p.accent());
+                final int badgeW = page.badge() > 0 ? 24 : 0;
+                g.drawString(font, SlateDraw.truncate(page.title(), nav.w() - 32 - badgeW), nav.x() + 26, SlateDraw.textY(ry, ROW_H), fg, t.isVanilla());
+                if (page.badge() > 0) SlateBadge.drawCount(g, page.badge(), nav.right() - 20, ry + (ROW_H - 10) / 2);
+            } else {
+                if (page.badge() > 0) SlateDraw.pixelCircle(g, nav.right() - 8, ry + 5, 1, p.accent());
+                if (hov) SlateTooltips.request(page.title(), null);
             }
         }
-        // Page title in the content area
+    }
+
+    /** The current page's title in the heading font, at the top of the page area. */
+    protected void renderPageTitle(final GuiGraphics g) {
         final SidebarPage page = currentPage();
-        if (page != null && !t.isVanilla()) {
-            final Rect pr = pageRect();
-            g.drawString(font, Fonts.heading(page.title()), pr.x(), HEADER_H - 22, Colors.withAlpha(p.textDim(), 0), false);
-        }
+        if (page == null) return;
+        final Theme t = Theme.current();
+        final Palette p = t.palette();
+        final Rect r = pageTitleRect();
+        int right = r.right();
+        for (final AbstractWidget a : pageActions) right = Math.min(right, a.getX() - 8);
+        g.drawString(font, SlateDraw.truncate(Fonts.heading(page.title()), right - r.x()), r.x(), SlateDraw.textY(r.y(), r.h()),
+            t.isVanilla() ? 0xFFFFFFFF : p.text(), t.isVanilla());
+        SlateDraw.hline(g, r.x(), r.bottom() + 2, r.w(), t.isVanilla() ? 0xFF6F6F6F : Colors.withAlpha(p.border(), 0xC0));
     }
 }

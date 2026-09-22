@@ -1,7 +1,6 @@
 package dev.fallingcloud.slate.core.widget;
 
 import com.mojang.authlib.GameProfile;
-import com.mojang.blaze3d.systems.RenderSystem;
 import dev.fallingcloud.slate.core.gfx.SlateDraw;
 import dev.fallingcloud.slate.core.theme.Colors;
 import dev.fallingcloud.slate.core.theme.Theme;
@@ -9,7 +8,6 @@ import java.util.UUID;
 import java.util.function.Supplier;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.PlayerFaceRenderer;
 import net.minecraft.client.resources.DefaultPlayerSkin;
 import net.minecraft.client.resources.PlayerSkin;
 import net.minecraft.network.chat.Component;
@@ -40,6 +38,8 @@ public class SlateAvatar extends SlateWidget {
 
     public SlateAvatar status(final Status s) { this.status = s; return this; }
 
+    public Status status() { return status; }
+
     public SlateAvatar onClick(final Runnable r) { this.onClick = r; this.active = r != null; return this; }
 
     @Override
@@ -49,9 +49,26 @@ public class SlateAvatar extends SlateWidget {
     }
 
     @Override
+    public boolean keyPressed(final int keyCode, final int scanCode, final int modifiers) {
+        if (this.active && onClick != null && (keyCode == 257 || keyCode == 32 || keyCode == 335)) { flashPress(); onClick.run(); return true; }
+        return false;
+    }
+
+    @Override
+    public net.minecraft.client.gui.ComponentPath nextFocusPath(final net.minecraft.client.gui.navigation.FocusNavigationEvent event) {
+        return onClick == null ? null : super.nextFocusPath(event);
+    }
+
+    @Override
     protected void renderDark(final GuiGraphics g, final int mouseX, final int mouseY, final float partialTick) {
-        draw(g, skin.get(), getX(), getY(), getWidth(), status, effectiveAlpha());
-        if (onClick != null && hover() > 0.01f) SlateDraw.outline(g, getX() - 1, getY() - 1, getWidth() + 2, getWidth() + 2, Colors.scaleAlpha(Theme.current().accent(), hover()), 1);
+        final float a = effectiveAlpha();
+        if (a <= 0.004f) return;
+        final int x = getX(), y = getY() + enterOffset(), s = getWidth();
+        draw(g, skin.get(), x, y, s, status, a);
+        if (onClick != null) {
+            final float lift = Math.max(hover(), focus());
+            if (lift > 0.01f) SlateDraw.outline(g, x - 1, y - 1, s + 2, s + 2, Colors.scaleAlpha(Theme.current().accent(), lift * a), 1);
+        }
     }
 
     @Override
@@ -73,22 +90,23 @@ public class SlateAvatar extends SlateWidget {
     }
 
     public static void draw(final GuiGraphics g, final ResourceLocation skinTexture, final int x, final int y, final int size, final Status status, final float alpha) {
-        RenderSystem.enableBlend();
-        g.setColor(1, 1, 1, alpha);
-        PlayerFaceRenderer.draw(g, skinTexture, x, y, size);
-        g.setColor(1, 1, 1, 1);
-        RenderSystem.disableBlend();
+        SlateDraw.playerHead(g, skinTexture, x, y, size, alpha);
         if (status != Status.NONE) {
             final int d = Math.max(3, size / 4);
-            final int c = switch (status) {
-                case ONLINE -> Theme.current().palette().success();
-                case AWAY -> Theme.current().palette().warning();
-                case BUSY -> Theme.current().palette().danger();
-                default -> Theme.current().palette().textDim();
-            };
+            final int c = statusColor(status);
             final int dx = x + size - d, dy = y + size - d;
+            // A 1 px gap in the background colour separates the dot from the face.
             g.fill(dx - 1, dy - 1, dx + d + 1, dy + d + 1, Colors.scaleAlpha(Theme.current().bg(), alpha));
             g.fill(dx, dy, dx + d, dy + d, Colors.scaleAlpha(c, alpha));
         }
+    }
+
+    public static int statusColor(final Status status) {
+        return switch (status) {
+            case ONLINE -> Theme.current().palette().success();
+            case AWAY -> Theme.current().palette().warning();
+            case BUSY -> Theme.current().palette().danger();
+            default -> Theme.current().palette().textDim();
+        };
     }
 }

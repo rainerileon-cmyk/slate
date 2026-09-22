@@ -2,14 +2,16 @@ package dev.fallingcloud.slate.core.screen;
 
 import dev.fallingcloud.slate.core.Slate;
 import dev.fallingcloud.slate.core.config.CoreConfig;
+import dev.fallingcloud.slate.core.theme.Theme;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import org.jetbrains.annotations.Nullable;
 
 /**
  * Scope rules for the generic restyle of vanilla widgets, backgrounds, lists and tooltips. The actual
- * drawing lives in the {@code core.mixin} widget mixins and {@code core.screen.reskin} helpers; they
- * all ask {@link #active()} first. Container screens (inventories, chests, JEI, ...) are never touched.
+ * drawing lives in the {@code core.mixin} widget mixins and the {@code core.screen.reskin} helpers; they
+ * all ask {@link #active()} first ({@link #dark()} for the dark-only replacements). Container screens
+ * (inventories, chests, JEI, ...) are never touched.
  */
 public final class Reskin {
 
@@ -24,6 +26,16 @@ public final class Reskin {
         cachedScreen = s;
         cachedResult = inScope(s);
         return cachedResult;
+    }
+
+    /** {@link #active()} and the dark skin is on: vanilla drawing gets replaced by Slate's. */
+    public static boolean dark() {
+        return !Theme.current().isVanilla() && active();
+    }
+
+    /** {@link #active()} and the vanilla skin is on: vanilla sprites stay, only motion is added. */
+    public static boolean vanillaMotion() {
+        return Theme.current().isVanilla() && active();
     }
 
     public static boolean inScope(@Nullable final Screen s) {

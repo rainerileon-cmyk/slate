@@ -16,14 +16,18 @@ import org.jetbrains.annotations.Nullable;
 
 /**
  * A text field on top of vanilla's {@link EditBox} (cursor, selection, clipboard, scrolling all inherited).
- * The EditBox runs unbordered and this class draws the frame, placeholder, leading icon and clear button
- * around it. The frame is {@code PAD} pixels larger than the EditBox on every side; hit-testing is expanded
- * to match so clicks in the padding still focus the field.
+ *
+ * <p>The widget rectangle IS the frame: {@code getX/getY/getWidth/getHeight} describe the drawn box, so
+ * layout containers (Flow, scroll panels, cards, modals) move and size it like any other widget. The
+ * EditBox runs unbordered and its text is shifted into the padded slot by translating the pose while it
+ * renders (and un-shifting mouse coordinates), which keeps vanilla's cursor, selection and scrolling
+ * logic untouched. Inner width = frame width minus padding, icon and clear button.</p>
  */
 public class SlateTextField extends EditBox {
 
     public static final int HEIGHT = 20;
-    private static final int PAD_X = 6, PAD_Y = 5;
+    private static final int PAD_X = 6;
+    private static final int ICON_SLOT = 16, CLEAR_SLOT = 12;
 
     private final Anim focusAnim = new Anim(0, 160, Ease.OUT_CUBIC);
     private final Anim hoverAnim = new Anim(0, 140, Ease.OUT_CUBIC);
@@ -33,14 +37,12 @@ public class SlateTextField extends EditBox {
     private boolean invalid;
     private Runnable onEnter;
     private Runnable onEscape;
-    private final int frameX, frameY, frameW, frameH;
 
     /**
-     * @param x,y,width,height the FRAME rectangle (the EditBox sits inside it)
+     * @param x,y,width,height the FRAME rectangle (the text sits inside it)
      */
     public SlateTextField(final int x, final int y, final int width, final int height, final Component narration) {
-        super(SlateDraw.font(), x + PAD_X, y + PAD_Y, Math.max(1, width - PAD_X * 2), Math.max(1, height - PAD_Y * 2), narration);
-        this.frameX = x; this.frameY = y; this.frameW = width; this.frameH = height;
+        super(SlateDraw.font(), x, y, Math.max(1, width), Math.max(1, height), narration);
         setBordered(false);
         setMaxLength(256);
         setTextColor(Theme.current().text());
@@ -52,13 +54,9 @@ public class SlateTextField extends EditBox {
 
     public SlateTextField placeholder(final Component text) { this.placeholder = text; return this; }
 
-    public SlateTextField icon(@Nullable final Icon icon) {
-        this.icon = icon;
-        relayout();
-        return this;
-    }
+    public SlateTextField icon(@Nullable final Icon icon) { this.icon = icon; return this; }
 
-    public SlateTextField clearButton(final boolean on) { this.clearButton = on; relayout(); return this; }
+    public SlateTextField clearButton(final boolean on) { this.clearButton = on; return this; }
 
     public SlateTextField onChange(final Consumer<String> responder) { setResponder(responder); return this; }
 
@@ -73,24 +71,42 @@ public class SlateTextField extends EditBox {
     /** Red frame while true (validation). */
     public void setInvalid(final boolean invalid) { this.invalid = invalid; }
 
-    private void relayout() {
-        final int left = icon == null ? 0 : 16;
-        final int right = clearButton ? 14 : 0;
-        setX(frameX + PAD_X + left);
-        setWidth(Math.max(1, frameW - PAD_X * 2 - left - right));
+    public boolean isInvalid() { return invalid; }
+
+    // The frame is the widget rect; these stay for callers written against the old API.
+    public int frameX() { return getX(); }
+    public int frameY() { return getY(); }
+    public int frameWidth() { return getWidth(); }
+    public int frameHeight() { return getHeight(); }
+
+    private int leftInset() { return PAD_X + (icon == null ? 0 : ICON_SLOT); }
+
+    private int rightInset() { return PAD_X + (clearButton ? CLEAR_SLOT : 0); }
+
+    /** Y shift that centres the 9 px text line in the frame. */
+    private int textDy() { return (getHeight() - 9) / 2 + 1; }
+
+    /** Width available to the text: vanilla reads this for display scrolling and click-to-cursor. */
+    @Override
+    public int getInnerWidth() {
+        return Math.max(1, getWidth() - leftInset() - rightInset());
     }
 
-    public int frameX() { return frameX; }
-    public int frameY() { return frameY; }
-    public int frameWidth() { return frameW; }
-    public int frameHeight() { return frameH; }
-
-    private boolean inFrame(final double mx, final double my) {
-        return mx >= frameX && mx < frameX + frameW && my >= frameY && my < frameY + frameH;
+    @Override
+    public int getScreenX(final int charNum) {
+        return super.getScreenX(charNum) + leftInset();
     }
 
     private boolean onClear(final double mx, final double my) {
-        return clearButton && !getValue().isEmpty() && mx >= frameX + frameW - 16 && mx < frameX + frameW && my >= frameY && my < frameY + frameH;
+        return clearButton && !getValue().isEmpty()
+            && mx >= getX() + getWidth() - PAD_X - CLEAR_SLOT && mx < getX() + getWidth()
+            && my >= getY() && my < getY() + getHeight();
+    }
+
+    @Override
+    public void onClick(final double mouseX, final double mouseY) {
+        // Vanilla maps mouseX - getX() to a character; shift it by the text slot's left edge.
+        super.onClick(mouseX - leftInset(), mouseY);
     }
 
     @Override
@@ -98,27 +114,15 @@ public class SlateTextField extends EditBox {
         if (!this.visible || !this.active) return false;
         if (button == 0 && onClear(mouseX, mouseY)) {
             setValue("");
-            setFocused(true);
             SlateSounds.tick();
-            return true;
-        }
-        if (button == 0 && inFrame(mouseX, mouseY) && !super.isMouseOver(mouseX, mouseY)) {
-            // Padding click: focus and put the cursor at the end.
-            setFocused(true);
-            moveCursorToEnd(false);
-            return true;
+            return true;                       // consumed: the screen focuses this field
         }
         return super.mouseClicked(mouseX, mouseY, button);
     }
 
     @Override
-    public boolean isMouseOver(final double mouseX, final double mouseY) {
-        return this.active && this.visible && inFrame(mouseX, mouseY);
-    }
-
-    @Override
     public boolean keyPressed(final int keyCode, final int scanCode, final int modifiers) {
-        if (isFocused()) {
+        if (isFocused() && this.active) {
             if ((keyCode == 257 || keyCode == 335) && onEnter != null) { onEnter.run(); return true; }
             if (keyCode == 256 && onEscape != null) { onEscape.run(); return true; }
         }
@@ -130,30 +134,37 @@ public class SlateTextField extends EditBox {
         if (!this.visible) return;
         final Theme t = Theme.current();
         final Palette p = t.palette();
-        final boolean hovered = inFrame(mouseX, mouseY);
+        final int x = getX(), y = getY(), w = getWidth(), h = getHeight();
+        final boolean hovered = this.active && this.isHovered() && g.containsPointInScissor(mouseX, mouseY);
         hoverAnim.set(hovered);
         focusAnim.set(isFocused());
         final float foc = focusAnim.get(), hov = hoverAnim.get();
 
         if (t.isVanilla()) {
-            SlateDraw.vanillaTextField(g, frameX, frameY, frameW, frameH, isFocused());
-            if (invalid) SlateDraw.outline(g, frameX, frameY, frameW, frameH, p.danger(), 0);
-            setTextColor(0xFFE0E0E0);
+            SlateDraw.vanillaTextField(g, x, y, w, h, isFocused());
+            if (invalid) SlateDraw.outline(g, x, y, w, h, p.danger(), 0);
+            setTextColor(this.active ? 0xFFE0E0E0 : 0xFFA0A0A0);
         } else {
-            final int fill = Colors.lerp(Colors.lerp(p.bg2(), p.surface(), hov), p.surface(), foc);
-            final int border = invalid ? p.danger() : Colors.lerp(Colors.lerp(p.border(), p.borderStrong(), hov), p.accent(), foc);
-            SlateDraw.pixelRound(g, frameX, frameY, frameW, frameH, fill, t.radius());
-            SlateDraw.outline(g, frameX, frameY, frameW, frameH, border, t.radius());
-            setTextColor(p.text());
+            int fill = Colors.lerp(Colors.lerp(p.bg2(), p.surface(), hov), p.surface(), foc);
+            int border = invalid ? p.danger() : Colors.lerp(Colors.lerp(p.border(), p.borderStrong(), hov), p.accent(), foc);
+            if (!this.active) { fill = Colors.withAlpha(p.bg2(), 0x80); border = Colors.withAlpha(p.border(), 0x80); }
+            SlateDraw.pixelRound(g, x, y, w, h, fill, t.radius());
+            SlateDraw.outline(g, x, y, w, h, border, t.radius());
+            setTextColor(this.active ? p.text() : p.textDim());
         }
-        if (icon != null) Icons.draw(g, icon, frameX + PAD_X, frameY + (frameH - 12) / 2, 12, Colors.lerp(p.textDim(), p.textMuted(), foc));
+        if (icon != null) Icons.draw(g, icon, x + PAD_X, y + (h - 12) / 2, 12, Colors.lerp(p.textDim(), p.textMuted(), Math.max(foc, hov)));
         if (clearButton && !getValue().isEmpty()) {
             final boolean over = onClear(mouseX, mouseY);
-            Icons.draw(g, Icon.CLOSE, frameX + frameW - 14, frameY + (frameH - 8) / 2, 8, over ? p.text() : p.textDim());
+            Icons.draw(g, Icon.CLOSE, x + w - PAD_X - 10, y + (h - 8) / 2, 8, over ? p.text() : p.textDim());
         }
+        // Vanilla draws the text at (getX(), getY()) when unbordered: shift it into the padded slot.
+        final int dx = leftInset(), dy = textDy();
+        g.pose().pushPose();
+        g.pose().translate(dx, dy, 0);
         if (placeholder != null && getValue().isEmpty() && !isFocused()) {
-            g.drawString(SlateDraw.font(), SlateDraw.truncate(placeholder, getWidth()), getX(), getY(), p.textDim(), false);
+            g.drawString(SlateDraw.font(), SlateDraw.truncate(placeholder, getInnerWidth()), x, y, p.textDim(), false);
         }
-        super.renderWidget(g, mouseX, mouseY, partialTick);
+        super.renderWidget(g, mouseX - dx, mouseY - dy, partialTick);
+        g.pose().popPose();
     }
 }

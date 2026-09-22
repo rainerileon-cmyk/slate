@@ -19,8 +19,15 @@ import org.jetbrains.annotations.Nullable;
  *
  * <p>Works inside any vanilla {@code Screen} (it is an {@code AbstractWidget}), so modules can mix Slate
  * widgets into screens they only partially own.</p>
+ *
+ * <p>Entrance: {@link #playEntrance(int)} fades and slides the widget in after a real delay (not a
+ * longer tween), so screens get a true stagger. With {@code Theme.motion() == 0} nothing moves and the
+ * widget is drawn in place immediately.</p>
  */
 public abstract class SlateWidget extends AbstractWidget {
+
+    /** Entrance slide distance in px (the widget starts this far below its rest position). */
+    public static final int ENTER_SLIDE = 6;
 
     protected final Anim hoverAnim = new Anim(0, 140, Ease.OUT_CUBIC);
     protected final Anim pressAnim = new Anim(0, 90, Ease.OUT_CUBIC);
@@ -31,6 +38,8 @@ public abstract class SlateWidget extends AbstractWidget {
     private long hoverSinceMs;
     private boolean pressed;
     private boolean silent;
+    /** Wall time at which a pending entrance starts (0 = nothing pending). */
+    private long enterStartMs;
 
     protected SlateWidget(final int x, final int y, final int width, final int height, final Component message) {
         super(x, y, width, height, message);
@@ -40,7 +49,7 @@ public abstract class SlateWidget extends AbstractWidget {
 
     /** Slate tooltip (drawn by {@link SlateTooltips} after the screen). */
     public SlateWidget tip(final Component tooltip) {
-        this.tip = tooltip == null ? null : List.of(tooltip);
+        this.tip = tooltip == null || tooltip.getString().isEmpty() ? null : List.of(tooltip);
         return this;
     }
 
@@ -52,10 +61,15 @@ public abstract class SlateWidget extends AbstractWidget {
     @Nullable
     public List<Component> tipLines() { return tip; }
 
-    /** Start an entrance fade/slide from 0 (used by screens for staggered appearance). */
+    /**
+     * Start an entrance fade/slide from 0 after {@code delayMs} (used by screens for staggered
+     * appearance). Honours {@code Theme.motion()}: 0 shows the widget immediately.
+     */
     public void playEntrance(final int delayMs) {
+        final float motion = Theme.current().motion();
+        if (motion <= 0) { enterAnim.snap(1); enterStartMs = 0; return; }
         enterAnim.snap(0);
-        enterAnim.set(1f, Theme.current().ms(220) + delayMs);
+        enterStartMs = Clock.nowMs() + Math.max(0, Math.round(delayMs * motion));
     }
 
     /** No click sound. */
@@ -74,25 +88,39 @@ public abstract class SlateWidget extends AbstractWidget {
 
     public float focus() { return focusAnim.get(); }
 
+    /** 0..1 entrance progress; starts the tween once its delay has elapsed. */
+    protected float enterProgress() {
+        if (enterStartMs != 0) {
+            if (Theme.current().motion() <= 0) { enterStartMs = 0; enterAnim.snap(1); return 1f; }
+            if (Clock.nowMs() < enterStartMs) return 0f;
+            enterStartMs = 0;
+            enterAnim.set(1f, 220);
+        }
+        return Math.min(1f, Math.max(0f, enterAnim.get()));
+    }
+
     /** Combined alpha: the widget's own alpha times the entrance animation. */
-    public float effectiveAlpha() { return alpha * Math.min(1f, enterAnim.get()); }
+    public float effectiveAlpha() { return alpha * enterProgress(); }
 
     /** Pixel offset for the entrance slide (6 px -> 0). */
-    protected int enterOffset() { return Math.round((1f - Math.min(1f, enterAnim.get())) * 6f); }
+    protected int enterOffset() { return Math.round((1f - enterProgress()) * ENTER_SLIDE); }
 
     protected boolean isPressed() { return pressed; }
+
+    /** True while the entrance animation is still running (screens use it to skip hover sounds etc.). */
+    public boolean isEntering() { return enterStartMs != 0 || enterAnim.isAnimating(); }
 
     // ------------------------------------------------------------------ rendering
 
     @Override
     protected final void renderWidget(final GuiGraphics g, final int mouseX, final int mouseY, final float partialTick) {
-        final boolean hovered = this.active && this.isHovered();
+        final boolean hovered = this.active && this.isHovered() && g.containsPointInScissor(mouseX, mouseY);
         hoverAnim.set(hovered);
         focusAnim.set(this.active && this.isFocused() && !hovered);
         pressAnim.set(pressed && hovered);
         if (hovered) {
             if (hoverSinceMs == 0) hoverSinceMs = Clock.nowMs();
-            if (tip != null && Clock.nowMs() - hoverSinceMs > 350) SlateTooltips.request(tip, this);
+            if (tip != null && Clock.nowMs() - hoverSinceMs > SlateTooltips.DELAY_MS) SlateTooltips.request(tip, this);
         } else {
             hoverSinceMs = 0;
         }
@@ -126,6 +154,12 @@ public abstract class SlateWidget extends AbstractWidget {
     @Override
     public void playDownSound(final SoundManager handler) {
         if (!silent) SlateSounds.click(handler);
+    }
+
+    /** Flash the press state (keyboard activation feedback). */
+    protected void flashPress() {
+        pressAnim.snap(1);
+        pressAnim.set(0);
     }
 
     @Override
