@@ -1,0 +1,25 @@
+{
+  "name": "Quality",
+  "description": "Long distances, fancy everything. Looks first.",
+  "values": {
+    "optionsTxt:renderDistance": 16,
+    "optionsTxt:simulationDistance": 12,
+    "optionsTxt:graphicsMode": "FANCY",
+    "optionsTxt:renderClouds": "FANCY",
+    "optionsTxt:particles": "ALL",
+    "optionsTxt:entityShadows": true,
+    "optionsTxt:entityDistanceScaling": 1.0,
+    "optionsTxt:biomeBlendRadius": 5,
+    "optionsTxt:mipmapLevels": 4,
+    "optionsTxt:ao": true,
+    "optionsTxt:enableVsync": true,
+    "optionsTxt:maxFps": 260,
+    "sodium:quality.weather": "DEFAULT",
+    "sodium:quality.leaves": "DEFAULT",
+    "sodium:quality.vignette": true,
+    "sodium:performance.use_fog_occlusion": true,
+    "sodium:performance.use_entity_culling": true,
+    "sodium:performance.use_block_face_culling": true,
+    "sodium:performance.animate_only_visible_textures": true
+  }
+}

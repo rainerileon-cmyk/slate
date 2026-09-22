@@ -1,0 +1,102 @@
+{
+  "id": "df",
+  "title": "DF pack",
+  "icon": "SPARKLE",
+  "sections": [
+    {
+      "title": "Visuals",
+      "description": "The look of the world: distance, clouds, fog, sky, wind and leaves.",
+      "options": [
+        { "path": "optionsTxt:renderDistance", "label": "Render distance", "tooltip": "How many chunks of real terrain are loaded around you. Voxy draws the far distance beyond this." },
+        { "path": "optionsTxt:graphicsMode", "label": "Graphics", "tooltip": "Fast, Fancy or Fabulous. Fabulous is not needed with shaders." },
+        { "path": "json:config/betterclouds-v1.json:/enabled", "label": "Better Clouds", "tooltip": "Volumetric clouds instead of vanilla's flat layer." },
+        { "path": "json:config/betterclouds-v1.json:/distance", "label": "Cloud distance", "tooltip": "How far the cloud layer is drawn, as a multiple of your render distance.", "min": 1, "max": 16, "step": 0.5 },
+        { "path": "json:config/betterclouds-v1.json:/sparsity", "label": "Cloud gaps", "tooltip": "Higher values punch more holes into the cloud layer.", "min": 0, "max": 1, "step": 0.05 },
+        { "path": "json:config/betterclouds-v1.json:/travelSpeed", "label": "Cloud speed", "tooltip": "How fast clouds drift across the sky.", "min": 0, "max": 0.1, "step": 0.005 },
+        { "path": "json:config/betterfog/better_fog.json:/enabled", "label": "Better Fog", "tooltip": "Fog that follows time of day, weather, caves and biomes." },
+        { "path": "json:config/betterfog/better_fog.json:/fog_haze", "label": "Fog haze", "tooltip": "Extra distant haze on top of the fog curve.", "min": 0, "max": 1, "step": 0.05 },
+        { "path": "json:config/betterfog/better_fog.json:/noise_amount", "label": "Fog noise", "tooltip": "Drifting density variation in the fog. 0 keeps it uniform.", "min": 0, "max": 1, "step": 0.05 },
+        { "path": "json:config/auroras/overworld.json:/pixelStyle", "label": "Pixel-style auroras", "tooltip": "Auroras drawn in chunky pixels instead of smooth bands." },
+        { "path": "json:config/auroras/overworld.json:/auroraDetail", "label": "Aurora detail", "tooltip": "Segments per aurora band. Higher is smoother and costlier.", "min": 50, "max": 400, "step": 10 },
+        { "path": "toml:betternight:betternight-client.toml:general.enabled", "label": "Better Night", "tooltip": "Darker nights that follow the moon phase and weather." },
+        { "path": "toml:betternight:betternight-client.toml:general.preset", "label": "Night darkness", "tooltip": "How dark nights get. Custom means you tuned the individual values." },
+        { "path": "toml:lucid:lucid-client.toml:filtering.mode", "label": "Texture filtering", "tooltip": "Sharpens distant and grazing-angle block textures. SHARP_8X is the sweet spot." },
+        { "path": "toml:where_winds_blow:where_winds_blow-client.toml:enableWindStreaks", "label": "Wind streaks", "tooltip": "Wind Waker-style lines in the air when the wind blows." },
+        { "path": "toml:where_winds_blow:where_winds_blow-client.toml:windStreakVisibility", "label": "Wind density", "tooltip": "How many streaks, drifting leaves and petals the wind carries." },
+        { "path": "toml:where_winds_blow:where_winds_blow-client.toml:enableWindLeaves", "label": "Wind-blown leaves", "tooltip": "Leaves matching nearby trees drift through the air." },
+        { "path": "toml:fallingleaves:fallingleaves-client.toml:leaf_settings.leafSpawnRate", "label": "Falling leaves", "tooltip": "How many leaves fall from trees. 0 disables them.", "min": 0, "max": 100, "step": 1 },
+        { "path": "json:config/particlerain/config.json:/perf/particleDensity", "label": "Rain density", "tooltip": "Rain and snow particles per tick. Lower on weak GPUs.", "min": 0, "max": 300, "step": 5 },
+        { "path": "json:config/particlerain/config.json:/compat/renderDefaultWeather", "label": "Also draw vanilla rain", "tooltip": "Keep vanilla's rain sheets on top of the particle rain." },
+        { "path": "iris:enabled", "label": "Shaders", "tooltip": "Turn the current shader pack on or off without leaving this screen." },
+        { "path": "iris:open", "label": "Shader packs", "tooltip": "Pick a shader pack and tune its own options." }
+      ]
+    },
+    {
+      "title": "Performance",
+      "description": "Frame rate levers. Start with distances, then far terrain.",
+      "options": [
+        { "path": "optionsTxt:simulationDistance", "label": "Simulation distance", "tooltip": "How far mobs, crops and redstone keep ticking. Lower is cheaper on the CPU." },
+        { "path": "optionsTxt:maxFps", "label": "Frame rate limit", "tooltip": "Cap the frame rate to save power and heat." },
+        { "path": "optionsTxt:enableVsync", "label": "VSync", "tooltip": "Lock frames to the monitor refresh. Off for lowest input lag." },
+        { "path": "json:config/voxy-config.json:/enable_rendering", "label": "Far terrain (Voxy)", "tooltip": "Draw low-detail terrain beyond the render distance." },
+        { "path": "json:config/voxy-config.json:/section_render_distance", "label": "Far terrain distance", "tooltip": "How far Voxy draws, in 32-block sections. Big values need VRAM.", "min": 4, "max": 128, "step": 1 },
+        { "path": "json:config/voxy-config.json:/use_environmental_fog", "label": "Fog on far terrain", "tooltip": "Blend the far terrain into the fog instead of a hard edge." },
+        { "path": "json:config/vss-client-config.json:/receiveServerLods", "label": "Receive server LODs", "tooltip": "Let the server send far terrain it has already generated." },
+        { "path": "json:config/vss-client-config.json:/lodDistanceChunks", "label": "Server LOD radius", "tooltip": "Chunks of far terrain to request. 0 picks the smaller of the server cap and your Voxy distance.", "min": 0, "max": 1024, "step": 16 },
+        { "path": "sodium:quality.weather", "label": "Weather quality", "tooltip": "Rain and snow rendering detail." },
+        { "path": "sodium:quality.leaves", "label": "Leaves quality", "tooltip": "Fancy leaves show through, fast leaves are solid." },
+        { "path": "json:config/entityculling.json:/tickCulling", "label": "Skip hidden entity ticks", "tooltip": "Entities you cannot see skip their client animations." },
+        { "path": "json:config/immediatelyfast.json:/hud_batching", "label": "HUD batching", "tooltip": "Draw the HUD in fewer GPU calls." },
+        { "path": "json:config/sodium-extra-options.json:/extra_settings/show_fps", "label": "FPS overlay", "tooltip": "Small frame counter in the corner.", "restart": true }
+      ]
+    },
+    {
+      "title": "Immersion",
+      "description": "Camera feel, animations, water and the little touches.",
+      "options": [
+        { "path": "json:config/momentum.json:/enabled", "label": "Camera momentum", "tooltip": "Subtle camera banking and dips when you strafe, turn, land and sprint." },
+        { "path": "json:config/momentum.json:/masterStrength", "label": "Momentum strength", "tooltip": "Overall amount of camera motion.", "min": 0, "max": 200, "step": 5 },
+        { "path": "toml:dynamicelytra:dynamicelytra-client.toml:trails.enabled", "label": "Elytra vapor trails", "tooltip": "Jet-style wingtip trails while gliding fast." },
+        { "path": "toml:dynamicelytra:dynamicelytra-client.toml:speed_lines.enabled", "label": "Speed lines", "tooltip": "First-person streaks that bloom the faster you move." },
+        { "path": "toml:cinematiczoom:cinematiczoom-client.toml:baseZoomMultiplier", "label": "Zoom strength", "tooltip": "How far the zoom key zooms. Lower is closer." },
+        { "path": "toml:shouldersurfing:shouldersurfing-client.toml:camera.decoupled_camera", "label": "Free third-person camera", "tooltip": "Turn the camera without turning your character." },
+        { "path": "toml:wakes:wakes-client.toml:wakeResolution", "label": "Boat wake detail", "tooltip": "Resolution of the ripples boats and swimmers leave." },
+        { "path": "toml:lambdynlights:lambdynlights.toml:mode", "label": "Dynamic lights", "tooltip": "Held torches and glowing mobs light the world around them.", "choices": ["off", "fastest", "fast", "fancy"] },
+        { "path": "json:config/skinlayers.json:/renderDistanceLOD", "label": "3D skin layer distance", "tooltip": "How far away players still get 3D hats and sleeves.", "min": 2, "max": 32, "step": 1 },
+        { "path": "json:config/notenoughanimations.json:/itemSwapAnimation", "label": "Item swap animation", "tooltip": "Animate switching the held item instead of popping it in." },
+        { "path": "json:config/dynamiccrosshair.json5:/dynamicCrosshair", "label": "Dynamic crosshair", "tooltip": "The crosshair changes shape for blocks, entities, tools and interactions." },
+        { "path": "toml:betterdays:betterdays-client.toml:gui.clockAlignment", "label": "Bed clock position", "tooltip": "Where the clock sits while you sleep." }
+      ]
+    },
+    {
+      "title": "Gameplay & HUD",
+      "description": "Inventory, tooltips and on-screen info.",
+      "options": [
+        { "path": "toml:appleskin:appleskin-client.toml:client.showFoodValuesInTooltipAlways", "label": "Food values in tooltips", "tooltip": "Show hunger and saturation on food without holding Shift." },
+        { "path": "toml:appleskin:appleskin-client.toml:client.showSaturationHudOverlay", "label": "Saturation overlay", "tooltip": "Draw your saturation on top of the hunger bar." },
+        { "path": "json:config/jade/jade.json:/general/displayTooltip", "label": "Block info overlay", "tooltip": "Jade's popup naming the block or mob you look at." },
+        { "path": "json:config/jade/jade.json:/overlay/alpha", "label": "Block info opacity", "tooltip": "Background opacity of the Jade overlay.", "min": 0, "max": 1, "step": 0.05 },
+        { "path": "toml:betterinventory:betterinventory-client.toml:zoom.enabled", "label": "Item zoom preview", "tooltip": "A big render of the hovered item next to the inventory." },
+        { "path": "toml:betterinventory:betterinventory-client.toml:zoom.scale", "label": "Item zoom scale", "tooltip": "Size of the zoomed item preview." },
+        { "path": "toml:betterinventory:betterinventory-client.toml:hud.showToolInHand", "label": "Show auto tool in hand", "tooltip": "Show the tool the rack picked in your first-person hand while it is in use." },
+        { "path": "toml:carryon:carryon-client.toml:renderArms", "label": "Arms while carrying", "tooltip": "Render arms on the sides when carrying a block or mob." },
+        { "path": "optionsTxt:autoJump", "label": "Auto-jump", "tooltip": "Hop up single blocks automatically." },
+        { "path": "optionsTxt:toggleSprint", "label": "Toggle sprint", "tooltip": "Press once to sprint instead of holding." }
+      ]
+    },
+    {
+      "title": "Social",
+      "description": "Voice, chat and what other players see.",
+      "options": [
+        { "path": "voicechat:voice_chat_volume", "label": "Voice chat volume", "tooltip": "Volume of other players' voices." },
+        { "path": "voicechat:microphone_activation_type", "label": "Microphone mode", "tooltip": "Push-to-talk or voice activation." },
+        { "path": "voicechat:denoiser", "label": "Noise suppression", "tooltip": "Filter keyboard and fan noise out of your microphone." },
+        { "path": "voicechat:show_hud_icons", "label": "Voice HUD icons", "tooltip": "Microphone and connection icons on the HUD." },
+        { "path": "toml:chatterbox:chatterbox-client.toml:embeds.embedLinks", "label": "Inline image previews", "tooltip": "Show image and GIF links in chat as previews. Fetching a link reveals your IP to that server." },
+        { "path": "toml:chatterbox:chatterbox-client.toml:animation.animateChat", "label": "Animated chat", "tooltip": "New messages slide in from below." },
+        { "path": "optionsTxt:chatVisibility", "label": "Chat visibility", "tooltip": "Shown, commands only, or hidden." },
+        { "path": "optionsTxt:allowServerListing", "label": "Allow server listing", "tooltip": "Let servers show your name in their public player list." }
+      ]
+    }
+  ]
+}
