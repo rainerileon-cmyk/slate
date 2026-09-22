@@ -19,7 +19,8 @@
     "TooltipRenderUtilMixin",
     "TabButtonMixin",
     "TabNavigationBarMixin",
-    "TitleScreenMixin"
+    "TitleScreenMixin",
+    "ScreenLayoutMixin"
   ],
   "injectors": {
     "defaultRequire": 1
