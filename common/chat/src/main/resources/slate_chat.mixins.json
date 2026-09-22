@@ -4,7 +4,11 @@
   "package": "dev.fallingcloud.slate.chat.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [],
-  "client": [],
+  "client": [
+    "ChatComponentMixin",
+    "ChatScreenMixin",
+    "ChatListenerMixin"
+  ],
   "injectors": {
     "defaultRequire": 1
   }
