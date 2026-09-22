@@ -43,9 +43,10 @@ public abstract class MinecraftMixin {
         }
     }
 
+    // No re-entry guard here: a cancelled outer call never reaches TAIL, so this runs exactly once
+    // per effective screen change (in the inner call when a swap happened).
     @Inject(method = "setScreen", at = @At("TAIL"))
     private void slate$screenChanged(final Screen guiScreen, final CallbackInfo ci) {
-        if (slate$reentering) return;
         SlateClient.onScreenChanged(this.screen);
     }
 }
