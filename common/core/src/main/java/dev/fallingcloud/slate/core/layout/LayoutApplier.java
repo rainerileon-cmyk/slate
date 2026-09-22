@@ -31,9 +31,23 @@ public final class LayoutApplier {
     /** Editor preview can suspend applying (to show the pristine screen). */
     public static void setSuspended(final boolean s) { suspended = s; }
 
+    /**
+     * The layout id of a screen: {@link LayoutIdProvider#layoutId()} when the screen implements it
+     * (custom screens are one class with many layouts), otherwise the class-based {@link ScreenIds#of}.
+     */
+    public static String layoutId(final Screen screen) {
+        if (screen instanceof LayoutIdProvider p) {
+            try {
+                final String id = p.layoutId();
+                if (id != null && !id.isBlank()) return id;
+            } catch (final Exception ignored) {}
+        }
+        return ScreenIds.of(screen);
+    }
+
     public static void apply(final Screen screen) {
         if (suspended || screen == null || ScreenIds.isContainer(screen)) return;
-        final String id = ScreenIds.of(screen);
+        final String id = layoutId(screen);
         final ScreenLayout layout = LayoutStore.get(id);
         remove(screen);
         if (layout.isEmpty()) return;
@@ -78,7 +92,7 @@ public final class LayoutApplier {
         for (final ScreenLayout.Element e : layout.elements) {
             if (!e.visible) continue;
             final ElementType type = ElementTypes.get(e.type).orElse(null);
-            if (type == null) { Slate.LOGGER.warn("[Slate] unknown element type {} in layout for {}", e.type, ScreenIds.of(screen)); continue; }
+            if (type == null) { Slate.LOGGER.warn("[Slate] unknown element type {} in layout for {}", e.type, layoutId(screen)); continue; }
             final int[] def = type.defaultSize();
             final int w = e.place.w > 0 ? e.place.w : def[0], h = e.place.h > 0 ? e.place.h : def[1];
             final Anchor a = Anchor.parse(e.place.anchor, Anchor.TOP_LEFT);

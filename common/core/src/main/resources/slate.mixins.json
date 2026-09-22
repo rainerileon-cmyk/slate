@@ -8,7 +8,8 @@
     "MinecraftMixin",
     "ScreenMixin",
     "MouseHandlerMixin",
-    "KeyboardHandlerMixin"
+    "KeyboardHandlerMixin",
+    "ScreenLayoutMixin"
   ],
   "injectors": {
     "defaultRequire": 1
