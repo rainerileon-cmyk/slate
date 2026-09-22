@@ -10,9 +10,13 @@ has no final commit (check `git branch -a` + `git log agent/<name>`), then conti
   screen init/render hooks, input routing).
 
 ## Phase 1 — parallel tasks (worktrees under the session scratchpad, branches `agent/<name>`)
+
+2026-09-23 01:30: the account usage limit cut six agents off mid-task; all six were RESUMED via SendMessage
+(context intact) at 01:33. If resuming again: their worktrees hold the work; menu (c259abf), chat (3b97f5c)
+and config (8c5166d + edits) have commits, core-polish/editor/multiplayer only uncommitted trees.
 | task | branch | owns | state |
 |---|---|---|---|
-| icons | agent/icons | tools/icons.py, icons.png, Icon.java, mod icons | RUNNING |
+| icons | agent/icons | tools/icons.py, icons.png, Icon.java, mod icons | DONE, merged (89de1dd) |
 | core-polish | agent/core-polish | core.widget, core.gfx.SlateDraw, core.screen, core.mixin (reskin), hub/settings screens | RUNNING |
 | editor | agent/editor | core.layout.editor.*, editor lang | RUNNING |
 | menu | agent/menu | common/menu, loader menu dirs | RUNNING |
