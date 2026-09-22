@@ -124,8 +124,8 @@ public final class UiUtil {
         }
         if (VoiceStatus.available() && VoiceStatus.hasVoice(f.uuid)) items.add(MenuPopup.Item.of(t("menu.voice_volume"), Icon.VOLUME, () -> voiceVolumeDialog(f)));
         items.add(MenuPopup.Item.sep());
-        items.add(MenuPopup.Item.of(t("menu.nickname"), Icon.EDIT, () -> SlateModal.prompt(t("menu.nickname"), t("nickname.body", f.name), f.nick, v -> sc.setNickname(f.uuid, v, f.note))));
-        items.add(MenuPopup.Item.of(t("menu.note"), Icon.TEXT, () -> SlateModal.prompt(t("menu.note"), t("note.body", f.name), f.note, v -> sc.setNickname(f.uuid, f.nick, v))));
+        items.add(MenuPopup.Item.of(t("menu.nickname"), Icon.EDIT, () -> PromptPopup.open(t("menu.nickname"), t("nickname.body", f.name), f.nick, 32, v -> sc.setNickname(f.uuid, v, f.note))));
+        items.add(MenuPopup.Item.of(t("menu.note"), Icon.TEXT, () -> PromptPopup.open(t("menu.note"), t("note.body", f.name), f.note, 200, v -> sc.setNickname(f.uuid, f.nick, v))));
         items.add(MenuPopup.Item.sep());
         items.add(MenuPopup.Item.danger(t("menu.remove"), Icon.MINUS, () -> SlateModal.confirmDanger(t("menu.remove"), t("remove.body", f.display()), t("menu.remove"), () -> sc.removeFriend(f.uuid))));
         items.add(MenuPopup.Item.danger(t("menu.block"), Icon.BLOCKED, () -> SlateModal.confirmDanger(t("menu.block"), t("block.body", f.display()), t("menu.block"), () -> sc.block(f.uuid, f.name))));

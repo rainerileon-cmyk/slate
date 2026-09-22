@@ -22,11 +22,16 @@ import java.util.List;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 
-/** Your own screen share (start/stop, live stats) and the friends' streams you can watch. */
+/**
+ * Your own screen share (title, start/stop, live stats) and the friends' streams you can watch. The
+ * title field and the start button sit at fixed positions above the scrolling list (text fields must not
+ * move after construction).
+ */
 final class StreamsPage extends FriendsHubScreen.HubPage {
 
     private SlateScrollPanel panel;
     private SlateTextField title;
+    private SlateButton startStop;
     private int panelW;
 
     StreamsPage(final FriendsHubScreen screen) {
@@ -38,46 +43,56 @@ final class StreamsPage extends FriendsHubScreen.HubPage {
 
     @Override
     public void build(final SidebarScreen s, final Rect area) {
+        final SocialClient sc = SocialClient.get();
+        title = new SlateTextField(area.x(), area.y(), Math.max(80, area.w() - 116), UiUtil.t("streams.title"));
+        title.placeholder(UiUtil.t("streams.title.placeholder")).icon(Icon.STREAM).maxLength(64);
+        s.addPageWidget(title);
+        startStop = s.addPageWidget(new SlateButton(area.right() - 110, area.y(), 110, Component.empty(), () -> {
+            if (ScreenShare.isSharing() || ScreenShare.isStarting()) ScreenShare.stop(); else ScreenShare.start(title.getValue());
+            refreshButton();
+            fill();
+        }));
+        startStop.active = sc.connected();
+        refreshButton();
         panelW = area.w();
-        panel = s.addPageWidget(new SlateScrollPanel(area.x(), area.y(), area.w(), area.h()));
+        panel = s.addPageWidget(new SlateScrollPanel(area.x(), area.y() + 26, area.w(), area.h() - 26));
         fill();
     }
 
+    private void refreshButton() {
+        final boolean on = ScreenShare.isSharing() || ScreenShare.isStarting();
+        startStop.setMessage(UiUtil.t(on ? "streams.stop" : "streams.start"));
+        startStop.variant(on ? SlateButton.Variant.DANGER : SlateButton.Variant.PRIMARY).icon(on ? Icon.STOP : Icon.PLAY);
+    }
+
     @Override
-    void onModelChanged() { fill(); }
+    void onModelChanged() {
+        startStop.active = SocialClient.get().connected();
+        refreshButton();
+        fill();
+    }
 
     private void fill() {
-        final String keepTitle = title == null ? "" : title.getValue();
         panel.clear();
         final SocialClient sc = SocialClient.get();
         final int w = panelW - 8;
         int y = 0;
-        // Own share
-        final SlateCard own = new SlateCard(0, y, w, 64) {
+        // Own share status
+        panel.add(new SlateCard(0, y, w, 34) {
             @Override
             protected void renderContent(final GuiGraphics g, final int x, final int yy, final int cw, final int ch, final int mx, final int my, final float pt) {
                 final Palette p = Theme.current().palette();
                 final boolean sharing = ScreenShare.isSharing();
-                Icons.draw(g, Icon.SCREEN_SHARE, x + 8, yy + 8, 16, sharing ? p.accent() : p.textMuted());
-                g.drawString(SlateDraw.font(), UiUtil.t(sharing ? "streams.own.sharing" : ScreenShare.isStarting() ? "streams.own.starting" : "streams.own.idle"), x + 30, yy + 8, p.text(), Theme.current().isVanilla());
+                Icons.draw(g, Icon.SCREEN_SHARE, x + 8, yy + 9, 16, sharing ? p.accent() : p.textMuted());
+                g.drawString(SlateDraw.font(), UiUtil.t(sharing ? "streams.own.sharing" : ScreenShare.isStarting() ? "streams.own.starting" : "streams.own.idle"), x + 30, yy + 7, p.text(), Theme.current().isVanilla());
                 final String stats = sharing
                     ? ScreenShare.viewers() + (ScreenShare.viewers() == 1 ? " viewer" : " viewers") + "  ·  " + ScreenShare.width() + "x" + ScreenShare.height()
                         + "  ·  " + Math.round(ScreenShare.fps()) + " fps  ·  " + (ScreenShare.lastFrameBytes() / 1024) + " KB  ·  " + (ScreenShare.uptimeMs() / 1000) + " s"
-                    : sc.connected() ? "Share what is on your screen with friends (they get a toast)" : "Needs a hub connection";
-                g.drawString(SlateDraw.font(), SlateDraw.truncate(Component.literal(stats), cw - 40), x + 30, yy + 19, p.textMuted(), Theme.current().isVanilla());
+                    : sc.connected() ? "Friends get a toast and can watch from their Streams page" : "Needs a hub connection";
+                g.drawString(SlateDraw.font(), SlateDraw.truncate(Component.literal(stats), cw - 40), x + 30, yy + 18, p.textMuted(), Theme.current().isVanilla());
             }
-        }.flat();
-        title = new SlateTextField(0, 0, Math.max(80, w - 130), UiUtil.t("streams.title"));
-        title.placeholder(UiUtil.t("streams.title.placeholder")).maxLength(64).setValue(keepTitle);
-        title.setX(0);
-        own.add(title, 8, 36);
-        own.add(new SlateButton(w - 116, 36, 108, 20, UiUtil.t(ScreenShare.isSharing() || ScreenShare.isStarting() ? "streams.stop" : "streams.start"), () -> {
-            if (ScreenShare.isSharing() || ScreenShare.isStarting()) ScreenShare.stop(); else ScreenShare.start(title.getValue());
-            fill();
-        }).variant(ScreenShare.isSharing() ? SlateButton.Variant.DANGER : SlateButton.Variant.PRIMARY).icon(ScreenShare.isSharing() ? Icon.STOP : Icon.PLAY)
-            .enabled(sc.connected()), w - 116, 36);
-        panel.add(own, 0, y);
-        y += 70;
+        }.flat(), 0, y);
+        y += 40;
         panel.add(new SlateSeparator(0, 0, w, UiUtil.t("streams.live")), 0, y);
         y += 14;
         final List<StreamInfo> live = new ArrayList<>();
@@ -113,6 +128,6 @@ final class StreamsPage extends FriendsHubScreen.HubPage {
 
     @Override
     public void tick() {
-        // Live stats refresh cheaply through the card's render; nothing else to do.
+        if ((System.currentTimeMillis() / 500) % 2 == 0) refreshButton();
     }
 }

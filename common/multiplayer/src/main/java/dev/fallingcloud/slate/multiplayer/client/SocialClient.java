@@ -88,6 +88,13 @@ public final class SocialClient {
         BlobReceiver.onStart(this::onBlobStart);
         SlateEvents.CLIENT_TICK_END.register(this::tick);
         SlateEvents.CLIENT_LEFT_SERVER.register(() -> { if (link instanceof PayloadLink) dropLink(); });
+        // Identity and cache are picked up on the first tick: Minecraft may not be fully constructed yet.
+    }
+
+    private boolean started;
+
+    private void start() {
+        started = true;
         final Minecraft mc = Minecraft.getInstance();
         self = new PlayerRef(mc.getUser().getProfileId(), mc.getUser().getName());
         loadCache(MultiplayerConfigs.client().hubKey());
@@ -118,6 +125,7 @@ public final class SocialClient {
     }
 
     private void tick() {
+        if (!started) start();
         ensureLink();
         final SocialLink l = link;
         if (l != null) l.tick();
@@ -131,8 +139,10 @@ public final class SocialClient {
         final String host = cfg.hubHost();
         final int port = cfg.hubPort();
         if (host != null) {
-            if (link instanceof HubLink h && (!h.host().equalsIgnoreCase(host) || h.port() != port)) dropLink();
-            else if (link instanceof PayloadLink) dropLink();
+            if (link instanceof HubLink h) {
+                if (!h.host().equalsIgnoreCase(host) || h.port() != port) dropLink();
+                else if (h.isDead()) return;            // refused for good (replaced elsewhere): wait for a manual Connect
+            } else if (link instanceof PayloadLink) dropLink();
             if (link == null) {
                 final HubLink h = new HubLink(host, port, this::onMessage, this::onLinkState);
                 link = h;
@@ -357,7 +367,13 @@ public final class SocialClient {
             final ThreadModel th = thread(ts.key());
             if (!ts.title().isEmpty()) th.title = ts.title();
             th.unread = ts.key().equals(viewingThread) ? 0 : ts.unread();
+            final ChatMessage before = th.last();
             if (ts.last() != null) th.add(ts.last());
+            // Messages may have arrived while we were away: pull the newest page so the cache has no gap.
+            if (ts.unread() > 0 || (ts.last() != null && before != null && !before.id().equals(ts.last().id()))) {
+                th.historyPending = true;
+                send(new HistoryRequest(ts.key(), 0L, 50));
+            }
         }
         threads.keySet().removeIf(k -> Threads.isGroup(k) && !groups.containsKey(Threads.groupId(k)));
         for (final String id : new ArrayList<>(streams.keySet())) {

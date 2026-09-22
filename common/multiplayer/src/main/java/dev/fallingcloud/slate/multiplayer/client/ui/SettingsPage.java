@@ -4,6 +4,7 @@ import dev.fallingcloud.slate.core.gfx.Icon;
 import dev.fallingcloud.slate.core.layout.ui.Flow;
 import dev.fallingcloud.slate.core.layout.ui.Rect;
 import dev.fallingcloud.slate.core.screen.SidebarScreen;
+import dev.fallingcloud.slate.core.theme.Theme;
 import dev.fallingcloud.slate.core.widget.SlateButton;
 import dev.fallingcloud.slate.core.widget.SlateLabel;
 import dev.fallingcloud.slate.core.widget.SlateScrollPanel;
@@ -19,7 +20,11 @@ import dev.fallingcloud.slate.multiplayer.voice.VoiceStatus;
 import java.util.function.Consumer;
 import net.minecraft.network.chat.Component;
 
-/** Home hub, presence privacy, notifications, screen share caps, voice and panel options. */
+/**
+ * Home hub, presence privacy, notifications, screen share caps, voice and panel options. The two text
+ * fields (hub address, status) live in a fixed block above the scrolling options, because a text field's
+ * frame is bound to its construction position.
+ */
 final class SettingsPage extends FriendsHubScreen.HubPage {
 
     private SlateLabel hubStatus;
@@ -41,27 +46,34 @@ final class SettingsPage extends FriendsHubScreen.HubPage {
     @Override
     public void build(final SidebarScreen s, final Rect area) {
         final MultiplayerConfig cfg = MultiplayerConfigs.client();
-        final SlateScrollPanel panel = s.addPageWidget(new SlateScrollPanel(area.x(), area.y(), area.w(), area.h()));
         final int w = area.w() - 10;
-        final Flow f = Flow.column(0, 0, 6);
+        int y = area.y();
 
-        panel.add(f.place(new SlateSeparator(0, 0, w, UiUtil.t("settings.section.hub"))));
-        hubField = new SlateTextField(0, 0, w - 90, UiUtil.t("settings.home_hub"));
+        // ---- fixed block: hub address + connect, status line, status text
+        s.addPageWidget(new SlateLabel(area.x(), y, w, UiUtil.t("settings.section.hub")).style(SlateLabel.Style.TITLE));
+        y += 14;
+        hubField = new SlateTextField(area.x(), y, w - 90, UiUtil.t("settings.home_hub"));
         hubField.placeholder(UiUtil.t("settings.home_hub.placeholder")).icon(Icon.SERVER).maxLength(120).setValue(cfg.homeHub);
         hubField.onEnter(this::applyHub);
-        f.place(hubField);
-        panel.add(hubField);
-        panel.add(new SlateButton(w - 84, hubField.frameY(), 84, UiUtil.t("settings.connect"), this::applyHub).variant(SlateButton.Variant.PRIMARY).icon(Icon.LINK), w - 84, hubField.frameY());
-        hubStatus = panel.add(f.place(new SlateLabel(0, 0, w, Component.empty()).style(SlateLabel.Style.MUTED).wrap(true)));
+        s.addPageWidget(hubField);
+        s.addPageWidget(new SlateButton(area.x() + w - 84, y, 84, UiUtil.t("settings.connect"), this::applyHub).variant(SlateButton.Variant.PRIMARY).icon(Icon.LINK));
+        y += 24;
+        hubStatus = s.addPageWidget(new SlateLabel(area.x(), y, w, Component.empty()).style(SlateLabel.Style.MUTED));
         refreshStatus();
+        y += 14;
+        final SlateTextField status = new SlateTextField(area.x(), y, w, UiUtil.t("settings.status"));
+        status.placeholder(UiUtil.t("settings.status.placeholder")).icon(Icon.EDIT).maxLength(100).setValue(cfg.statusText);
+        status.onChange(v -> savePresence(c -> c.statusText = v));
+        s.addPageWidget(status);
+        y += 26;
+
+        // ---- scrolling options
+        final SlateScrollPanel panel = s.addPageWidget(new SlateScrollPanel(area.x(), y, area.w(), area.bottom() - y));
+        final Flow f = Flow.column(0, 0, 6);
         panel.add(f.place(new SlateLabel(0, 0, w, UiUtil.t("settings.home_hub.help")).style(SlateLabel.Style.CAPTION).wrap(true)));
         panel.add(f.place(new SlateToggle(0, 0, w, UiUtil.t("settings.hub_auth"), cfg.hubAuth, v -> save(c -> c.hubAuth = v))));
 
         panel.add(f.place(new SlateSeparator(0, 0, w, UiUtil.t("settings.section.presence"))));
-        final SlateTextField status = new SlateTextField(0, 0, w, UiUtil.t("settings.status"));
-        status.placeholder(UiUtil.t("settings.status.placeholder")).icon(Icon.EDIT).maxLength(100).setValue(cfg.statusText);
-        status.onChange(v -> savePresence(c -> c.statusText = v));
-        panel.add(f.place(status));
         panel.add(f.place(new SlateToggle(0, 0, w, UiUtil.t("settings.share_server"), cfg.shareServer, v -> savePresence(c -> c.shareServer = v))));
         panel.add(f.place(new SlateToggle(0, 0, w, UiUtil.t("settings.share_dimension"), cfg.shareDimension, v -> savePresence(c -> c.shareDimension = v))));
         panel.add(f.place(new SlateToggle(0, 0, w, UiUtil.t("settings.away"), cfg.away, v -> savePresence(c -> c.away = v))));
@@ -123,7 +135,7 @@ final class SettingsPage extends FriendsHubScreen.HubPage {
             default -> MultiplayerConfigs.client().hubHost() == null ? "No home hub set - friends work on servers that run Slate Multiplayer" : "Not connected";
         };
         hubStatus.text(Component.literal(text));
-        hubStatus.color(sc.linkState() == LinkState.FAILED ? dev.fallingcloud.slate.core.theme.Theme.current().palette().danger() : 0);
+        hubStatus.color(sc.linkState() == LinkState.FAILED ? Theme.current().palette().danger() : 0);
     }
 
     @Override

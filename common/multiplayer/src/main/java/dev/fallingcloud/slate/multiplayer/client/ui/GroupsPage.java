@@ -63,7 +63,7 @@ final class GroupsPage extends FriendsHubScreen.HubPage {
     }
 
     private void createGroup() {
-        SlateModal.prompt(UiUtil.t("groups.create"), UiUtil.t("groups.create.body"), "", name -> { if (!name.isBlank()) SocialClient.get().createGroup(name); });
+        PromptPopup.open(UiUtil.t("groups.create"), UiUtil.t("groups.create.body"), "", 32, name -> { if (!name.isBlank()) SocialClient.get().createGroup(name); });
     }
 
     @Override
@@ -94,7 +94,7 @@ final class GroupsPage extends FriendsHubScreen.HubPage {
         groups.sort((a, b) -> a.name().compareToIgnoreCase(b.name()));
         if (selectedId == null && !groups.isEmpty()) selectedId = groups.get(0).id();
         final int listH = Math.max(60, leftRect.h() - 24 - y);
-        list = new SlateList<>(0, y, w, listH, 24, (g, item, index, x, yy, rw, rh, hovered, selected, mx, my) -> {
+        list = new SlateList<GroupInfo>(0, y, w, listH, 24, (g, item, index, x, yy, rw, rh, hovered, selected, mx, my) -> {
             final Palette p = Theme.current().palette();
             Icons.draw(g, Icon.GROUP, x + 6, yy + (rh - 12) / 2, 12, selected ? p.accent() : p.textMuted());
             g.drawString(SlateDraw.font(), SlateDraw.truncate(Component.literal(item.name()), rw - 44), x + 22, yy + 4, p.text(), Theme.current().isVanilla());
@@ -124,7 +124,7 @@ final class GroupsPage extends FriendsHubScreen.HubPage {
         int y = 0;
         detail.add(new SlateLabel(0, 0, w - 60, Component.literal(g.name())).style(SlateLabel.Style.HEADING), 0, y);
         if (owner) detail.add(new SlateButton(w - 56, 0, 56, 16, UiUtil.t("groups.rename"), () ->
-            SlateModal.prompt(UiUtil.t("groups.rename"), null, g.name(), n -> { if (!n.isBlank()) sc.renameGroup(g.id(), n); })).variant(SlateButton.Variant.GHOST).icon(Icon.EDIT), w - 56, y);
+            PromptPopup.open(UiUtil.t("groups.rename"), null, g.name(), 32, n -> { if (!n.isBlank()) sc.renameGroup(g.id(), n); })).variant(SlateButton.Variant.GHOST).icon(Icon.EDIT), w - 56, y);
         y += 18;
         detail.add(new SlateLabel(0, 0, w, UiUtil.t("groups.members", g.members().size())).style(SlateLabel.Style.MUTED), 0, y);
         y += 14;

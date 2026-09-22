@@ -53,6 +53,7 @@ public final class ChatView extends SlateWidget {
     private final Anim scroll = new Anim(0, 160, Ease.OUT_CUBIC);
     private boolean stickBottom = true;
     private long lastHistoryRequestMs;
+    private int unreadAtOpen;
 
     public ChatView(final int x, final int y, final int w, final int h) {
         super(x, y, w, h, Component.literal("Messages"));
@@ -61,6 +62,7 @@ public final class ChatView extends SlateWidget {
 
     public void setThread(@Nullable final ThreadModel t) {
         thread = t;
+        unreadAtOpen = t == null ? 0 : t.unread;
         layoutKey = "";
         stickBottom = true;
         scroll.snap(0);
@@ -77,7 +79,7 @@ public final class ChatView extends SlateWidget {
         if (thread == null) { items.clear(); contentH = 0; return; }
         final long now = System.currentTimeMillis();
         final List<UUID> typing = thread.typingNow(now);
-        final String key = thread.key + "|" + thread.messages.size() + "|" + (thread.messages.isEmpty() ? "" : thread.last().id()) + "|" + getWidth() + "|" + typing.size() + "|" + thread.unread
+        final String key = thread.key + "|" + thread.messages.size() + "|" + (thread.messages.isEmpty() ? "" : thread.last().id()) + "|" + getWidth() + "|" + typing.size() + "|" + unreadAtOpen
             + "|" + (thread.messages.isEmpty() ? "" : thread.messages.get(0).id());
         if (key.equals(layoutKey)) return;
         layoutKey = key;
@@ -85,14 +87,14 @@ public final class ChatView extends SlateWidget {
         final int textW = getWidth() - INDENT - PAD * 2 - 6;
         int y = PAD;
         ChatMessage prev = null;
-        final int firstUnread = thread.messages.size() - Math.min(thread.unread, thread.messages.size());
+        final int firstUnread = thread.messages.size() - Math.min(unreadAtOpen, thread.messages.size());
         for (int i = 0; i < thread.messages.size(); i++) {
             final ChatMessage m = thread.messages.get(i);
             if (prev == null || !UiUtil.sameDay(prev.atMs(), m.atMs())) {
                 items.add(new Item(Kind.DAY, y, 14, null, null, UiUtil.dayLabel(m.atMs())));
                 y += 14;
             }
-            if (thread.unread > 0 && i == firstUnread && !m.from().uuid().equals(SocialClient.get().selfUuid())) {
+            if (unreadAtOpen > 0 && i == firstUnread && !m.from().uuid().equals(SocialClient.get().selfUuid())) {
                 items.add(new Item(Kind.UNREAD, y, 10, null, null, "New"));
                 y += 10;
             }

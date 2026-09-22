@@ -182,7 +182,7 @@ public final class HubStore {
             r.uuid = uuid.toString();
             r.name = name(uuid);
         }
-        if (r.uuid == null || r.uuid.isEmpty()) r.uuid = uuid.toString();
+        r.uuid = uuid.toString();
         sanitize(r);
         players.put(uuid, r);
         return r;
