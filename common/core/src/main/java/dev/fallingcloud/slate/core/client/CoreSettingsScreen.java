@@ -2,6 +2,7 @@ package dev.fallingcloud.slate.core.client;
 
 import dev.fallingcloud.slate.core.Slate;
 import dev.fallingcloud.slate.core.config.CoreConfig;
+import dev.fallingcloud.slate.core.config.JsonConfig;
 import dev.fallingcloud.slate.core.gfx.Icon;
 import dev.fallingcloud.slate.core.layout.ui.Flow;
 import dev.fallingcloud.slate.core.layout.ui.Rect;
@@ -11,71 +12,174 @@ import dev.fallingcloud.slate.core.theme.Colors;
 import dev.fallingcloud.slate.core.theme.Palette;
 import dev.fallingcloud.slate.core.theme.Theme;
 import dev.fallingcloud.slate.core.widget.SlateButton;
+import dev.fallingcloud.slate.core.widget.SlateCard;
+import dev.fallingcloud.slate.core.widget.SlateCheckbox;
 import dev.fallingcloud.slate.core.widget.SlateColorField;
 import dev.fallingcloud.slate.core.widget.SlateDropdown;
+import dev.fallingcloud.slate.core.widget.SlateLabel;
+import dev.fallingcloud.slate.core.widget.SlateModal;
+import dev.fallingcloud.slate.core.widget.SlateProgress;
 import dev.fallingcloud.slate.core.widget.SlateScrollPanel;
 import dev.fallingcloud.slate.core.widget.SlateSegmented;
-import dev.fallingcloud.slate.core.widget.SlateSeparator;
 import dev.fallingcloud.slate.core.widget.SlateSlider;
+import dev.fallingcloud.slate.core.widget.SlateSwatches;
+import dev.fallingcloud.slate.core.widget.SlateTextField;
+import dev.fallingcloud.slate.core.widget.SlateToasts;
 import dev.fallingcloud.slate.core.widget.SlateToggle;
 import java.util.List;
+import java.util.function.Consumer;
+import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.Nullable;
 
 /**
  * Core's own settings page (theme, motion, dev mode, restyle scope). The Config module embeds the same
- * options in its Interface page; this screen exists so Core is complete on its own.
+ * options in its Interface page; this screen exists so Core is complete on its own. Sections are cards
+ * on the 8 px grid; every change applies live (the preview card at the top shows the result).
  */
 public final class CoreSettingsScreen extends SlateScreen {
 
+    private static final int CARD_PAD = 10, ROW_GAP = 6, CARD_GAP = 8;
+
+    private SlateSwatches swatches;
+    private SlateColorField customColor;
+
     public CoreSettingsScreen(@Nullable final Screen parent) {
         super(Component.translatable("slate.settings.title"), parent);
-        this.maxContentWidth = 360;
+        this.maxContentWidth = 400;
+    }
+
+    /** A card that stacks rows with a Flow; {@link #finish} sizes the card to its content. */
+    private final class Section {
+        final SlateCard card;
+        final Flow flow;
+        final int rowW;
+
+        Section(final int width, final Component title) {
+            card = new SlateCard(0, 0, width, 40).flat();
+            rowW = width - CARD_PAD * 2;
+            flow = Flow.column(CARD_PAD, CARD_PAD, ROW_GAP);
+            if (title != null) {
+                row(new SlateLabel(0, 0, rowW, title).style(SlateLabel.Style.TITLE));
+                flow.skip(2);
+            }
+        }
+
+        <T extends AbstractWidget> T row(final T w) {
+            flow.place(w);
+            card.add(w, w.getX(), w.getY());
+            return w;
+        }
+
+        SlateCard finish() {
+            card.setHeight(flow.maxY() + CARD_PAD);
+            return card;
+        }
     }
 
     @Override
     protected void build() {
         final Rect c = contentRect();
         final CoreConfig cfg = Slate.config();
-        final SlateScrollPanel panel = add(new SlateScrollPanel(c.x(), c.y() + 4, c.w(), c.h() - 4));
-        final int w = c.w() - 10;
-        final Flow f = Flow.column(0, 0, 6);
+        final SlateScrollPanel panel = add(new SlateScrollPanel(c.x(), c.y(), c.w(), c.h()).padding(4));
+        final int w = panel.innerWidth();
+        int y = 0;
 
-        panel.add(f.place(new SlateSeparator(0, 0, w, Component.translatable("slate.settings.section.look"))));
-        panel.add(f.place(new SlateSegmented<>(0, 0, w, List.of("DARK", "VANILLA"), cfg.isVanillaSkin() ? "VANILLA" : "DARK",
-            s -> Component.translatable("slate.skin." + s.toLowerCase()), s -> save(x -> x.skin = s))));
-        panel.add(f.place(new SlateColorField(0, 0, w, Colors.fromHex(cfg.accent, Palette.DEFAULT_ACCENT), argb -> save(x -> x.accent = Colors.toHex(argb)))));
-        final SlateDropdown<Palette.AccentPreset> presets = new SlateDropdown<>(0, 0, w, Palette.ACCENTS, null,
-            p -> Component.literal(p.name()), p -> save(x -> x.accent = Colors.toHex(p.color())));
-        presets.label(Component.translatable("slate.settings.accent_preset"));
-        panel.add(f.place(presets));
-        panel.add(f.place(new SlateSlider(0, 0, w, Component.translatable("slate.settings.radius"), 0, 4, 1, cfg.radius, v -> Integer.toString((int) v), v -> save(x -> x.radius = (int) v)).compact(true)));
-        panel.add(f.place(new SlateToggle(0, 0, w, Component.translatable("slate.settings.heading_font"), cfg.headingFont, v -> save(x -> x.headingFont = v))));
-        panel.add(f.place(new SlateToggle(0, 0, w, Component.translatable("slate.settings.blur_in_game"), cfg.blurInGame, v -> save(x -> x.blurInGame = v))));
+        // Preview: a strip of live widgets so skin/accent changes are visible without leaving the page.
+        final Section preview = new Section(w, Component.translatable("slate.settings.section.preview"));
+        final int half = (preview.rowW - ROW_GAP) / 2;
+        final SlateButton primary = new SlateButton(0, 0, half, Component.translatable("slate.settings.preview.primary"), () -> {}).variant(SlateButton.Variant.PRIMARY).icon(Icon.SPARKLE);
+        final SlateButton secondary = new SlateButton(half + ROW_GAP, 0, half, Component.translatable("slate.settings.preview.secondary"), () -> {});
+        preview.row(primary);
+        preview.card.add(secondary, CARD_PAD + half + ROW_GAP, primary.getY());
+        preview.row(new SlateToggle(0, 0, half, Component.translatable("slate.settings.preview.toggle"), true, v -> {}));
+        final SlateTextField field = new SlateTextField(half + ROW_GAP, 0, half, Component.translatable("slate.settings.preview.field")).placeholder(Component.translatable("slate.settings.preview.field")).clearButton(true);
+        preview.card.add(field, CARD_PAD + half + ROW_GAP, preview.flow.y() - SlateToggle.SWITCH_H - 14);
+        preview.row(new SlateCheckbox(0, 0, half, Component.translatable("slate.settings.preview.checkbox"), true, v -> {}));
+        final SlateProgress progress = new SlateProgress(half + ROW_GAP, 0, half, 6).snap(0.66f);
+        preview.card.add(progress, CARD_PAD + half + ROW_GAP, preview.flow.y() - ROW_GAP - 16 + 5);
+        panel.add(preview.finish(), 0, y);
+        y += preview.card.getHeight() + CARD_GAP;
 
-        panel.add(f.place(new SlateSeparator(0, 0, w, Component.translatable("slate.settings.section.motion"))));
-        panel.add(f.place(new SlateSlider(0, 0, w, Component.translatable("slate.settings.motion"), 0, 2, 0.25, cfg.motion,
-            v -> v <= 0 ? "Off" : "%.2fx".formatted(v), v -> save(x -> x.motion = v)).compact(true)));
-        panel.add(f.place(new SlateToggle(0, 0, w, Component.translatable("slate.settings.transitions"), cfg.transitions, v -> save(x -> x.transitions = v))));
-        panel.add(f.place(new SlateToggle(0, 0, w, Component.translatable("slate.settings.ui_sounds"), cfg.uiSounds, v -> save(x -> x.uiSounds = v))));
-        panel.add(f.place(new SlateToggle(0, 0, w, Component.translatable("slate.settings.toasts"), cfg.toasts, v -> save(x -> x.toasts = v))));
+        // Look
+        final Section look = new Section(w, Component.translatable("slate.settings.section.look"));
+        look.row(new SlateLabel(0, 0, look.rowW, Component.translatable("slate.settings.skin")).style(SlateLabel.Style.MUTED));
+        look.row(new SlateSegmented<>(0, 0, look.rowW, List.of("DARK", "VANILLA"), cfg.isVanillaSkin() ? "VANILLA" : "DARK",
+            s -> Component.translatable("slate.skin." + s.toLowerCase(java.util.Locale.ROOT)), s -> save(x -> x.skin = s)));
+        look.flow.skip(2);
+        look.row(new SlateLabel(0, 0, look.rowW, Component.translatable("slate.settings.accent")).style(SlateLabel.Style.MUTED));
+        final int accent = Colors.fromHex(cfg.accent, Palette.DEFAULT_ACCENT);
+        swatches = look.row(new SlateSwatches(0, 0, look.rowW, Palette.ACCENTS, accent, argb -> {
+            save(x -> x.accent = Colors.toHex(argb));
+            if (customColor != null) customColor.setColor(argb);
+        }));
+        customColor = look.row(new SlateColorField(0, 0, look.rowW, accent, argb -> {
+            save(x -> x.accent = Colors.toHex(argb));
+            if (swatches != null) swatches.setSelectedColor(argb);
+        }));
+        look.flow.skip(2);
+        look.row(new SlateSlider(0, 0, look.rowW, Component.translatable("slate.settings.radius"), 0, 4, 1, cfg.radius,
+            v -> Integer.toString((int) v) + " px", v -> save(x -> x.radius = (int) v)).compact(true));
+        look.row(new SlateToggle(0, 0, look.rowW, Component.translatable("slate.settings.heading_font"), cfg.headingFont, v -> save(x -> x.headingFont = v)));
+        look.row(new SlateToggle(0, 0, look.rowW, Component.translatable("slate.settings.blur_in_game"), cfg.blurInGame, v -> save(x -> x.blurInGame = v)));
+        panel.add(look.finish(), 0, y);
+        y += look.card.getHeight() + CARD_GAP;
 
-        panel.add(f.place(new SlateSeparator(0, 0, w, Component.translatable("slate.settings.section.restyle"))));
-        panel.add(f.place(new SlateDropdown<>(0, 0, w, List.of("VANILLA_AND_SLATE", "ALLOWLIST", "ALL_NON_CONTAINER", "NONE"), cfg.reskinScope,
-            s -> Component.translatable("slate.reskin." + s.toLowerCase()), s -> { save(x -> x.reskinScope = s); Reskin.invalidate(); })
-            .label(Component.translatable("slate.settings.reskin_scope"))));
+        // Motion & feedback
+        final Section motion = new Section(w, Component.translatable("slate.settings.section.motion"));
+        motion.row(new SlateSlider(0, 0, motion.rowW, Component.translatable("slate.settings.motion"), 0, 2, 0.25, cfg.motion,
+            v -> v <= 0 ? Component.translatable("slate.settings.motion.off").getString() : "%.2fx".formatted(v), v -> save(x -> x.motion = v)).compact(true));
+        motion.row(new SlateToggle(0, 0, motion.rowW, Component.translatable("slate.settings.transitions"), cfg.transitions, v -> save(x -> x.transitions = v)));
+        motion.row(new SlateToggle(0, 0, motion.rowW, Component.translatable("slate.settings.ui_sounds"), cfg.uiSounds, v -> save(x -> x.uiSounds = v)));
+        motion.row(new SlateToggle(0, 0, motion.rowW - 90, Component.translatable("slate.settings.toasts"), cfg.toasts, v -> save(x -> x.toasts = v)));
+        final SlateButton test = new SlateButton(0, 0, 84, 16, Component.translatable("slate.settings.test_toast"),
+            () -> SlateToasts.show(Component.translatable("slate.toast.test.title"), Component.translatable("slate.toast.test.body"), Icon.BELL))
+            .variant(SlateButton.Variant.GHOST).icon(Icon.BELL);
+        motion.card.add(test, CARD_PAD + motion.rowW - 84, motion.flow.y() - ROW_GAP - 18);
+        panel.add(motion.finish(), 0, y);
+        y += motion.card.getHeight() + CARD_GAP;
 
-        panel.add(f.place(new SlateSeparator(0, 0, w, Component.translatable("slate.settings.section.dev"))));
-        panel.add(f.place(new SlateToggle(0, 0, w, Component.translatable("slate.settings.dev_mode"), cfg.devMode, v -> save(x -> x.devMode = v))));
-        panel.add(f.place(new SlateToggle(0, 0, w, Component.translatable("slate.settings.dev_grid"), cfg.devGrid, v -> save(x -> x.devGrid = v))));
-        panel.add(f.place(new SlateSlider(0, 0, w, Component.translatable("slate.settings.dev_snap"), 1, 16, 1, cfg.devSnap, v -> Integer.toString((int) v) + " px", v -> save(x -> x.devSnap = (int) v)).compact(true)));
-        panel.add(f.place(new SlateButton(0, 0, w, Component.translatable("slate.settings.open_config_folder"), () ->
-            net.minecraft.Util.getPlatform().openPath(dev.fallingcloud.slate.core.config.JsonConfig.dir())).icon(Icon.FOLDER).variant(SlateButton.Variant.GHOST)));
-        panel.setContentHeight(f.maxY());
+        // Restyle other screens
+        final Section restyle = new Section(w, Component.translatable("slate.settings.section.restyle"));
+        restyle.row(new SlateLabel(0, 0, restyle.rowW, Component.translatable("slate.settings.restyle.hint")).style(SlateLabel.Style.MUTED).wrap(true));
+        restyle.row(new SlateDropdown<>(0, 0, restyle.rowW, List.of("VANILLA_AND_SLATE", "ALLOWLIST", "ALL_NON_CONTAINER", "NONE"), cfg.reskinScope,
+            s -> Component.translatable("slate.reskin." + s.toLowerCase(java.util.Locale.ROOT)), s -> { save(x -> x.reskinScope = s); Reskin.invalidate(); })
+            .label(Component.translatable("slate.settings.reskin_scope")));
+        panel.add(restyle.finish(), 0, y);
+        y += restyle.card.getHeight() + CARD_GAP;
+
+        // Development mode
+        final Section devSec = new Section(w, Component.translatable("slate.settings.section.dev"));
+        devSec.row(new SlateToggle(0, 0, devSec.rowW, Component.translatable("slate.settings.dev_mode"), cfg.devMode, v -> save(x -> x.devMode = v))
+            .tip(Component.translatable("slate.settings.dev_mode.tip")));
+        devSec.row(new SlateToggle(0, 0, devSec.rowW, Component.translatable("slate.settings.dev_grid"), cfg.devGrid, v -> save(x -> x.devGrid = v)));
+        devSec.row(new SlateSlider(0, 0, devSec.rowW, Component.translatable("slate.settings.dev_snap"), 1, 16, 1, cfg.devSnap,
+            v -> Integer.toString((int) v) + " px", v -> save(x -> x.devSnap = (int) v)).compact(true));
+        devSec.flow.skip(2);
+        final int bw = (devSec.rowW - ROW_GAP) / 2;
+        final SlateButton folder = new SlateButton(0, 0, bw, Component.translatable("slate.settings.open_config_folder"), () ->
+            net.minecraft.Util.getPlatform().openPath(JsonConfig.dir())).icon(Icon.FOLDER);
+        devSec.row(folder);
+        devSec.card.add(new SlateButton(0, 0, bw, Component.translatable("slate.settings.reset"), this::confirmReset).variant(SlateButton.Variant.DANGER).icon(Icon.UNDO),
+            CARD_PAD + bw + ROW_GAP, folder.getY());
+        panel.add(devSec.finish(), 0, y);
+        y += devSec.card.getHeight();
+
+        panel.setContentHeight(y);
     }
 
-    private void save(final java.util.function.Consumer<CoreConfig> edit) {
+    private void confirmReset() {
+        SlateModal.confirmDanger(Component.translatable("slate.settings.reset.title"), Component.translatable("slate.settings.reset.body"),
+            Component.translatable("slate.settings.reset"), () -> {
+                Slate.configFile().reset();
+                Theme.reload();
+                Reskin.invalidate();
+                rebuildWidgets();
+            });
+    }
+
+    private void save(final Consumer<CoreConfig> edit) {
         Slate.configFile().update(edit);
         Theme.reload();
     }

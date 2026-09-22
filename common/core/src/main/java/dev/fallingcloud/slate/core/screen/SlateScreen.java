@@ -7,13 +7,17 @@ import dev.fallingcloud.slate.core.layout.ui.Rect;
 import dev.fallingcloud.slate.core.theme.Colors;
 import dev.fallingcloud.slate.core.theme.Palette;
 import dev.fallingcloud.slate.core.theme.Theme;
+import dev.fallingcloud.slate.core.widget.SlateCard;
 import dev.fallingcloud.slate.core.widget.SlateIconButton;
+import dev.fallingcloud.slate.core.widget.SlateScrollPanel;
+import dev.fallingcloud.slate.core.widget.SlateTextField;
 import dev.fallingcloud.slate.core.widget.SlateWidget;
 import dev.fallingcloud.slate.core.widget.popup.Popups;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.Renderable;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.narration.NarratableEntry;
@@ -22,10 +26,12 @@ import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Base for every Slate screen. Gives you: the themed background (solid dark, or blurred world + overlay
- * in-game; vanilla panel on the vanilla skin), a header with title, back button and right-side actions,
- * a content rect, staggered entrance animation, Esc-to-back, and the standard padding. Subclasses
- * implement {@link #build()} (called on init and resize) and optionally {@link #renderContent}.
+ * Base for every Slate screen. Gives you: the themed background (solid dark with a vignette, or blurred
+ * world + overlay in-game; the panorama when {@link #panoramaBackground} is set; vanilla panel /
+ * panorama on the vanilla skin), a header with title, back button and right-side actions, a content
+ * rect, staggered entrance animation, Esc-to-back, {@code /} to focus a search field, and the standard
+ * padding. Subclasses implement {@link #build()} (called on init and resize) and optionally
+ * {@link #renderContent}.
  *
  * <p>Popups, toasts, tooltips and the dev-mode editor are drawn by Core's global screen hooks, so a
  * SlateScreen needs no code for them.</p>
@@ -34,11 +40,17 @@ public abstract class SlateScreen extends Screen {
 
     public static final int PAD = 12;
     public static final int HEADER_H = 32;
+    /** Entrance stagger between consecutive widgets and its cap. */
+    public static final int STAGGER_MS = 18, STAGGER_MAX_MS = 200;
 
     @Nullable protected final Screen parent;
     protected boolean showHeader = true;
     protected boolean showBack = true;
+    /** Draw the title-screen panorama behind the content when no world is loaded (title-like screens). */
+    protected boolean panoramaBackground = false;
     protected int maxContentWidth = 0;              // 0 = full width
+    /** A text field that {@code /} focuses (search boxes); null = none. */
+    @Nullable protected EditBox slashFocusTarget;
     private boolean firstBuild = true;
     private final List<AbstractWidget> headerActions = new ArrayList<>();
     private int entranceIndex;
@@ -60,12 +72,15 @@ public abstract class SlateScreen extends Screen {
     @Override
     protected void removeWidget(final GuiEventListener listener) {
         slateRenderables.remove(listener);
+        headerActions.remove(listener);
         super.removeWidget(listener);
     }
 
     @Override
     protected void clearWidgets() {
         slateRenderables.clear();
+        headerActions.clear();
+        slashFocusTarget = null;
         super.clearWidgets();
     }
 
@@ -84,11 +99,14 @@ public abstract class SlateScreen extends Screen {
         int w = width - PAD * 2;
         int x = PAD;
         if (maxContentWidth > 0 && w > maxContentWidth) { w = maxContentWidth; x = (width - w) / 2; }
-        final int top = showHeader ? HEADER_H : PAD;
+        final int top = showHeader ? HEADER_H + 4 : PAD;
         return new Rect(x, top, w, height - top - PAD);
     }
 
     public Rect headerRect() { return new Rect(0, 0, width, HEADER_H); }
+
+    /** Where the header title starts (after the back button). */
+    protected int headerTitleX() { return PAD + (showBack && parent != null ? 22 : 0); }
 
     @Override
     protected final void init() {
@@ -101,10 +119,7 @@ public abstract class SlateScreen extends Screen {
         if (firstBuild) {
             firstBuild = false;
             int i = 0;
-            for (final Renderable r : slateRenderables) {
-                if (r instanceof SlateWidget w) w.playEntrance(Math.min(200, i++ * 18));
-                else if (r instanceof dev.fallingcloud.slate.core.widget.SlateCard c) c.playEntrance(Math.min(200, i++ * 18));
-            }
+            for (final Renderable r : slateRenderables) i = entrance(r, i);
         }
     }
 
@@ -127,6 +142,21 @@ public abstract class SlateScreen extends Screen {
         return widget;
     }
 
+    /**
+     * Plays the staggered entrance on a renderable (and its children for cards and scroll panels);
+     * {@code index} numbers the stagger. Returns the next index.
+     */
+    public static int entrance(final Renderable r, int index) {
+        if (r instanceof SlateWidget w) {
+            w.playEntrance(Math.min(STAGGER_MAX_MS, index++ * STAGGER_MS));
+        } else if (r instanceof SlateCard c) {
+            c.playEntrance(Math.min(STAGGER_MAX_MS, index++ * STAGGER_MS));
+        } else if (r instanceof SlateScrollPanel panel) {
+            for (final GuiEventListener child : panel.children()) if (child instanceof Renderable cr) index = entrance(cr, index);
+        }
+        return index;
+    }
+
     // ------------------------------------------------------------------ navigation
 
     public void back() {
@@ -143,6 +173,11 @@ public abstract class SlateScreen extends Screen {
     public boolean keyPressed(final int keyCode, final int scanCode, final int modifiers) {
         if (super.keyPressed(keyCode, scanCode, modifiers)) return true;
         if (keyCode == 256 && shouldCloseOnEsc()) { back(); return true; }
+        if (keyCode == 47 && slashFocusTarget != null && !(getFocused() instanceof EditBox eb && eb.isFocused())) {
+            setFocused(slashFocusTarget);
+            if (slashFocusTarget instanceof SlateTextField f) f.setFocused(true);
+            return true;
+        }
         return false;
     }
 
@@ -158,17 +193,26 @@ public abstract class SlateScreen extends Screen {
         final Theme t = Theme.current();
         final boolean inWorld = this.minecraft.level != null;
         if (t.isVanilla()) {
+            if (!inWorld && panoramaBackground) {
+                // Title-like: the panorama, no blur, no tile - just a gentle veil so text stays readable.
+                renderPanorama(g, partialTick);
+                SlateDraw.vignette(g, 0, 0, width, height, 0.3f);
+                return;
+            }
             super.renderBackground(g, mouseX, mouseY, partialTick);
             return;
         }
         if (inWorld) {
             if (t.blurInGame()) this.renderBlurredBackground(partialTick);
             g.fill(0, 0, width, height, t.palette().overlay());
+        } else if (panoramaBackground) {
+            renderPanorama(g, partialTick);
+            g.fill(0, 0, width, height, Colors.withAlpha(t.bg(), 0x99));
+            SlateDraw.vignette(g, 0, 0, width, height, 0.45f);
         } else {
             g.fill(0, 0, width, height, t.bg());
-            // Subtle vignette: darker corners so panels read as lifted.
-            SlateDraw.vgradient(g, 0, 0, width, 40, Colors.withAlpha(0x000000, 0x30), 0);
-            SlateDraw.vgradient(g, 0, height - 60, width, 60, 0, Colors.withAlpha(0x000000, 0x40));
+            // Subtle vignette: darker edges so panels read as lifted.
+            SlateDraw.vignette(g, 0, 0, width, height, 0.3f);
         }
     }
 
@@ -182,12 +226,15 @@ public abstract class SlateScreen extends Screen {
     protected void renderHeader(final GuiGraphics g) {
         final Theme t = Theme.current();
         final Palette p = t.palette();
-        final int tx = PAD + (showBack && parent != null ? 22 : 0);
+        final int tx = headerTitleX();
+        int right = width - PAD;
+        for (final AbstractWidget a : headerActions) right = Math.min(right, a.getX() - 8);
+        final int ty = SlateDraw.textY(0, HEADER_H);
         if (t.isVanilla()) {
-            g.drawString(font, Fonts.heading(getTitle()), tx, (HEADER_H - 9) / 2, 0xFFFFFFFF, true);
+            g.drawString(font, SlateDraw.truncate(Fonts.heading(getTitle()), right - tx), tx, ty, 0xFFFFFFFF, true);
             SlateDraw.vanillaSeparator(g, 0, HEADER_H - 2, width, true, this.minecraft.level != null);
         } else {
-            g.drawString(font, Fonts.heading(getTitle()), tx, (HEADER_H - 9) / 2, p.text(), false);
+            g.drawString(font, SlateDraw.truncate(Fonts.heading(getTitle()), right - tx), tx, ty, p.text(), false);
             SlateDraw.hline(g, 0, HEADER_H - 1, width, p.border());
         }
     }
@@ -197,9 +244,11 @@ public abstract class SlateScreen extends Screen {
 
     // ------------------------------------------------------------------ helpers
 
-    protected int nextEntranceDelay() { return Math.min(200, entranceIndex++ * 18); }
+    protected int nextEntranceDelay() { return Math.min(STAGGER_MAX_MS, entranceIndex++ * STAGGER_MS); }
 
     protected Theme theme() { return Theme.current(); }
 
     protected Palette palette() { return Theme.current().palette(); }
+
+    protected boolean inWorld() { return this.minecraft != null && this.minecraft.level != null; }
 }

@@ -5,6 +5,9 @@ import net.minecraft.client.gui.GuiGraphics;
 /**
  * Something drawn above the whole screen that takes input first: dropdown lists, context menus, modals,
  * colour pickers. Managed by {@link Popups}. Coordinates are absolute GUI coordinates.
+ *
+ * <p>Closing can animate: return true from {@link #beginClose()} and {@link Popups} keeps rendering the
+ * popup (without routing it input) until {@link #closeFinished()} reports true.</p>
  */
 public interface Popup {
 
@@ -29,6 +32,12 @@ public interface Popup {
     /** Modal popups dim the screen and swallow every event. */
     default boolean isModal() { return false; }
 
-    /** Called when the popup is closed for any reason. */
+    /** Called when the popup is closed for any reason (before any close animation). */
     default void onClose() {}
+
+    /** Start a close animation; return false to disappear immediately. */
+    default boolean beginClose() { return false; }
+
+    /** True once the close animation has ended (only asked after {@link #beginClose()} returned true). */
+    default boolean closeFinished() { return true; }
 }
