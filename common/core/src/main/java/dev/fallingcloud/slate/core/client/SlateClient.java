@@ -47,6 +47,7 @@ public final class SlateClient {
             if (HUB_KEY.matches(key, scan) && !HUB_KEY.isUnbound()) { Minecraft.getInstance().setScreen(new SlateHubScreen(null)); return true; }
             return false;
         });
+        DevHarness.init();
         Slate.LOGGER.info("[Slate] client ready ({} skin)", Theme.current().skin());
     }
 

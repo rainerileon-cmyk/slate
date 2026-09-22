@@ -6,6 +6,14 @@ loom {
         client {
             client()
             runDir 'run'
+            // Unattended screenshot runs: -PautoScreens=slate:hub,slate:settings [-PautoSkin=VANILLA] [-PautoQuit=true]
+            if (project.hasProperty('autoScreens')) {
+                vmArg "-Dslate.autoScreens=${project.autoScreens}"
+                vmArg "-Dslate.autoDir=${file('run').absolutePath}"
+                vmArg "-Dslate.autoQuit=${project.hasProperty('autoQuit') ? project.autoQuit : 'true'}"
+                if (project.hasProperty('autoSkin')) vmArg "-Dslate.autoSkin=${project.autoSkin}"
+                if (project.hasProperty('autoFrames')) vmArg "-Dslate.autoFrames=${project.autoFrames}"
+            }
         }
         server {
             server()
