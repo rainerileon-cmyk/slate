@@ -99,11 +99,26 @@ public final class MediaStore {
         SocialClient.get().send(new SocialMessage.MediaRequest(id));
     }
 
-    /** The decoded texture for an image attachment (requests it from the hub when missing). */
+    private static final Map<String, Textures.Loaded> TEXTURES = new HashMap<>();
+    private static final java.util.Set<String> DECODING = new java.util.HashSet<>();
+    private static final java.util.Set<String> UNDECODABLE = new java.util.HashSet<>();
+
+    /**
+     * The decoded texture for an image attachment. Missing bytes are requested from the hub; present
+     * bytes are decoded once on a worker (JPEG/GIF go through ImageIO), so the first calls return empty.
+     */
     public static Optional<Textures.Loaded> texture(final String id) {
+        final Textures.Loaded t = TEXTURES.get(id);
+        if (t != null) return Optional.of(t);
+        if (UNDECODABLE.contains(id) || DECODING.contains(id)) return Optional.empty();
         final byte[] bytes = get(id);
         if (bytes == null) { request(id); return Optional.empty(); }
-        return Textures.fromBytes(bytes, "slate_mp:" + id);
+        DECODING.add(id);
+        ImageDecoding.decodeAsync(bytes, "media", loaded -> {
+            DECODING.remove(id);
+            if (loaded == null) UNDECODABLE.add(id); else TEXTURES.put(id, loaded);
+        });
+        return Optional.empty();
     }
 
     private MediaStore() {}

@@ -17,6 +17,7 @@ import dev.fallingcloud.slate.core.theme.Theme;
 import dev.fallingcloud.slate.core.widget.SlateSpinner;
 import dev.fallingcloud.slate.multiplayer.MultiplayerConfig;
 import dev.fallingcloud.slate.multiplayer.MultiplayerConfigs;
+import dev.fallingcloud.slate.multiplayer.client.ImageDecoding;
 import dev.fallingcloud.slate.multiplayer.client.SocialClient;
 import dev.fallingcloud.slate.multiplayer.social.SocialMessage;
 import dev.fallingcloud.slate.multiplayer.social.StreamInfo;
@@ -53,6 +54,8 @@ public final class StreamViewer {
         public long frames;
         public final long startedMs = System.currentTimeMillis();
         @Nullable SocialMessage.StreamFrame pending;
+        boolean decoding;
+        int lastSeqShown;
 
         Viewing(final StreamInfo info) { this.info = info; }
 
@@ -158,23 +161,30 @@ public final class StreamViewer {
         final String target = r.start().target();
         if (target == null || !target.startsWith("s:")) return;
         final Viewing v = WATCHING.get(target.substring(2));
-        if (v == null) return;
-        final Optional<Textures.Loaded> tex = Textures.fromBytes(r.bytes(), null);
-        if (tex.isEmpty()) return;
-        release(v);
-        v.texture = tex.get();
-        final long now = System.currentTimeMillis();
-        if (v.lastFrameMs > 0) {
-            final float inst = 1000f / Math.max(1, now - v.lastFrameMs);
-            v.fps = v.fps == 0 ? inst : v.fps * 0.8f + inst * 0.2f;
-        }
-        v.lastFrameMs = now;
-        v.frames++;
-        v.frameBytes = r.bytes().length;
+        if (v == null || v.decoding) return;                        // a slow decoder drops frames, never queues them
+        final int seq = (int) metaLong(r.start().meta(), "seq");
         final long sent = metaLong(r.start().meta(), "t");
-        v.seq = (int) metaLong(r.start().meta(), "seq");
-        if (sent > 0) v.latencyMs = Math.max(0, now - sent);
-        else if (v.pending != null && v.pending.seq() == v.seq) v.latencyMs = Math.max(0, now - v.pending.sentMs());
+        final int bytes = r.bytes().length;
+        v.decoding = true;
+        ImageDecoding.decodeAsync(r.bytes(), "frame", tex -> {
+            v.decoding = false;
+            if (tex == null) return;
+            if (!WATCHING.containsKey(v.info.id()) || seq < v.lastSeqShown) { Textures.release(tex); return; }
+            release(v);
+            v.texture = tex;
+            v.lastSeqShown = seq;
+            final long now = System.currentTimeMillis();
+            if (v.lastFrameMs > 0) {
+                final float inst = 1000f / Math.max(1, now - v.lastFrameMs);
+                v.fps = v.fps == 0 ? inst : v.fps * 0.8f + inst * 0.2f;
+            }
+            v.lastFrameMs = now;
+            v.frames++;
+            v.frameBytes = bytes;
+            v.seq = seq;
+            if (sent > 0) v.latencyMs = Math.max(0, now - sent);
+            else if (v.pending != null && v.pending.seq() == seq) v.latencyMs = Math.max(0, now - v.pending.sentMs());
+        });
     }
 
     private static long metaLong(final String meta, final String key) {
