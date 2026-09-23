@@ -121,7 +121,7 @@ public final class SocialHub {
         final SocialHub hub = current;
         if (hub == null) return;
         final HubSession s = hub.sessions.get(player.getUUID());
-        if (s instanceof PlayerSession ps && ps.player() == player) hub.closed(s);
+        if (s instanceof PlayerSession) hub.closed(s);
     }
 
     /** The {@code slate:social} payload handler (server side). */
@@ -129,7 +129,8 @@ public final class SocialHub {
         final SocialHub hub = current;
         if (hub == null || sender == null) return;
         final HubSession existing = hub.sessions.get(sender.getUUID());
-        if (existing instanceof PlayerSession ps && ps.player() == sender) {
+        if (existing instanceof PlayerSession ps) {
+            ps.setPlayer(sender);                 // respawn / dimension change replaces the ServerPlayer object
             hub.handle(existing, m);
             return;
         }
