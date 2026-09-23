@@ -114,6 +114,7 @@ public final class IconsGen {
         Files.createDirectories(atlasPath.getParent());
         Files.write(atlasPath, png(atlas, true));
         System.out.println("wrote " + rel(root, atlasPath));
+        Files.createDirectories(javaPath.getParent());
         Files.writeString(javaPath, java, StandardCharsets.UTF_8);
         System.out.println("wrote " + rel(root, javaPath));
         Files.write(previewPath, png(renderPreview(glyphs, 4), false));
