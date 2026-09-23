@@ -24,11 +24,12 @@ and config (8c5166d + edits) have commits, core-polish/editor/multiplayer only u
 | chat | agent/chat | core.media, core.client.media (new), common/chat, loader chat dirs | DONE (3b97f5c), merged |
 | config | agent/config | common/config, loader config dirs | DONE (b57e7e1), merged |
 
-## Phase 2 — integration (02:40)
+## Phase 2 — integration (DONE 02:50)
 - master = all seven branches merged + chat<->multiplayer bridge alignment (5f6f50b); NeoForge + Fabric builds green.
 - Screenshot passes done: 10 menu screens x 2 skins, in-world HUD/pause/chat/hub x 2 skins (`neoforge/dev/run/screenshots`).
 - Harness lesson: another agent's `Stop-Process` killed master's dev client twice (exit -1); rerun after agents finish.
-- Remaining: final full builds, DF boot test + install (`tools/boot-df.ps1`, `tools/install-df.ps1`), morning report.
+- Final builds green on both loaders; jars installed in the DF pack (Chatterbox disabled); CmlLib boot test: title screen reached, 0 fatal signatures.
+- Agent worktrees removed (branches `agent/*` kept). Morning report: `docs/MORNING-REPORT-2026-09-23.md`.
 - Merge branches into main, full build both loaders, fix cross-module seams (media in DMs, hub entries).
 - Dev-client smoke run (`neoforge/dev runClient`), screenshots of every screen in both skins.
 - Boot test in the DF pack via the CmlLib harness, then install jars into `packs/df/game/mods/`
