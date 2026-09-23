@@ -21,11 +21,12 @@ neoForge {
             client()
             gameDirectory = file('run')
             // Unattended screenshot runs: -PautoScreens=slate:hub,slate:settings [-PautoSkin=VANILLA] [-PautoQuit=true]
-            if (project.hasProperty('autoScreens')) {
-                systemProperty 'slate.autoScreens', project.autoScreens.toString()
+            if (project.hasProperty('autoScreens') || project.hasProperty('autoWorld')) {
+                if (project.hasProperty('autoScreens')) systemProperty 'slate.autoScreens', project.autoScreens.toString()
                 systemProperty 'slate.autoDir', file('run').absolutePath
                 systemProperty 'slate.autoQuit', project.hasProperty('autoQuit') ? project.autoQuit.toString() : 'true'
                 if (project.hasProperty('autoSkin')) systemProperty 'slate.autoSkin', project.autoSkin.toString()
+                if (project.hasProperty('autoWorld')) systemProperty 'slate.autoWorld', project.autoWorld.toString()
                 if (project.hasProperty('autoFrames')) systemProperty 'slate.autoFrames', project.autoFrames.toString()
             }
         }
