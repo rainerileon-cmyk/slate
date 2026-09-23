@@ -11,6 +11,10 @@ import org.jetbrains.annotations.Nullable;
 /**
  * A titled group of rows on an option page. Items are bindings (rendered as {@link OptionRow}s) or
  * custom widget factories (given the row width) for things like swatch rows and language lists.
+ *
+ * <p>On a page every section is its own top tab, unless sections share a {@link #tab(String, Component) tab}:
+ * then that tab holds all of them, shown as small secondary tabs or as headers (the page decides, see
+ * {@link OptionPageBase#pills}).</p>
  */
 public final class Section {
 
@@ -20,7 +24,11 @@ public final class Section {
     public final Component title;
     @Nullable public final Component description;
     public final List<Item> items = new ArrayList<>();
+    /** Only matters for sections shown under headers inside a tab (key categories): the header folds. */
     public boolean collapsible = true;
+    /** The top tab this section belongs to; null = a tab of its own. */
+    @Nullable public String tabId;
+    @Nullable public Component tabTitle;
 
     public Section(final String id, final Component title, @Nullable final Component description) {
         this.id = id;
@@ -54,6 +62,17 @@ public final class Section {
     }
 
     public Section fixed() { this.collapsible = false; return this; }
+
+    /** Put this section into the top tab {@code id} (sections with the same tab id share it). */
+    public Section tab(final String id, final Component title) {
+        this.tabId = id;
+        this.tabTitle = title;
+        return this;
+    }
+
+    public String tabKey() { return tabId != null ? tabId : id; }
+
+    public Component tabLabel() { return tabTitle != null ? tabTitle : title; }
 
     public List<OptionBinding> bindings() {
         final List<OptionBinding> out = new ArrayList<>();

@@ -64,6 +64,9 @@ public interface OptionBinding {
     /** Text on the button of an ACTION binding. */
     default Component actionLabel() { return Component.translatable("slate_config.row.open"); }
 
+    /** Icon on the button of an ACTION binding (most open another screen). */
+    default dev.fallingcloud.slate.core.gfx.Icon actionIcon() { return dev.fallingcloud.slate.core.gfx.Icon.EXTERNAL; }
+
     /** How a value is shown next to sliders / in search results. */
     default Component valueText(@Nullable final Object value) {
         return OptionValues.defaultText(this, value);

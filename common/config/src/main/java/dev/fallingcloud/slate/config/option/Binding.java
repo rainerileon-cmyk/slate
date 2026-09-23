@@ -28,6 +28,7 @@ public class Binding implements OptionBinding {
     private BooleanSupplier enabled = () -> true;
     @Nullable private Runnable action;
     @Nullable private Component actionLabel;
+    @Nullable private dev.fallingcloud.slate.core.gfx.Icon actionIcon;
     @Nullable private Function<Object, Component> format;
     @Nullable private String extraSearch;
 
@@ -73,6 +74,8 @@ public class Binding implements OptionBinding {
 
     public Binding action(final Component buttonLabel, final Runnable r) { this.actionLabel = buttonLabel; this.action = r; return this; }
 
+    public Binding actionIcon(final dev.fallingcloud.slate.core.gfx.Icon icon) { this.actionIcon = icon; return this; }
+
     public Binding format(final Function<Object, Component> f) { this.format = f; return this; }
 
     /** Extra words the search index should match (file name, section, mod id). */
@@ -93,6 +96,8 @@ public class Binding implements OptionBinding {
     @Override public boolean enabled() { return enabled.getAsBoolean(); }
     @Override public @Nullable Runnable action() { return action; }
     @Override public Component actionLabel() { return actionLabel != null ? actionLabel : OptionBinding.super.actionLabel(); }
+
+    @Override public dev.fallingcloud.slate.core.gfx.Icon actionIcon() { return actionIcon != null ? actionIcon : OptionBinding.super.actionIcon(); }
 
     @Override
     public Component valueText(@Nullable final Object value) {
@@ -131,6 +136,7 @@ public class Binding implements OptionBinding {
             @Override public boolean enabled() { return base.enabled(); }
             @Override public @Nullable Runnable action() { return base.action(); }
             @Override public Component actionLabel() { return base.actionLabel(); }
+            @Override public dev.fallingcloud.slate.core.gfx.Icon actionIcon() { return base.actionIcon(); }
             @Override public Component valueText(@Nullable final Object value) { return base.valueText(value); }
             @Override public String searchText() {
                 final List<String> parts = new ArrayList<>();

@@ -86,20 +86,9 @@ public final class SodiumBridge {
         }
     }
 
-    /** Opens Sodium's own screen (unswapped), for the escape hatch button. */
-    public static void openNativeScreen(final Screen parent) {
-        try {
-            final Class<?> cls = Class.forName("net.caffeinemc.mods.sodium.client.gui.VideoSettingsScreen");
-            final Object screen = cls.getMethod("createScreen", Screen.class).invoke(null, parent);
-            ScreenSwaps.runUnswapped(() -> Minecraft.getInstance().setScreen((Screen) screen));
-        } catch (final Throwable t) {
-            SlateConfig.LOGGER.warn("[Slate Config] cannot open Sodium's screen: {}", t.toString());
-        }
-    }
-
     // ------------------------------------------------------------------ sections
 
-    /** One section per option page of every mod registered with Sodium's config API. */
+    /** One section per option page of every mod registered with Sodium's config API, grouped into one top tab per mod. */
     public static List<Section> sections() {
         final List<Section> out = new ArrayList<>();
         if (!available()) return out;
@@ -108,9 +97,11 @@ public final class SodiumBridge {
                 int pageIdx = 0;
                 for (final Page page : mod.pages()) {
                     final String sid = "sodium." + mod.configId() + "." + pageIdx++;
-                    final Component title = Component.literal(mod.name() + " › " + page.name().getString());
+                    final Component title = page.name();
+                    final String tabId = "sodium." + mod.configId();
+                    final Component tabTitle = Component.literal(mod.name());
                     if (page instanceof ExternalPage ext) {
-                        final Section s = Section.of(sid, title);
+                        final Section s = Section.of(sid, title).tab(tabId, tabTitle);
                         s.add(Binding.of("sodium:" + mod.configId() + ":page." + (pageIdx - 1), OptionType.ACTION, page.name())
                             .tooltip(Component.translatable("slate_config.video.external_page", mod.name()))
                             .action(Component.translatable("slate_config.row.open"), () -> ext.currentScreenConsumer().accept(Minecraft.getInstance().screen))
@@ -118,7 +109,7 @@ public final class SodiumBridge {
                         out.add(s);
                         continue;
                     }
-                    final Section s = Section.of(sid, title);
+                    final Section s = Section.of(sid, title).tab(tabId, tabTitle);
                     for (final OptionGroup group : page.groups()) {
                         for (final Option opt : group.options()) {
                             final OptionBinding b = wrap(opt, mod);
