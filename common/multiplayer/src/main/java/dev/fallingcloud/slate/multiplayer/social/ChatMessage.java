@@ -10,6 +10,13 @@ public record ChatMessage(String id, PlayerRef from, String text, String attachK
 
     public static final int MAX_TEXT = 4000;
 
+    // Names the Chat module reads reflectively.
+    public String sender() { return from == null ? "" : from.name(); }
+
+    public java.util.UUID senderId() { return from == null ? null : from.uuid(); }
+
+    public long time() { return atMs; }
+
     public ChatMessage {
         if (id == null) id = "";
         if (from == null) from = new PlayerRef(PlayerRef.NIL, "");

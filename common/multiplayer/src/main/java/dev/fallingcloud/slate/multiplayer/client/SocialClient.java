@@ -509,7 +509,8 @@ public final class SocialClient {
 
     public Collection<GroupInvite> groupInvites() { return groupInvites.values(); }
 
-    public Collection<ThreadModel> threads() { return threads.values(); }
+    /** Open threads (a List: the Chat module resolves this reflectively with a List return type). */
+    public List<ThreadModel> threads() { return List.copyOf(threads.values()); }
 
     /** The thread for a key, created on first use. */
     public ThreadModel thread(final String key) {

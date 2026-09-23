@@ -24,6 +24,23 @@ public final class ThreadModel {
 
     public ThreadModel(final String key) { this.key = key; }
 
+    // ---- accessors the Chat module reaches reflectively (see slate_chat's MultiplayerBridge):
+    // id() / name() / unread() / messages() / send(String) / blobTarget().
+
+    public String id() { return key; }
+
+    public String name() {
+        return title != null && !title.isEmpty() ? title : SocialClient.get().threadTitle(this);
+    }
+
+    public int unread() { return unread; }
+
+    public List<ChatMessage> messages() { return messages; }
+
+    public void send(final String text) { SocialClient.get().sendChat(key, text); }
+
+    public String blobTarget() { return Threads.blobTarget(key, SocialClient.get().selfUuid()); }
+
     public boolean isGroup() { return Threads.isGroup(key); }
 
     @Nullable public String groupId() { return Threads.groupId(key); }
