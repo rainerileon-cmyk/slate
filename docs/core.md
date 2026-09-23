@@ -49,6 +49,16 @@ thanks to anchors. Export/import copies a layout as JSON through the clipboard. 
 creates a blank screen reachable through `slate:open_screen` with `custom:<id>`. Modpacks ship layouts by
 placing the files in that folder (CloudLauncher content defaults work for this).
 
+### Editor controls
+
+Toolbar: Add, Undo, Redo, Grid, Snap, Layers, Properties, Preview, Background, Reset, Export, Import,
+New custom screen, Save, Exit. Keyboard: Esc (deselect, then exit prompt), Delete, arrows nudge 1 px
+(Shift = 8), Tab next element, Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z, Ctrl+S save, Ctrl+C / Ctrl+V (paste
+offsets +8,+8), Ctrl+A, Ctrl+D duplicate, G grid, P preview, L layers. Mouse: click / Shift-click select,
+drag to move, handles to resize, drag on empty space to rubber-band, right-click for the context menu,
+Alt while dragging disables snapping, Shift constrains to one axis. Anchors are picked automatically from
+where you drop an element and can be changed in the properties panel.
+
 ## For mod developers
 
 Core is a normal dependency: `dev.fallingcloud.slate.core.*` gives you the widget toolkit
