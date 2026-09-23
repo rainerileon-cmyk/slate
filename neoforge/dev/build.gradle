@@ -5,6 +5,7 @@ evaluationDependsOn(':menu')
 evaluationDependsOn(':multiplayer')
 evaluationDependsOn(':chat')
 evaluationDependsOn(':config')
+evaluationDependsOn(':building')
 
 base { archivesName = 'slate-dev' }
 
@@ -15,13 +16,20 @@ neoForge {
         slate_multiplayer { sourceSet project(':multiplayer').sourceSets.main }
         slate_chat { sourceSet project(':chat').sourceSets.main }
         slate_config { sourceSet project(':config').sourceSets.main }
+        slate_building { sourceSet project(':building').sourceSets.main }
     }
     runs {
         client {
             client()
             gameDirectory = file('run')
-            // Unattended screenshot runs: -PautoScreens=slate:hub,slate:settings [-PautoSkin=VANILLA] [-PautoQuit=true]
-            if (project.hasProperty('autoScreens') || project.hasProperty('autoWorld')) {
+            if (project.hasProperty('buildingHarness')) {
+                // Slate Building scenario runs: -PbuildingHarness=smoke,render [-PautoSkin=VANILLA]. The building
+                // harness creates its own flat world and quits by itself, so Core's screenshot harness stays off
+                // for this run (it would open a second world and quit underneath the scenarios).
+                systemProperty 'slate.building.harness', project.buildingHarness.toString()
+                if (project.hasProperty('autoSkin')) systemProperty 'slate.autoSkin', project.autoSkin.toString()
+            } else if (project.hasProperty('autoScreens') || project.hasProperty('autoWorld')) {
+                // Unattended screenshot runs: -PautoScreens=slate:hub,slate:settings [-PautoSkin=VANILLA] [-PautoQuit=true]
                 if (project.hasProperty('autoScreens')) systemProperty 'slate.autoScreens', project.autoScreens.toString()
                 systemProperty 'slate.autoDir', file('run').absolutePath
                 systemProperty 'slate.autoQuit', project.hasProperty('autoQuit') ? project.autoQuit.toString() : 'true'
@@ -44,6 +52,7 @@ dependencies {
     implementation project(':multiplayer')
     implementation project(':chat')
     implementation project(':config')
+    implementation project(':building')
 }
 
 // Nothing to ship from here.

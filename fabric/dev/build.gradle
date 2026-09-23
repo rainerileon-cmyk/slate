@@ -6,8 +6,14 @@ loom {
         client {
             client()
             runDir 'run'
-            // Unattended screenshot runs: -PautoScreens=slate:hub,slate:settings [-PautoSkin=VANILLA] [-PautoQuit=true]
-            if (project.hasProperty('autoScreens') || project.hasProperty('autoWorld')) {
+            if (project.hasProperty('buildingHarness')) {
+                // Slate Building scenario runs: -PbuildingHarness=smoke,render [-PautoSkin=VANILLA]. The building
+                // harness creates its own flat world and quits by itself, so Core's screenshot harness stays off
+                // for this run (it would open a second world and quit underneath the scenarios).
+                vmArg "-Dslate.building.harness=${project.buildingHarness}"
+                if (project.hasProperty('autoSkin')) vmArg "-Dslate.autoSkin=${project.autoSkin}"
+            } else if (project.hasProperty('autoScreens') || project.hasProperty('autoWorld')) {
+                // Unattended screenshot runs: -PautoScreens=slate:hub,slate:settings [-PautoSkin=VANILLA] [-PautoQuit=true]
                 if (project.hasProperty('autoScreens')) vmArg "-Dslate.autoScreens=${project.autoScreens}"
                 vmArg "-Dslate.autoDir=${file('run').absolutePath}"
                 vmArg "-Dslate.autoQuit=${project.hasProperty('autoQuit') ? project.autoQuit : 'true'}"
@@ -29,6 +35,7 @@ dependencies {
     implementation project(path: ':multiplayer', configuration: 'namedElements')
     implementation project(path: ':chat', configuration: 'namedElements')
     implementation project(path: ':config', configuration: 'namedElements')
+    implementation project(path: ':building', configuration: 'namedElements')
 }
 
 tasks.named('jar') { enabled = false }

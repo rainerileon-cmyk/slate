@@ -8,4 +8,4 @@ pluginManagement {
 
 rootProject.name = 'slate-fabric'
 
-include 'core', 'menu', 'multiplayer', 'chat', 'config', 'dev'
+include 'core', 'menu', 'multiplayer', 'chat', 'config', 'building', 'dev'

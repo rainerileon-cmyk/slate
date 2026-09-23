@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "id": "slate_building",
+  "version": "${version}",
+  "name": "Slate Building",
+  "description": "A polished, survival-friendly building toolkit on Slate: every block in every shape (stairs, slabs, vertical slabs, walls, steps, panels and more) with a quick-swap wheel, a placement ghost, a build menu with area modes (fill, walls, copy/paste, mirror, ...) and undo, and a toolbox whose tools unlock them.",
+  "authors": ["falling_colud"],
+  "license": "MIT",
+  "icon": "assets/slate_building/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["dev.fallingcloud.slate.building.fabric.SlateBuildingFabric"],
+    "client": ["dev.fallingcloud.slate.building.fabric.SlateBuildingFabricClient"],
+    "jei_mod_plugin": ["dev.fallingcloud.slate.building.compat.jei.BuildingJeiPlugin"]
+  },
+  "mixins": [
+    "slate_building.mixins.json",
+    "slate_building.variant.mixins.json",
+    "slate_building.render.mixins.json",
+    "slate_building.ops.mixins.json",
+    "slate_building.ui.mixins.json",
+    "slate_building.toolbox.mixins.json",
+    "slate_building.chisel.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "minecraft": "~1.21.1",
+    "java": ">=21",
+    "fabric-api": "*",
+    "slate": ">=1.0.0"
+  },
+  "suggests": {
+    "slate_config": "*",
+    "jei": "*",
+    "betterinventory": "*"
+  }
+}
