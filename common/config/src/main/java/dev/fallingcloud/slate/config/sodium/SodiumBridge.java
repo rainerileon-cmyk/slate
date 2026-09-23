@@ -67,13 +67,13 @@ public final class SodiumBridge {
     /** Replace Sodium's own screen with the hub's Video page (registered from the module's initClient). */
     public static void installScreenSwap(final java.util.function.BiFunction<Screen, String, Screen> hubFactory) {
         try {
-            @SuppressWarnings("unchecked")
-            final Class<? extends Screen> cls = (Class<? extends Screen>) Class.forName("net.caffeinemc.mods.sodium.client.gui.VideoSettingsScreen");
-            ScreenSwaps.register(cls, original -> {
+            // By NAME: loading Sodium's GUI classes at mod init would make Slate the first to trigger every
+            // other mod's mixins on them (Controlify's Sodium compat, for one) - only touch them when opened.
+            ScreenSwaps.registerByName("net.caffeinemc.mods.sodium.client.gui.VideoSettingsScreen", original -> {
                 // setScreen has not switched yet, so the current screen is exactly the parent Sodium was given.
                 Screen parent = Minecraft.getInstance().screen;
                 try {
-                    final Field f = cls.getDeclaredField("prevScreen");
+                    final Field f = original.getClass().getDeclaredField("prevScreen");
                     f.setAccessible(true);
                     final Object p = f.get(original);
                     if (p instanceof Screen s) parent = s;

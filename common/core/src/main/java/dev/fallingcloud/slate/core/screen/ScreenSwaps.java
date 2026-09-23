@@ -15,6 +15,8 @@ import org.jetbrains.annotations.Nullable;
 public final class ScreenSwaps {
 
     private static final Map<Class<? extends Screen>, Function<Screen, Screen>> SWAPS = new LinkedHashMap<>();
+    /** Swaps keyed by class NAME, for soft-dependency screens that must not be class-loaded at registration. */
+    private static final Map<String, Function<Screen, Screen>> SWAPS_BY_NAME = new LinkedHashMap<>();
     private static boolean suspended;
 
     public static void register(final Class<? extends Screen> vanilla, final Function<Screen, Screen> replacement) {
@@ -23,6 +25,18 @@ public final class ScreenSwaps {
 
     public static void unregister(final Class<? extends Screen> vanilla) {
         SWAPS.remove(vanilla);
+    }
+
+    /**
+     * Like {@link #register} but by fully qualified class name: nothing is loaded now, so a soft
+     * dependency's screen (Sodium's video settings, ...) is only touched when it is actually opened.
+     */
+    public static void registerByName(final String className, final Function<Screen, Screen> replacement) {
+        SWAPS_BY_NAME.put(className, replacement);
+    }
+
+    public static void unregisterByName(final String className) {
+        SWAPS_BY_NAME.remove(className);
     }
 
     public static boolean has(final Class<? extends Screen> cls) { return SWAPS.containsKey(cls); }
@@ -36,8 +50,9 @@ public final class ScreenSwaps {
     /** Called from the setScreen hook. Returns the screen to actually show. */
     @Nullable
     public static Screen apply(@Nullable final Screen screen) {
-        if (screen == null || suspended || SWAPS.isEmpty()) return screen;
-        final Function<Screen, Screen> f = SWAPS.get(screen.getClass());
+        if (screen == null || suspended || (SWAPS.isEmpty() && SWAPS_BY_NAME.isEmpty())) return screen;
+        Function<Screen, Screen> f = SWAPS.get(screen.getClass());
+        if (f == null) f = SWAPS_BY_NAME.get(screen.getClass().getName());
         if (f == null) return screen;
         try {
             final Screen s = f.apply(screen);
