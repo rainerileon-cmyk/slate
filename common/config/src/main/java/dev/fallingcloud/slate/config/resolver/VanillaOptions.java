@@ -209,8 +209,8 @@ public final class VanillaOptions {
         bool("discrete_mouse_scroll", "options.discrete_mouse_scroll", Options::discreteMouseScroll, false);
         dbl("mouseWheelSensitivity", "options.mouseWheelSensitivity", Options::mouseWheelSensitivity, 0.01, 10.0, 0.01, 1.0, v -> Component.literal(String.format(Locale.ROOT, "%.2f", v)));
         bool("touchscreen", "options.touchscreen", Options::touchscreen, false);
-        bool("toggleSprint", "key.sprint", Options::toggleSprint, false);
-        bool("toggleCrouch", "key.sneak", Options::toggleCrouch, false);
+        bool("toggleSprint", "slate_config.opt.toggleSprint", Options::toggleSprint, false);
+        bool("toggleCrouch", "slate_config.opt.toggleCrouch", Options::toggleCrouch, false);
         bool("autoJump", "options.autoJump", Options::autoJump, false);
         bool("operatorItemsTab", "options.operatorItemsTab", Options::operatorItemsTab, false);
 
@@ -233,7 +233,7 @@ public final class VanillaOptions {
         bool("backgroundForChatOnly", "options.accessibility.text_background", Options::backgroundForChatOnly, true);
         unit("chatScale", "options.chat.scale", Options::chatScale, 1.0, VanillaOptions::percent);
         unit("chatLineSpacing", "options.chat.line_spacing", Options::chatLineSpacing, 0.0, VanillaOptions::percent);
-        dbl("chatDelay", "options.chat.delay_instant", Options::chatDelay, 0.0, 6.0, 0.1, 0.0, v -> v <= 0 ? Component.translatable("options.chat.delay_none") : Component.translatable("options.chat.delay", String.format(Locale.ROOT, "%.1f", v)));
+        dbl("chatDelay", "slate_config.opt.chatDelay", Options::chatDelay, 0.0, 6.0, 0.1, 0.0, v -> v <= 0 ? Component.translatable("options.chat.delay_none") : Component.translatable("options.chat.delay", String.format(Locale.ROOT, "%.1f", v)));
         unit("chatWidth", "options.chat.width", Options::chatWidth, 1.0, v -> Component.literal(Math.round(v * 280 + 40) + "px"));
         unit("chatHeightFocused", "options.chat.height.focused", Options::chatHeightFocused, 1.0, v -> Component.literal(Math.round(v * 160 + 20) + "px"));
         unit("chatHeightUnfocused", "options.chat.height.unfocused", Options::chatHeightUnfocused, 0.44366196, v -> Component.literal(Math.round(v * 160 + 20) + "px"));

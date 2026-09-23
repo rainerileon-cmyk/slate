@@ -15,7 +15,7 @@ import java.util.List;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 
-/** The vanilla-option pages that are pure section lists: Chat, Multiplayer, Accessibility. */
+/** The vanilla-option pages that are pure section lists: Chat and Online (Multiplayer tabs), Accessibility. */
 public final class SimplePages {
 
     /** A Slate module's json fields as a section, or a hint row when the module has no file yet. */
@@ -29,29 +29,33 @@ public final class SimplePages {
         return s;
     }
 
+    /** Multiplayer › Chat: the chat box's look, how messages behave, Slate Chat's settings. */
     public static final class ChatPage extends OptionPageBase {
         public ChatPage() { super("chat", Component.translatable("slate_config.page.chat"), Icon.CHAT); }
 
         @Override
         protected List<Section> sections() {
             final List<Section> out = new ArrayList<>();
-            out.add(Section.of("chat", Component.translatable("slate_config.chat.vanilla"), VanillaOptions.all(
-                "chatVisibility", "chatColors", "chatLinks", "chatLinksPrompt", "chatOpacity", "textBackgroundOpacity", "backgroundForChatOnly",
-                "chatScale", "chatWidth", "chatHeightFocused", "chatHeightUnfocused", "chatLineSpacing", "chatDelay", "autoSuggestions",
-                "hideMatchedNames", "onlyShowSecureChat", "notificationDisplayTime")));
+            out.add(Section.of("chat_box", Component.translatable("slate_config.chat.box"), VanillaOptions.all(
+                "chatVisibility", "chatColors", "chatOpacity", "textBackgroundOpacity", "backgroundForChatOnly",
+                "chatScale", "chatWidth", "chatHeightFocused", "chatHeightUnfocused", "chatLineSpacing")));
+            out.add(Section.of("messages", Component.translatable("slate_config.chat.messages"), VanillaOptions.all(
+                "chatLinks", "chatLinksPrompt", "chatDelay", "autoSuggestions", "hideMatchedNames", "onlyShowSecureChat", "notificationDisplayTime")));
             if (Modules.isLoaded("slate_chat")) out.add(slateModule("chat", "slate_chat", "slate_config.chat.slate"));
             return out;
         }
     }
 
-    public static final class MultiplayerPage extends OptionPageBase {
-        public MultiplayerPage() { super("multiplayer", Component.translatable("slate_config.page.multiplayer"), Icon.MULTIPLAYER); }
+    /** Multiplayer › Online: server list, Realms, telemetry, streaming privacy, Slate Multiplayer's settings. */
+    public static final class OnlinePage extends OptionPageBase {
+        public OnlinePage() { super("online", Component.translatable("slate_config.page.online"), Icon.WIFI); }
 
         @Override
         protected List<Section> sections() {
             final List<Section> out = new ArrayList<>();
+            // hideMatchedNames / onlyShowSecureChat live on the Chat tab only.
             final Section online = Section.of("online", Component.translatable("slate_config.multiplayer.online"),
-                VanillaOptions.all("realmsNotifications", "allowServerListing", "hideMatchedNames", "onlyShowSecureChat", "telemetryOptInExtra"));
+                VanillaOptions.all("realmsNotifications", "allowServerListing", "telemetryOptInExtra"));
             online.add(Binding.of("multiplayer:hide_server_address", OptionType.BOOLEAN, Component.translatable("slate_config.multiplayer.hide_address"))
                 .tooltip(Component.translatable("slate_config.multiplayer.hide_address.tip"))
                 .getter(() -> Minecraft.getInstance().options.hideServerAddress)
@@ -68,15 +72,17 @@ public final class SimplePages {
         }
     }
 
+    /** Language &amp; Accessibility › Accessibility: reading aids, motion and effects, input helpers. */
     public static final class AccessibilityPage extends OptionPageBase {
         public AccessibilityPage() { super("accessibility", Component.translatable("slate_config.page.accessibility"), Icon.ACCESSIBILITY); }
 
         @Override
         protected List<Section> sections() {
             final List<Section> out = new ArrayList<>();
+            // forceUnicodeFont lives on the Language tab (Font).
             out.add(Section.of("reading", Component.translatable("slate_config.accessibility.reading"), VanillaOptions.all(
                 "narrator", "narratorHotkey", "showSubtitles", "highContrast", "textBackgroundOpacity", "backgroundForChatOnly", "chatOpacity",
-                "chatLineSpacing", "chatDelay", "notificationDisplayTime", "menuBackgroundBlurriness", "forceUnicodeFont")));
+                "chatLineSpacing", "chatDelay", "notificationDisplayTime", "menuBackgroundBlurriness")));
             final Section motion = Section.of("motion", Component.translatable("slate_config.accessibility.motion"), VanillaOptions.all(
                 "screenEffectScale", "fovEffectScale", "darknessEffectScale", "damageTiltStrength", "glintSpeed", "glintStrength",
                 "hideLightningFlashes", "bobView", "panoramaScrollSpeed", "darkMojangStudiosBackground", "hideSplashTexts"));

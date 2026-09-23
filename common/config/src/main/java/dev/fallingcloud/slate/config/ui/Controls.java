@@ -87,7 +87,7 @@ public final class Controls {
             }
             case ACTION -> {
                 final Runnable r = b.action();
-                return new SlateButton(x, y, w, b.actionLabel(), r == null ? () -> {} : r).icon(Icon.EXTERNAL);
+                return new SlateButton(x, y, w, b.actionLabel(), r == null ? () -> {} : r).icon(b.actionIcon());
             }
             default -> { return null; }
         }

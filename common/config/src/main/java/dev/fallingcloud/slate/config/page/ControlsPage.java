@@ -24,7 +24,7 @@ import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Controls: mouse and movement options, then every key mapping grouped by category (mods' categories
+ * Controls: Mouse, Movement and Key binds tabs; key binds are grouped by category under headers (mods' categories
  * included) with conflict detection, an unbound filter and reset-all. Key capture is routed here by
  * the hub so a mouse button pressed anywhere on the screen binds.
  */
@@ -32,6 +32,9 @@ public final class ControlsPage extends OptionPageBase {
 
     private static final List<String> VANILLA_ORDER = List.of("key.categories.movement", "key.categories.gameplay", "key.categories.inventory",
         "key.categories.creative", "key.categories.multiplayer", "key.categories.ui", "key.categories.misc");
+
+    /** The key binds tab: toolbar plus one collapsible header per key category (too many for tabs). */
+    public static final String KEYS_TAB = "keys";
 
     private boolean unboundOnly;
 
@@ -46,7 +49,8 @@ public final class ControlsPage extends OptionPageBase {
             VanillaOptions.all("mouseSensitivity", "invertYMouse", "rawMouseInput", "discrete_mouse_scroll", "mouseWheelSensitivity", "touchscreen")));
         out.add(Section.of("movement", Component.translatable("slate_config.controls.movement"),
             VanillaOptions.all("toggleSprint", "toggleCrouch", "autoJump")));
-        final Section tools = Section.of("keys", Component.translatable("slate_config.controls.keys")).fixed();
+        final Component keysTitle = Component.translatable("slate_config.controls.keys");
+        final Section tools = Section.of("keys", Component.empty()).fixed().tab(KEYS_TAB, keysTitle);
         tools.custom(this::toolbar);
         out.add(tools);
         final Map<String, List<KeyMapping>> byCategory = new LinkedHashMap<>();
@@ -60,12 +64,15 @@ public final class ControlsPage extends OptionPageBase {
         cats.sort(Comparator.comparingInt((String c) -> { final int i = VANILLA_ORDER.indexOf(c); return i < 0 ? 100 : i; })
             .thenComparing(c -> Component.translatable(c).getString()));
         for (final String cat : cats) {
-            final Section s = Section.of("keys." + cat, Component.translatable(cat));
+            final Section s = Section.of("keys." + cat, Component.translatable(cat)).tab(KEYS_TAB, keysTitle);
             for (final KeyMapping m : byCategory.get(cat)) s.add(new KeyBinding(m));
             out.add(s);
         }
         return out;
     }
+
+    @Override
+    protected boolean pills(final String tabKey) { return !KEYS_TAB.equals(tabKey); }
 
     private AbstractWidget toolbar(final int w) {
         final SlateToggle unbound = new SlateToggle(0, 0, 150, Component.translatable("slate_config.controls.unbound_only"), unboundOnly, v -> { unboundOnly = v; rebuild(); });

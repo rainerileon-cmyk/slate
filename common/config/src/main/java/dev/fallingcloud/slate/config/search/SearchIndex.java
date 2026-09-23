@@ -5,15 +5,46 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import net.minecraft.network.chat.Component;
+import org.jetbrains.annotations.Nullable;
 
 /**
- * The global option index: every binding of every page with its page and section, matched by
+ * The global option index: every binding of every page and tab with where it lives, matched by
  * whitespace-separated tokens (all must appear). Built lazily by the hub on the first search and
  * rebuilt when pages change (the entries hold live bindings, so values are never stale).
  */
 public final class SearchIndex {
 
-    public record Entry(String pageId, Component pageTitle, Component sectionTitle, OptionBinding binding) {}
+    /**
+     * One option and where it lives. {@code path} is what the hub opens: a sidebar page id, or
+     * {@code category/tab} for a tab of a category page. {@code tabTitle} is the top tab (null when the page
+     * has none), {@code sectionTitle} the secondary tab or header inside it.
+     */
+    public record Entry(String path, Component pageTitle, @Nullable Component tabTitle, Component sectionTitle, OptionBinding binding) {
+
+        public Entry(final String path, final Component pageTitle, final Component sectionTitle, final OptionBinding binding) {
+            this(path, pageTitle, null, sectionTitle, binding);
+        }
+
+        /** The sidebar page this entry is on. */
+        public String pageId() {
+            final int i = path.indexOf('/');
+            return i < 0 ? path : path.substring(0, i);
+        }
+
+        /** "Category › Tab", plus the section when it names something the tab does not. */
+        public Component crumb() {
+            final List<String> parts = new ArrayList<>();
+            add(parts, pageTitle);
+            if (tabTitle != null) add(parts, tabTitle);
+            add(parts, sectionTitle);
+            return Component.literal(String.join(" › ", parts));
+        }
+
+        private static void add(final List<String> parts, final Component c) {
+            final String s = c.getString().trim();
+            if (!s.isEmpty() && (parts.isEmpty() || !parts.get(parts.size() - 1).equalsIgnoreCase(s))) parts.add(s);
+        }
+    }
 
     public record Hit(Entry entry, int score) {}
 
@@ -22,7 +53,8 @@ public final class SearchIndex {
 
     public void add(final Entry e) {
         entries.add(e);
-        haystacks.add((e.binding.searchText() + " " + e.sectionTitle.getString() + " " + e.pageTitle.getString()).toLowerCase(Locale.ROOT));
+        haystacks.add((e.binding.searchText() + " " + e.sectionTitle.getString() + " " + (e.tabTitle == null ? "" : e.tabTitle.getString())
+            + " " + e.pageTitle.getString()).toLowerCase(Locale.ROOT));
     }
 
     public void addAll(final List<Entry> es) {
@@ -31,15 +63,15 @@ public final class SearchIndex {
 
     public int size() { return entries.size(); }
 
-    /** Best matches first; {@code excludePage} drops the page the user is already on. */
-    public List<Hit> query(final String text, final String excludePage, final int limit) {
+    /** Best matches first; {@code excludePath} drops the page/tab the user is already looking at (its rows are filtered in place). */
+    public List<Hit> query(final String text, final String excludePath, final int limit) {
         final List<Hit> hits = new ArrayList<>();
         final String q = text == null ? "" : text.toLowerCase(Locale.ROOT).trim();
         if (q.isEmpty()) return hits;
-        final String[] toks = q.split("\\s+");
+        final String[] toks = q.split("\s+");
         for (int i = 0; i < entries.size(); i++) {
             final Entry e = entries.get(i);
-            if (e.pageId.equals(excludePage)) continue;
+            if (e.path.equals(excludePath)) continue;
             final String hay = haystacks.get(i);
             boolean all = true;
             for (final String t : toks) if (!hay.contains(t)) { all = false; break; }

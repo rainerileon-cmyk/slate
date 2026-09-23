@@ -41,7 +41,7 @@ import org.jetbrains.annotations.Nullable;
  * Configure button that opens the best editor - or a menu when several exist. Icons load lazily when
  * a card first renders, so a 400-mod pack does not decode 400 PNGs up front.
  */
-public final class ModsPage extends SidebarPage {
+public final class ModsPage extends SidebarPage implements dev.fallingcloud.slate.config.ui.Enterable {
 
     private String search = "";
     private final Set<String> expanded = new HashSet<>();
@@ -50,6 +50,8 @@ public final class ModsPage extends SidebarPage {
     private SidebarScreen screen;
     private double keepScroll = -1;
     @Nullable private SlateScrollPanel panel;
+    private int enterDir;
+    @Nullable private ConfigSearchField searchField;
 
     public ModsPage() {
         super("mods", Component.translatable("slate_config.page.mods"), Icon.MODS);
@@ -72,7 +74,18 @@ public final class ModsPage extends SidebarPage {
         if (t.equals(search)) return;
         search = t;
         keepScroll = 0;
-        if (screen != null) screen.refreshPage();
+        if (screen != null && (screen.currentPage() == this || (screen.currentPage() instanceof dev.fallingcloud.slate.config.ui.CategoryHost c && c.activeChild() == this))) screen.refreshPage();
+    }
+
+    /** Set the search for the next build without rebuilding (a category handing the header search over). */
+    public void filterSilently(final String text) {
+        search = text == null ? "" : text;
+    }
+
+    @Override
+    public void enterFrom(final int dir) {
+        enterDir = Integer.signum(dir);
+        keepScroll = 0;
     }
 
     private void rebuild() {
@@ -86,8 +99,11 @@ public final class ModsPage extends SidebarPage {
         final ConfigSearchField field = new ConfigSearchField(area.x(), area.y(), Math.min(260, area.w()), this::filter);
         field.setValue(search);
         field.placeholder(Component.translatable("slate_config.mods.search"));
+        final boolean hadFocus = searchField != null && searchField.isFocused();
+        searchField = field;
         screen.addPageWidget(field);
-        final SlateScrollPanel p = new SlateScrollPanel(area.x(), area.y() + 26, area.w(), area.h() - 26);
+        if (hadFocus) screen.setFocused(field);        // typing rebuilds the page: keep the caret in the new field
+        final dev.fallingcloud.slate.config.ui.TabPanel p = new dev.fallingcloud.slate.config.ui.TabPanel(area.x(), area.y() + 26, area.w(), area.h() - 26);
         panel = p;
         final int w = area.w() - 8;
         final String q = search.toLowerCase(Locale.ROOT).trim();
@@ -129,6 +145,11 @@ public final class ModsPage extends SidebarPage {
         p.setContentHeight(y + 4);
         screen.addPageWidget(p);
         if (keepScroll >= 0) { p.snapScroll(keepScroll); keepScroll = -1; }
+        if (enterDir != 0) {
+            p.slideFrom(enterDir);
+            dev.fallingcloud.slate.config.ui.Entrance.play(p, dev.fallingcloud.slate.config.ui.Entrance.play(field, 0));
+            enterDir = 0;
+        }
     }
 
     private void openTargets(final ModInfo m, final List<ModConfigTargets.Target> ts) {
@@ -143,9 +164,13 @@ public final class ModsPage extends SidebarPage {
     }
 
     public List<SearchIndex.Entry> searchEntries() {
+        return searchEntries(id(), title(), null);
+    }
+
+    public List<SearchIndex.Entry> searchEntries(final String path, final Component pageTitle, @Nullable final Component tabTitle) {
         final List<SearchIndex.Entry> out = new ArrayList<>();
         for (final ModInfo m : mods()) {
-            out.add(new SearchIndex.Entry(id(), title(), Component.translatable("slate_config.page.mods"),
+            out.add(new SearchIndex.Entry(path, pageTitle, tabTitle, Component.translatable("slate_config.page.mods"),
                 Binding.of("mod:" + m.id(), OptionType.ACTION, Component.literal(m.name()))
                     .tooltip(m.description() == null || m.description().isBlank() ? null : Component.literal(m.description().trim()))
                     .action(Component.translatable("slate_config.mods.configure"), () -> { filter(m.name()); })

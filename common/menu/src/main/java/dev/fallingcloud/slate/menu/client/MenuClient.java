@@ -26,10 +26,12 @@ import dev.fallingcloud.slate.menu.mixin.SelectWorldScreenAccessor;
 import java.nio.file.Files;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.stream.Stream;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.DisconnectedScreen;
 import net.minecraft.client.gui.screens.PauseScreen;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.client.gui.screens.multiplayer.JoinMultiplayerScreen;
 import net.minecraft.client.gui.screens.options.OptionsScreen;
@@ -64,7 +66,7 @@ public final class MenuClient {
         ScreenSwaps.register(SelectWorldScreen.class, s -> cfg().worldsScreen ? new SlateWorldsScreen(((SelectWorldScreenAccessor) s).slate$lastScreen()) : null);
         ScreenSwaps.register(JoinMultiplayerScreen.class, s -> cfg().serversScreen ? new SlateServersScreen(((JoinMultiplayerScreenAccessor) s).slate$lastScreen()) : null);
         ScreenSwaps.register(PauseScreen.class, s -> cfg().pauseScreen && ((PauseScreen) s).showsPauseMenu() ? new SlatePauseScreen() : null);
-        ScreenSwaps.register(OptionsScreen.class, s -> cfg().optionsScreen ? new SlateOptionsScreen(((OptionsScreenAccessor) s).slate$lastScreen()) : null);
+        ScreenSwaps.register(OptionsScreen.class, s -> cfg().optionsScreen ? optionsScreen(((OptionsScreenAccessor) s).slate$lastScreen()) : null);
         ScreenSwaps.register(DisconnectedScreen.class, s -> {
             if (!cfg().disconnectedScreen) return null;
             final DisconnectedScreenAccessor acc = (DisconnectedScreenAccessor) s;
@@ -94,6 +96,19 @@ public final class MenuClient {
 
     public static MenuConfig cfg() {
         return SlateMenu.config();
+    }
+
+    /**
+     * What replaces vanilla's options screen: the Slate Config hub when that module is installed (looked up
+     * through Core's screen factories, so Menu needs no dependency on it), else Menu's own options screen.
+     */
+    private static Screen optionsScreen(final Screen lastScreen) {
+        final Function<Screen, Screen> hub = CoreActions.SCREEN_FACTORIES.get("slate_config:hub");
+        if (hub != null) {
+            final Screen s = hub.apply(lastScreen);
+            if (s != null) return s;
+        }
+        return new SlateOptionsScreen(lastScreen);
     }
 
     /** The Multiplayer module's friends screen id, when that module registered one. */

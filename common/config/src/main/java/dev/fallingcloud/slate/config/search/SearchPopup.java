@@ -83,7 +83,7 @@ public final class SearchPopup implements Popup {
             if (hov) selected = i;
             final boolean sel = i == selected;
             if (sel) SlateDraw.pixelRound(g, px + 2, ry, w - 4, ROW, t.isVanilla() ? 0x40FFFFFF : p.surfaceHover(), t.radius() > 0 ? 2 : 0);
-            final Component crumb = Component.literal(hit.entry().pageTitle().getString() + " › " + hit.entry().sectionTitle().getString());
+            final Component crumb = hit.entry().crumb();
             final int fg = sel ? p.text() : (t.isVanilla() ? 0xFFE0E0E0 : p.textMuted());
             g.drawString(SlateDraw.font(), SlateDraw.truncate(hit.entry().binding().label(), w - 14), px + 8, ry + 1, fg, t.isVanilla());
             g.drawString(SlateDraw.font(), SlateDraw.truncate(crumb, w - 14), px + 8, ry + 10, Colors.withAlpha(p.textDim(), 0xFF), false);

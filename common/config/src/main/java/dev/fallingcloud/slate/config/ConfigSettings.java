@@ -3,7 +3,10 @@ package dev.fallingcloud.slate.config;
 import com.google.gson.JsonObject;
 import dev.fallingcloud.slate.core.config.JsonConfig;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * {@code config/slate/config.json}: favourites, user presets and small UI memory. Public fields with
@@ -17,12 +20,20 @@ public final class ConfigSettings {
     public List<Preset> presets = new ArrayList<>();
     /** Music volume before the Audio page's music toggle muted it (restored when toggled back on). */
     public double musicVolumeBeforeMute = 1.0;
-    /** Section ids collapsed by the user (page:section). */
+    /** Section ids collapsed by the user (page:section), for the collapsible headers inside a tab (key categories). */
     public List<String> collapsedSections = new ArrayList<>();
     /** Show the Sodium/Iris/NeoForge-native rows the vanilla pages would otherwise hide as duplicates. */
     public boolean showDuplicateRows = false;
     /** Route vanilla's option sub-screens (video, sound, controls, chat, language, accessibility, online) and Sodium's screen to the hub. Read at startup. */
     public boolean swapVanillaScreens = true;
+    /**
+     * The tab last shown on each page, so a page reopens where it was left: {@code page -> tab id} for the top
+     * tabs ({@code category/tab -> ...} for pages hosted in a category) and {@code page/tab -> section id} for
+     * the small secondary tabs.
+     */
+    public Map<String, String> lastTabs = new LinkedHashMap<>();
+    /** One-time migration done: the retired "DF pack" curated page ({@code pages/df.json}) was moved aside. */
+    public boolean dfPageRetired = false;
 
     /** A named snapshot of option values keyed by option id (JSON values as produced by OptionValues.toJson). */
     public static final class Preset {
@@ -58,6 +69,20 @@ public final class ConfigSettings {
 
     public static void toggleFavourite(final String id) {
         file().update(c -> { if (!c.favourites.remove(id)) c.favourites.add(id); });
+    }
+
+    @Nullable
+    public static String lastTab(final String key) {
+        final Map<String, String> m = get().lastTabs;
+        return m == null ? null : m.get(key);
+    }
+
+    public static void setLastTab(final String key, final String tab) {
+        if (tab.equals(lastTab(key))) return;
+        file().update(c -> {
+            if (c.lastTabs == null) c.lastTabs = new LinkedHashMap<>();
+            c.lastTabs.put(key, tab);
+        });
     }
 
     public static boolean isCollapsed(final String key) {

@@ -87,7 +87,7 @@ public final class PresetsPage extends SidebarPage {
         final SlateDropdown<Source> source = new SlateDropdown<>(0, 0, 200, sources, Source.VIDEO, s -> switch (s) {
             case FAVOURITES -> Component.translatable("slate_config.presets.source.favourites");
             case VIDEO -> Component.translatable("slate_config.presets.source.video");
-            case PAGE -> Component.translatable("slate_config.presets.source.page", last == null ? "" : last.title().getString());
+            case PAGE -> Component.translatable("slate_config.presets.source.page", last == null ? "" : last.fullTitle().getString());
         }, s -> {});
         source.label(Component.translatable("slate_config.presets.source"));
         new SlateModal(Component.translatable("slate_config.presets.save_current"), Component.translatable("slate_config.presets.save_current.body"), Icon.SAVE)

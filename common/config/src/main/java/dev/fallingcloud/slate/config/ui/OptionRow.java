@@ -45,6 +45,9 @@ public class OptionRow extends AbstractContainerWidget {
     @Nullable private Consumer<OptionRow> onChanged;
     private long flashStart;
     private final int depth;
+    /** Entrance fade (tab switches, page switches): the row's own drawing; children run their own. */
+    private final dev.fallingcloud.slate.core.gfx.Anim enter = new dev.fallingcloud.slate.core.gfx.Anim(1, 220, dev.fallingcloud.slate.core.gfx.Ease.OUT_CUBIC);
+    private long enterStartMs;
 
     public OptionRow(final int x, final int y, final int width, final OptionBinding binding, final int depth) {
         super(x, y, width, HEIGHT, binding.label());
@@ -63,7 +66,7 @@ public class OptionRow extends AbstractContainerWidget {
         children.add(star);
 
         final boolean hasReset = binding.hasDefault() && binding.type().snapshotable();
-        final int resetW = hasReset ? 20 : 0;
+        final int resetW = 20;                                  // reserved even without a reset, so controls line up
         final int controlW = controlWidth(binding, width - labelX - resetW);
         control = Controls.create(binding, 0, 0, controlW, this::apply);
         if (control != null) {
@@ -94,6 +97,25 @@ public class OptionRow extends AbstractContainerWidget {
 
     /** Accent outline that fades over ~1.5 s (search "jump to"). */
     public void flash() { flashStart = Clock.nowMs(); }
+
+    /** Fade the row in after {@code delayMs} like a Slate widget's entrance (honours the motion setting). */
+    public void playEntrance(final int delayMs) {
+        for (final AbstractWidget c : children) if (c instanceof dev.fallingcloud.slate.core.widget.SlateWidget w) w.playEntrance(delayMs);
+        final float motion = Theme.current().motion();
+        if (motion <= 0) { enter.snap(1); enterStartMs = 0; return; }
+        enter.snap(0);
+        enterStartMs = Clock.nowMs() + Math.max(0, Math.round(delayMs * motion));
+    }
+
+    private float enterProgress() {
+        if (enterStartMs != 0) {
+            if (Theme.current().motion() <= 0) { enterStartMs = 0; enter.snap(1); return 1f; }
+            if (Clock.nowMs() < enterStartMs) return 0f;
+            enterStartMs = 0;
+            enter.set(1f, 220);
+        }
+        return Math.min(1f, Math.max(0f, enter.get()));
+    }
 
     private void apply(final Object value) {
         try {
@@ -128,7 +150,8 @@ public class OptionRow extends AbstractContainerWidget {
         star.setX(x + 2 + depth * 8);
         star.setY(y + (HEIGHT - 16) / 2);
         int right = x + w - 2;
-        if (reset != null) { reset.setX(right - 16); reset.setY(y + (HEIGHT - 16) / 2); right -= 20; }
+        if (reset != null) { reset.setX(right - 16); reset.setY(y + (HEIGHT - 16) / 2); }
+        right -= 20;
         if (control != null) {
             control.setX(right - control.getWidth());
             control.setY(y + (HEIGHT - control.getHeight()) / 2);
@@ -191,12 +214,14 @@ public class OptionRow extends AbstractContainerWidget {
         final Theme t = Theme.current();
         final Palette p = t.palette();
         layout();
-        final int x = getX(), y = getY(), w = getWidth();
+        final float ea = enterProgress();
+        final int x = getX(), w = getWidth();
+        final int y = getY() + Math.round((1f - ea) * dev.fallingcloud.slate.core.widget.SlateWidget.ENTER_SLIDE);
         final boolean hov = inside(mouseX, mouseY) && g.containsPointInScissor(mouseX, mouseY);
         final boolean enabled = binding.enabled();
-        if (hov) {
-            if (t.isVanilla()) g.fill(x, y, x + w, y + HEIGHT, 0x18FFFFFF);
-            else SlateDraw.pixelRound(g, x, y, w, HEIGHT, Colors.withAlpha(p.surfaceHover(), 0x70), t.radius());
+        if (hov && ea > 0.01f) {
+            if (t.isVanilla()) g.fill(x, y, x + w, y + HEIGHT, Colors.scaleAlpha(0x18FFFFFF, ea));
+            else SlateDraw.pixelRound(g, x, y, w, HEIGHT, Colors.scaleAlpha(Colors.withAlpha(p.surfaceHover(), 0x70), ea), t.radius());
         }
         // Flash outline
         if (flashStart > 0) {
@@ -209,14 +234,17 @@ public class OptionRow extends AbstractContainerWidget {
         int fg = enabled ? p.text() : p.textDim();
         if (t.isVanilla()) fg = enabled ? 0xFFFFFFFF : 0xFFA0A0A0;
         final int labelW = Math.max(10, labelRight() - lx - (binding.requiresRestart() ? 46 : 0));
-        g.drawString(SlateDraw.font(), SlateDraw.truncate(binding.label(), labelW), lx, y + (HEIGHT - 9) / 2 + 1, fg, t.isVanilla());
-        int after = lx + Math.min(labelW, SlateDraw.width(binding.label())) + 6;
-        if (binding.requiresRestart()) {
-            after += SlateBadge.draw(g, Component.translatable("slate_config.row.restart"), after, y + (HEIGHT - 10) / 2, p.warning()) + 4;
-        }
-        if (binding.type() == OptionType.INFO) {
-            final Component vt = binding.valueText(binding.get());
-            g.drawString(SlateDraw.font(), SlateDraw.truncate(vt, Math.max(10, x + w - 4 - after)), after, y + (HEIGHT - 9) / 2 + 1, p.textMuted(), t.isVanilla());
+        // Text with alpha under ~4/255 is drawn opaque by vanilla's font renderer: skip it while fading in.
+        if (ea > 0.03f) {
+            g.drawString(SlateDraw.font(), SlateDraw.truncate(binding.label(), labelW), lx, y + (HEIGHT - 9) / 2 + 1, Colors.scaleAlpha(fg, ea), t.isVanilla());
+            int after = lx + Math.min(labelW, SlateDraw.width(binding.label())) + 6;
+            if (binding.requiresRestart() && ea > 0.5f) {
+                after += SlateBadge.draw(g, Component.translatable("slate_config.row.restart"), after, y + (HEIGHT - 10) / 2, p.warning()) + 4;
+            }
+            if (binding.type() == OptionType.INFO) {
+                final Component vt = binding.valueText(binding.get());
+                g.drawString(SlateDraw.font(), SlateDraw.truncate(vt, Math.max(10, x + w - 4 - after)), after, y + (HEIGHT - 9) / 2 + 1, Colors.scaleAlpha(p.textMuted(), ea), t.isVanilla());
+            }
         }
         for (final AbstractWidget c : children) if (c.visible) c.render(g, mouseX, mouseY, partialTick);
         if (hov && overLabel(mouseX, mouseY)) {
