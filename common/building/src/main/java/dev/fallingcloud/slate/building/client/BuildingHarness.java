@@ -20,6 +20,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.client.server.IntegratedServer;
+import net.minecraft.client.tutorial.TutorialSteps;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.server.level.ServerPlayer;
@@ -67,6 +68,7 @@ public final class BuildingHarness {
     private enum Phase { OFF, MENU, LOADING, RUNNING, DONE }
 
     private static Phase phase = Phase.OFF;
+    private static boolean inFrame;
     private static int frames;
     private static final Deque<String> QUEUE = new ArrayDeque<>();
     private static @Nullable Deque<Step> steps;
@@ -93,14 +95,21 @@ public final class BuildingHarness {
         SlateBuilding.LOGGER.info("[BuildingHarness] scenarios: {}", QUEUE);
     }
 
-    /** Frame clock: {@code Minecraft.runTick} HEAD (mixin). */
+    /**
+     * Frame clock: {@code Minecraft.runTick} HEAD (mixin). Re-entrant calls are ignored: vanilla pumps nested
+     * {@code runTick}s while a step is still running (e.g. {@code forceSetScreen} and the world-load wait inside
+     * {@code createFreshLevel}), and those must not start the step again.
+     */
     public static void onFrame() {
-        if (phase == Phase.OFF || phase == Phase.DONE) return;
+        if (phase == Phase.OFF || phase == Phase.DONE || inFrame) return;
+        inFrame = true;
         try {
             tick(Minecraft.getInstance());
         } catch (final RuntimeException e) {
             SlateBuilding.LOGGER.error("[BuildingHarness] harness failure", e);
             finish();
+        } finally {
+            inFrame = false;
         }
     }
 
@@ -112,9 +121,9 @@ public final class BuildingHarness {
                 applySkin(System.getProperty("slate.autoSkin"));
                 // Unfocused dev windows would otherwise open the pause menu over every screenshot.
                 mc.options.pauseOnLostFocus = false;
-                createWorld(mc);
                 phase = Phase.LOADING;
                 frames = 0;
+                createWorld(mc);
             }
             case LOADING -> {
                 if (mc.level == null || mc.player == null || mc.screen != null || mc.getOverlay() != null) { frames = 0; return; }
@@ -122,6 +131,9 @@ public final class BuildingHarness {
                 final boolean rendered = mc.levelRenderer.hasRenderedAllSections();
                 if (frames < WORLD_SETTLE_FRAMES || (!rendered && frames < WORLD_MAX_WAIT_FRAMES)) return;
                 SlateBuilding.LOGGER.info("[BuildingHarness] world ready after {} frames (all sections rendered: {})", frames, rendered);
+                // A fresh world greets with the movement tutorial and "new recipes" toasts; keep them out of the shots.
+                mc.getTutorial().setStep(TutorialSteps.NONE);
+                mc.getToasts().clear();
                 phase = Phase.RUNNING;
                 frames = 0;
             }
@@ -213,16 +225,21 @@ public final class BuildingHarness {
         quit.start();
     }
 
-    /** The built-in scenario: a few vanilla blocks and our items, a registry report, one HUD screenshot. */
+    /**
+     * The built-in scenario: a small plank floor with a row of blocks (vanilla + one of our shape blocks) in front of
+     * a back wall, our items in the hotbar, a registry report, one HUD screenshot.
+     */
     private static void smoke(final Script s) {
         s.command("time set noon")
             .command("weather clear")
-            .command("tp @s 0 -60 0 0 20")
-            .command("fill -3 -60 4 3 -58 4 minecraft:stone_bricks")
-            .command("fill -3 -60 5 3 -60 7 minecraft:oak_planks")
-            .command("setblock -2 -59 5 minecraft:oak_stairs")
-            .command("setblock 2 -59 5 minecraft:glass")
-            .command("setblock 0 -59 5 slate_building:stairs")
+            .command("tp @s 0 -60 0 0 25")
+            .command("fill -4 -61 2 4 -61 6 minecraft:oak_planks")
+            .command("fill -4 -60 7 4 -58 7 minecraft:stone_bricks")
+            .command("setblock -2 -60 4 minecraft:stone_bricks")
+            .command("setblock -1 -60 4 minecraft:oak_stairs")
+            .command("setblock 0 -60 4 slate_building:stairs")
+            .command("setblock 1 -60 4 minecraft:glass")
+            .command("setblock 2 -60 4 minecraft:stone_brick_wall")
             .command("item replace entity @s hotbar.0 with minecraft:oak_planks 64")
             .command("item replace entity @s hotbar.1 with slate_building:toolbox")
             .command("item replace entity @s hotbar.2 with slate_building:iron_hammer")
@@ -233,6 +250,7 @@ public final class BuildingHarness {
                     BuildingItems.all().stream().allMatch(r -> r.isBound()) && BuildingBlocks.all().stream().allMatch(r -> r.isBound()));
                 final Minecraft mc = Minecraft.getInstance();
                 if (mc.player != null) mc.player.getInventory().selected = 0;
+                mc.getToasts().clear();   // the item commands unlock recipes, which toasts
             })
             .wait(40)
             .screenshot("smoke");
