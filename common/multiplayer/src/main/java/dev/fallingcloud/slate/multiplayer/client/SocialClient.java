@@ -327,10 +327,19 @@ public final class SocialClient {
         }
     }
 
+    private long lastHelloMs;
+
     private void onError(final Error e) {
         if ("hello".equals(e.context()) || "session".equals(e.context())) {
-            // The link layer handles these on the TCP path; on the payload path they mean the hub refused us.
-            if (link instanceof PayloadLink) setState(LinkState.FAILED, e.message());
+            // The link layer handles these on the TCP path. On the payload path "say hello first" means the
+            // hub lost our session (server restart, hub re-enabled): introduce ourselves again.
+            if (link instanceof PayloadLink p) {
+                if (e.code() == Error.UNAUTHORIZED && System.currentTimeMillis() - lastHelloMs > 3000) {
+                    lastHelloMs = System.currentTimeMillis();
+                    setState(LinkState.AUTHENTICATING, "");
+                    p.send(new Hello(self.uuid(), self.name(), SocialMessage.PROTOCOL, ""));
+                } else if (e.code() != Error.UNAUTHORIZED) setState(LinkState.FAILED, e.message());
+            }
             return;
         }
         final long now = System.currentTimeMillis();

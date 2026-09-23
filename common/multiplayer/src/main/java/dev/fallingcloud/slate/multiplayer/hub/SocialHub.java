@@ -121,7 +121,7 @@ public final class SocialHub {
         final SocialHub hub = current;
         if (hub == null) return;
         final HubSession s = hub.sessions.get(player.getUUID());
-        if (s instanceof PlayerSession ps && ps.player() == player) hub.closed(s);
+        if (s instanceof PlayerSession) hub.closed(s);
     }
 
     /** The {@code slate:social} payload handler (server side). */
@@ -129,7 +129,8 @@ public final class SocialHub {
         final SocialHub hub = current;
         if (hub == null || sender == null) return;
         final HubSession existing = hub.sessions.get(sender.getUUID());
-        if (existing instanceof PlayerSession ps && ps.player() == sender) {
+        if (existing instanceof PlayerSession ps) {
+            ps.setPlayer(sender);                 // respawn / dimension change replaces the ServerPlayer object
             hub.handle(existing, m);
             return;
         }
@@ -769,8 +770,12 @@ public final class SocialHub {
     private void endStream(final LiveStream ls) {
         streams.remove(ls.info.id());
         final StreamEnded ended = new StreamEnded(ls.info.id());
-        announceStream(ls, ended);
-        for (final UUID v : ls.viewers) sendTo(v, ended);
+        final PlayerRecord owner = store.player(ls.info.owner().uuid());
+        final Set<UUID> notified = new HashSet<>();
+        notified.add(owner.id());
+        for (final String f : owner.friends) { try { notified.add(UUID.fromString(f)); } catch (final IllegalArgumentException ignored) {} }
+        notified.addAll(ls.viewers);
+        for (final UUID u : notified) sendTo(u, ended);
     }
 
     private void onStreamStart(final HubSession s, final PlayerRecord me, final String rawTitle) {

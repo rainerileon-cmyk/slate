@@ -10,7 +10,7 @@ import net.minecraft.server.level.ServerPlayer;
 /** A player on this server, reached through the {@code slate:social} payload channel. */
 final class PlayerSession extends AbstractHubSession {
 
-    private final ServerPlayer player;
+    private ServerPlayer player;
     private boolean closed;
 
     PlayerSession(final ServerPlayer player, final MultiplayerServerConfig cfg) {
@@ -19,6 +19,9 @@ final class PlayerSession extends AbstractHubSession {
     }
 
     ServerPlayer player() { return player; }
+
+    /** Vanilla hands out a new ServerPlayer on respawn / dimension change; the session follows the uuid. */
+    void setPlayer(final ServerPlayer p) { this.player = p; }
 
     @Override
     public void send(final SocialMessage message) {
