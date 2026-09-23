@@ -103,22 +103,24 @@ final class StreamsPage extends FriendsHubScreen.HubPage {
         }
         for (final StreamInfo si : live) {
             final boolean watching = StreamViewer.isWatching(si.id());
+            final int b1 = 64, b2 = 46, textW = w - 40 - b1 - b2 - 16;
             final SlateCard c = new SlateCard(0, y, w, 40) {
                 @Override
                 protected void renderContent(final GuiGraphics g, final int x, final int yy, final int cw, final int ch, final int mx, final int my, final float pt) {
                     final Palette p = Theme.current().palette();
                     UiUtil.drawHead(g, si.owner().uuid(), si.owner().name(), x + 8, yy + 8, 24, null, 1f);
-                    g.drawString(SlateDraw.font(), SlateDraw.truncate(Component.literal(si.title()), cw - 220), x + 40, yy + 8, p.text(), Theme.current().isVanilla());
+                    g.drawString(SlateDraw.font(), SlateDraw.truncate(Component.literal(si.title()), textW), x + 40, yy + 8, p.text(), Theme.current().isVanilla());
                     final String line = si.owner().display() + "  ·  " + si.viewers() + (si.viewers() == 1 ? " viewer" : " viewers") + "  ·  " + UiUtil.relativeTime(si.startedMs()).replace(" ago", "");
-                    g.drawString(SlateDraw.font(), SlateDraw.truncate(Component.literal(line), cw - 220), x + 40, yy + 20, p.textMuted(), Theme.current().isVanilla());
+                    g.drawString(SlateDraw.font(), SlateDraw.truncate(Component.literal(line), textW), x + 40, yy + 20, p.textMuted(), Theme.current().isVanilla());
                 }
             }.flat();
+            final int bx1 = w - 8 - b2 - 4 - b1, bx2 = w - 8 - b2;
             if (watching) {
-                c.add(new SlateButton(w - 200, 10, 90, 20, UiUtil.t("streams.open"), () -> StreamViewer.watch(si.id(), false)).variant(SlateButton.Variant.PRIMARY).icon(Icon.FULLSCREEN), w - 200, 10);
-                c.add(new SlateButton(w - 104, 10, 96, 20, UiUtil.t("stream.stop_watching"), () -> { StreamViewer.stop(si.id()); fill(); }).variant(SlateButton.Variant.GHOST).icon(Icon.STOP), w - 104, 10);
+                c.add(new SlateButton(bx1, 10, b1, 20, UiUtil.t("streams.open"), () -> StreamViewer.watch(si.id(), false)).variant(SlateButton.Variant.PRIMARY).icon(Icon.FULLSCREEN), bx1, 10);
+                c.add(new SlateButton(bx2, 10, b2, 20, Component.translatable("gui.cancel"), () -> { StreamViewer.stop(si.id()); fill(); }).variant(SlateButton.Variant.GHOST).icon(Icon.STOP), bx2, 10);
             } else {
-                c.add(new SlateButton(w - 200, 10, 90, 20, UiUtil.t("streams.watch"), () -> StreamViewer.watch(si.id(), false)).variant(SlateButton.Variant.PRIMARY).icon(Icon.PLAY), w - 200, 10);
-                c.add(new SlateButton(w - 104, 10, 96, 20, UiUtil.t("stream.pip"), () -> { StreamViewer.watch(si.id(), true); fill(); }).variant(SlateButton.Variant.SECONDARY).icon(Icon.PIP), w - 104, 10);
+                c.add(new SlateButton(bx1, 10, b1, 20, UiUtil.t("streams.watch"), () -> StreamViewer.watch(si.id(), false)).variant(SlateButton.Variant.PRIMARY).icon(Icon.PLAY), bx1, 10);
+                c.add(new SlateButton(bx2, 10, b2, 20, Component.literal("PiP"), () -> { StreamViewer.watch(si.id(), true); fill(); }).variant(SlateButton.Variant.SECONDARY).icon(Icon.PIP), bx2, 10);
             }
             panel.add(c, 0, y);
             y += 44;

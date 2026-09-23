@@ -47,11 +47,13 @@ final class FriendsPage extends FriendsHubScreen.HubPage {
 
     @Override
     public void build(final SidebarScreen s, final Rect area) {
-        final int searchW = Math.max(100, Math.min(180, area.w() - 200));
+        final int btnW = 84;
+        final int ddW = Math.min(96, Math.max(70, (area.w() - btnW - 12) / 3));
+        final int searchW = Math.max(60, area.w() - btnW - ddW - 12);
         s.addPageWidget(new SlateSearchField(area.x(), area.y(), searchW, q -> { query = q; refresh(); }));
-        s.addPageWidget(new SlateDropdown<>(area.x() + searchW + 6, area.y(), 96, List.of(Sort.values()), sort,
+        s.addPageWidget(new SlateDropdown<>(area.x() + searchW + 6, area.y(), ddW, List.of(Sort.values()), sort,
             v -> UiUtil.t("friends.sort." + v.name().toLowerCase(Locale.ROOT)), v -> { sort = v; refresh(); }));
-        s.addPageWidget(new SlateButton(area.right() - 90, area.y(), 90, UiUtil.t("friends.add"), () -> screen.showPage("requests"))
+        s.addPageWidget(new SlateButton(area.right() - btnW, area.y(), btnW, UiUtil.t("friends.add"), () -> screen.showPage("requests"))
             .variant(SlateButton.Variant.PRIMARY).icon(Icon.PLUS));
         final boolean voice = VoiceStatus.available();
         final int listH = area.h() - 26 - (voice ? VoiceBar.HEIGHT + 6 : 0);

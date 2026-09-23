@@ -69,7 +69,8 @@ final class SettingsPage extends FriendsHubScreen.HubPage {
 
         // ---- scrolling options
         final SlateScrollPanel panel = s.addPageWidget(new SlateScrollPanel(area.x(), y, area.w(), area.bottom() - y));
-        final Flow f = Flow.column(0, 0, 6);
+        // Flow runs in the panel's own coordinates: add(widget) keeps a widget's position relative to the panel origin.
+        final Flow f = Flow.column(area.x(), y, 6);
         panel.add(f.place(new SlateLabel(0, 0, w, UiUtil.t("settings.home_hub.help")).style(SlateLabel.Style.CAPTION).wrap(true)));
         panel.add(f.place(new SlateToggle(0, 0, w, UiUtil.t("settings.hub_auth"), cfg.hubAuth, v -> save(c -> c.hubAuth = v))));
 
@@ -110,7 +111,7 @@ final class SettingsPage extends FriendsHubScreen.HubPage {
         panel.add(f.place(new SlateSlider(0, 0, w, UiUtil.t("settings.cache_messages"), 20, 500, 10, cfg.cacheMessagesPerThread, v -> Integer.toString((int) v), v -> save(c -> c.cacheMessagesPerThread = (int) v)).compact(true)));
         panel.add(f.place(new SlateButton(0, 0, 160, Component.translatable("slate.settings.open_config_folder"), () ->
             net.minecraft.Util.getPlatform().openPath(MultiplayerConfigs.clientDataDir())).variant(SlateButton.Variant.GHOST).icon(Icon.FOLDER)));
-        panel.setContentHeight(f.maxY() + 8);
+        panel.setContentHeight(f.maxY() - y + 8);
     }
 
     private void applyHub() {

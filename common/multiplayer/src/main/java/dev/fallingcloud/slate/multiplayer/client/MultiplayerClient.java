@@ -58,6 +58,14 @@ public final class MultiplayerClient {
         }
     }
 
+    /** Raw key on a screen (from the KeyboardHandler mixin): the friends key toggles the hub. */
+    public static boolean onScreenKey(final int key, final int scancode) {
+        if (!initialised || FRIENDS_KEY.isUnbound() || !FRIENDS_KEY.matches(key, scancode)) return false;
+        final Minecraft mc = Minecraft.getInstance();
+        if (mc.screen instanceof FriendsHubScreen s) s.back(); else FriendsHubScreen.open(null);
+        return true;
+    }
+
     /** The {@code slate:social} payload handler (client side). */
     public static void onPayload(final SocialMessage m) {
         SocialClient.onPayload(m);
