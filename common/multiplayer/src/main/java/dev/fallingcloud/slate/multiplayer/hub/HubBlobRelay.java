@@ -42,6 +42,9 @@ final class HubBlobRelay {
     private final Map<UUID, Map<String, Transfer>> transfers = new HashMap<>();
     private final Map<UUID, RateBucket> bandwidth = new HashMap<>();
     private long lastWarnMs;
+    /** Temporary tracing of relay decisions (dev). */
+    static final boolean TRACE = false;
+    private int traceCount;
 
     HubBlobRelay(final SocialHub hub, final MultiplayerServerConfig cfg) {
         this.hub = hub;
@@ -71,6 +74,7 @@ final class HubBlobRelay {
         final List<HubSession> recipients = hub.blobRecipients(sender, start.target());
         final boolean keep = cfg.storeMedia && !frame && isStorableKind(start.kind()) && (start.target().startsWith("p:") || start.target().startsWith("g:"));
         final BlobPayloads.Start stamped = start.withSender(sender.name());
+        if (TRACE && (!frame || (++traceCount % 20) == 1)) SlateMultiplayer.LOGGER.info("[Slate Multiplayer] blob {} {} {} bytes from {} -> {} recipient(s) {}", start.kind(), start.id(), start.totalBytes(), sender.name(), recipients.size(), recipients.stream().map(r -> r.name() + (r.isPayload() ? "(game)" : "(tcp)")).toList());
         final Transfer t = new Transfer(stamped, recipients, frame, keep);
         mine.put(start.id(), t);
         forward(t, stamped);

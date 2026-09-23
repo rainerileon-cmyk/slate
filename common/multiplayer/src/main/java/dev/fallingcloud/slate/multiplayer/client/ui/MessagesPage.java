@@ -20,6 +20,7 @@ import dev.fallingcloud.slate.multiplayer.MultiplayerConfigs;
 import dev.fallingcloud.slate.multiplayer.client.ClipboardImages;
 import dev.fallingcloud.slate.multiplayer.client.FilePicker;
 import dev.fallingcloud.slate.multiplayer.client.Friend;
+import dev.fallingcloud.slate.multiplayer.client.ImageDecoding;
 import dev.fallingcloud.slate.multiplayer.client.ImageEncoding;
 import dev.fallingcloud.slate.multiplayer.client.Notifications;
 import dev.fallingcloud.slate.multiplayer.client.SocialClient;
@@ -197,7 +198,7 @@ final class MessagesPage extends FriendsHubScreen.HubPage {
         dropPending();
         pendingImage = bytes;
         pendingKind = kind;
-        pendingThumb = Textures.fromBytes(bytes, null).orElse(null);
+        pendingThumb = ImageDecoding.decodeNow(bytes, "chip").orElse(null);
         if (input != null) input.setFocused(true);
     }
 
