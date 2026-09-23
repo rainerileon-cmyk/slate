@@ -17,14 +17,16 @@ and config (8c5166d + edits) have commits, core-polish/editor/multiplayer only u
 | task | branch | owns | state |
 |---|---|---|---|
 | icons | agent/icons | tools/icons.py, icons.png, Icon.java, mod icons | DONE, merged (89de1dd) |
-| core-polish | agent/core-polish | core.widget, core.gfx.SlateDraw, core.screen, core.mixin (reskin), hub/settings screens | RUNNING |
-| editor | agent/editor | core.layout.editor.*, editor lang | RUNNING |
-| menu | agent/menu | common/menu, loader menu dirs | RUNNING |
-| multiplayer | agent/multiplayer | common/multiplayer, loader mp dirs, multiplayer.voice | RUNNING |
-| chat | agent/chat | core.media, core.client.media (new), common/chat, loader chat dirs | RUNNING |
-| config | agent/config | common/config, loader config dirs | RUNNING |
+| core-polish | agent/core-polish | core.widget, core.gfx.SlateDraw, core.screen, core.mixin (reskin), hub/settings screens | DONE (a7a2bc8), merged |
+| editor | agent/editor | core.layout.editor.*, editor lang | DONE (48cdb07), merged |
+| menu | agent/menu | common/menu, loader menu dirs | committed (4ccffe1, merged); agent still runtime-testing |
+| multiplayer | agent/multiplayer | common/multiplayer, loader mp dirs, multiplayer.voice | WIP commit 4fbd92a merged; agent finishing |
+| chat | agent/chat | core.media, core.client.media (new), common/chat, loader chat dirs | committed (3b97f5c, merged); agent finishing live test |
+| config | agent/config | common/config, loader config dirs | DONE (b57e7e1), merged |
 
-## Phase 2 — integration (TODO)
+## Phase 2 — integration (IN PROGRESS 02:05)
+- master b2fd00b = all seven branches merged; NeoForge + Fabric full builds green.
+- Screenshot pass (dark + vanilla, 10 screens) running from master's neoforge/dev.
 - Merge branches into main, full build both loaders, fix cross-module seams (media in DMs, hub entries).
 - Dev-client smoke run (`neoforge/dev runClient`), screenshots of every screen in both skins.
 - Boot test in the DF pack via the CmlLib harness, then install jars into `packs/df/game/mods/`
