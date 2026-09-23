@@ -16,8 +16,11 @@ $parked = $null
 if ($drippy) { $parked = "$($drippy.FullName).bootparked"; Move-Item $drippy.FullName $parked; Write-Output "parked $($drippy.Name)" }
 try {
     $log = Join-Path $env:TEMP "slate-df-boot.log"
-    & $Harness $Pack $Version $Seconds 8192 2>&1 | Out-File -FilePath $log -Encoding utf8
+    # PowerShell 5.1 turns a native command's stderr into a terminating error under 2>&1; let cmd do the redirect.
+    $ErrorActionPreference = "Continue"
+    cmd /c "`"$Harness`" `"$Pack`" $Version $Seconds 8192 > `"$log`" 2>&1"
     $code = $LASTEXITCODE
+    $ErrorActionPreference = "Stop"
     Write-Output "harness exit $code (100 = still running at timeout = boot survived)"
 } finally {
     if ($parked) { Move-Item $parked $drippy.FullName; Write-Output "restored $($drippy.Name)" }
