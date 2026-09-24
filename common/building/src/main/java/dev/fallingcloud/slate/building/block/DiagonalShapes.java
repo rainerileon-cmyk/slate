@@ -244,8 +244,9 @@ public final class DiagonalShapes {
     private record ArmKey(Diagonal d, int half, int y0, int y1) {}
 
     private static final Map<ArmKey, VoxelShape> ARMS = new ConcurrentHashMap<>();
+    private static final double SQRT2 = Math.sqrt(2);
     /** How far (block pixels from the centre) a diagonal arm runs: the block corner. */
-    private static final double REACH = 8 * Math.sqrt(2);
+    private static final double REACH = 8 * SQRT2;
 
     /** {@code base} plus the arms of {@code mask}: runs of boxes {@code half} px either side of the diagonal, from {@code y0} to {@code y1} (pixels). */
     public static VoxelShape withArms(final int mask, final VoxelShape base, final int half, final int y0, final int y1) {
@@ -254,38 +255,97 @@ public final class DiagonalShapes {
         return out;
     }
 
+    /**
+     * The stepped approximation of one arm, the way the Diagonal mods build their twins' collision: a run of small
+     * axis-aligned squares centred on the diagonal. Each square's DIAGONAL is the arm's width ({@code 2 * half}), so the
+     * band they form is exactly as wide as the drawn arm (a square as wide as the arm would make the band 41% fatter),
+     * and they step by half their size, so the band's edge only ripples by a fraction of a pixel. The run starts inside
+     * the post and ends on the block corner, where the neighbour's arm takes over.
+     */
     private static VoxelShape arm(final Diagonal d, final int half, final int y0, final int y1) {
         return ARMS.computeIfAbsent(new ArmKey(d, half, y0, y1), k -> {
             VoxelShape s = Shapes.empty();
-            final double step = Math.max(1, k.half());
-            for (double t = 2; t <= REACH; t += step) {
-                final double cx = 8 + t * k.d().dx / Math.sqrt(2), cz = 8 + t * k.d().dz / Math.sqrt(2);
-                final double x0 = Math.max(0, cx - k.half()), x1 = Math.min(16, cx + k.half());
-                final double z0 = Math.max(0, cz - k.half()), z1 = Math.min(16, cz + k.half());
-                if (x1 - x0 < 0.5 || z1 - z0 < 0.5) continue;
-                s = Shapes.or(s, Shapes.box(x0 / 16, k.y0() / 16.0, z0 / 16, x1 / 16, k.y1() / 16.0, z1 / 16));
+            final double side = k.half() * SQRT2;                 // square whose diagonal is the arm's width
+            final double r = side / 2;
+            final double step = Math.max(0.5, side / 2);
+            final double y0b = k.y0() / 16.0, y1b = k.y1() / 16.0;
+            boolean last = false;
+            for (double t = Math.max(1, k.half()); !last; t += step) {
+                if (t >= REACH) { t = REACH; last = true; }
+                final double cx = 8 + t * k.d().dx / SQRT2, cz = 8 + t * k.d().dz / SQRT2;
+                final double x0 = Math.max(0, cx - r), x1 = Math.min(16, cx + r);
+                final double z0 = Math.max(0, cz - r), z1 = Math.min(16, cz + r);
+                if (x1 - x0 < 0.25 || z1 - z0 < 0.25) continue;
+                s = Shapes.or(s, Shapes.box(x0 / 16, y0b, z0 / 16, x1 / 16, y1b, z1 / 16));
             }
             return s.optimize();
         });
     }
 
-    /** A per-block cache of shapes with arms, keyed by state and mask. */
+    /**
+     * The twelve edges of every set arm of {@code mask} as turned boxes, block units: {@code northArm} (pixels, the arm
+     * as it points north, from the block edge into the post) stretched by root two along Z about the block centre
+     * (so it reaches the corner, as the renderer stretches the arm's quads) and turned by the diagonal's yaw. What the
+     * drawn outline of a {@link DiagonalVoxelShape} adds to its straight part.
+     */
+    static double[][] armEdges(final int mask, final List<AABB> northArm) {
+        final List<double[]> out = new ArrayList<>();
+        for (final Diagonal d : Diagonal.values()) {
+            if ((mask & d.bit()) == 0) continue;
+            final double rad = Math.toRadians(d.yaw);
+            final double cos = Math.cos(rad), sin = Math.sin(rad);
+            for (final AABB b : northArm) {
+                final double[][] c = new double[8][];
+                for (int i = 0; i < 8; i++) {
+                    final double x = ((i & 1) == 0 ? b.minX : b.maxX) / 16.0 - 0.5;
+                    final double y = ((i & 2) == 0 ? b.minY : b.maxY) / 16.0;
+                    final double z = (((i & 4) == 0 ? b.minZ : b.maxZ) / 16.0 - 0.5) * SQRT2;
+                    c[i] = new double[] {0.5 + x * cos - z * sin, y, 0.5 + x * sin + z * cos};
+                }
+                // Corners differing in exactly one bit share an edge: 4 along X, 4 along Y, 4 along Z.
+                for (int i = 0; i < 8; i++) {
+                    for (final int bit : new int[] {1, 2, 4}) {
+                        if ((i & bit) != 0) continue;
+                        final double[] a = c[i], e = c[i | bit];
+                        out.add(new double[] {a[0], a[1], a[2], e[0], e[1], e[2]});
+                    }
+                }
+            }
+        }
+        return out.toArray(new double[0][]);
+    }
+
+    /**
+     * A per-block cache of shapes with arms, keyed by state and mask. With an {@code outlineArm} the cached shapes are
+     * {@link DiagonalVoxelShape}s (the stepped union for everything, turned boxes for the drawn outline); without one
+     * they are the plain stepped unions (collision shapes).
+     */
     public static final class ShapeCache {
         private record Key(BlockState state, int mask) {}
 
         private final Map<Key, VoxelShape> shapes = new ConcurrentHashMap<>();
         private final int half, y0, y1;
+        private final @Nullable List<AABB> outlineArm;
 
         public ShapeCache(final int half, final int y0, final int y1) {
+            this(half, y0, y1, null);
+        }
+
+        /** @param outlineArm the arm as it points north (pixels), drawn as a turned box in the outline; null = collision only */
+        public ShapeCache(final int half, final int y0, final int y1, final @Nullable List<AABB> outlineArm) {
             this.half = half;
             this.y0 = y0;
             this.y1 = y1;
+            this.outlineArm = outlineArm;
         }
 
         /** {@code base} with the arms of {@code mask}; {@code base} itself for an empty mask. */
         public VoxelShape get(final BlockState state, final int mask, final VoxelShape base) {
             if (mask == 0) return base;
-            return shapes.computeIfAbsent(new Key(state, mask), k -> withArms(k.mask(), base, half, y0, y1));
+            return shapes.computeIfAbsent(new Key(state, mask), k -> {
+                final VoxelShape union = withArms(k.mask(), base, half, y0, y1);
+                return outlineArm == null ? union : new DiagonalVoxelShape(base, union, armEdges(k.mask(), outlineArm));
+            });
         }
     }
 }

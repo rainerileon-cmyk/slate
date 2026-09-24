@@ -425,7 +425,7 @@ public final class SlateWorldsScreen extends SlateScreen {
             SlateDraw.vanillaListBackground(g, r.x(), r.y(), r.w(), r.h(), minecraft.level != null);
             SlateDraw.outline(g, r.x(), r.y(), r.w(), r.h(), 0xFF000000, 0);
         } else {
-            SlateDraw.panel(g, r.x(), r.y(), r.w(), r.h(), p.bg2(), p.border());
+            SlateDraw.floatingPanel(g, r.x(), r.y(), r.w(), r.h(), 1f);
         }
         final int muted = van ? 0xFFC0C0C0 : p.textMuted();
         if (selected == null) {
@@ -454,8 +454,10 @@ public final class SlateWorldsScreen extends SlateScreen {
         if (s.isHardcore()) cx += SlateBadge.draw(g, Component.translatable("slate_menu.worlds.hardcore"), cx, iy + 30, p.danger()) + 3;
         if (s.hasCommands()) SlateBadge.draw(g, Component.translatable("slate_menu.worlds.cheats"), cx, iy + 30, p.warning());
 
-        int y = iy + is + 12;
+        int y = iy + is + 10;
         final int lx = r.x() + 10, lw = r.w() - 20;
+        SlateDraw.sectionRule(g, Component.translatable("slate_menu.worlds.details"), lx, y, lw, 1f);
+        y += 14;
         y = row(g, lx, y, lw, Component.translatable("slate_menu.worlds.last_played"), Component.literal(Fmt.date(s.getLastPlayed())), muted);
         y = row(g, lx, y, lw, Component.translatable("slate_menu.worlds.version"), s.getWorldVersionName(), muted);
         y = row(g, lx, y, lw, Component.translatable("slate_menu.worlds.size"), Component.literal(e.size >= 0 ? Fmt.bytes(e.size) : "..."), muted);

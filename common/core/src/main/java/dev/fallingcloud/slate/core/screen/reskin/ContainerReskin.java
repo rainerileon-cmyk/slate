@@ -15,7 +15,8 @@ import net.minecraft.world.inventory.Slot;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * The dark-skin restyle of container screens ({@code reskinContainers}). While a screen paints its background
+ * The restyle of container screens ({@code reskinContainers}, the container-style switch; independent of the menu style,
+ * painted with {@link Theme#containerPalette()}). While a screen paints its background
  * ({@code renderBg}), every texture blit that is a full-width strip of its body (a chest paints two, most screens one)
  * is drawn as Slate's panel instead, with a well per slot; a screen that paints its body some other way (nine-sliced,
  * from an atlas) gets a dark tint with the same wells laid over what it drew. The creative inventory's tab and
@@ -118,6 +119,6 @@ public final class ContainerReskin {
         final int max = Math.max(rgb >> 16 & 0xFF, Math.max(rgb >> 8 & 0xFF, rgb & 0xFF));
         if (max > 0x70) return color;                                       // already light (a mod's own colour)
         final int alpha = (color & 0xFC000000) == 0 ? 0xFF000000 : color & 0xFF000000;   // the font treats alpha 0 as opaque
-        return alpha | (Theme.current().palette().text() & 0xFFFFFF);
+        return alpha | (Theme.current().containerPalette().text() & 0xFFFFFF);
     }
 }

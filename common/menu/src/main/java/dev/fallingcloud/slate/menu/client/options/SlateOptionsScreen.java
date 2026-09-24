@@ -366,6 +366,7 @@ public final class SlateOptionsScreen extends SidebarScreen {
             final MenuConfig m = SlateMenu.config();
             column(screen, area, c -> {
                 c.section(Component.translatable("slate_menu.options.menu.section.screens"));
+                c.note(Component.translatable("slate_menu.options.menu.screens_hint"));
                 c.add(cfgToggle(c.w, "title_screen", m.titleScreen, v -> m.titleScreen = v));
                 c.add(cfgToggle(c.w, "worlds_screen", m.worldsScreen, v -> m.worldsScreen = v));
                 c.add(cfgToggle(c.w, "servers_screen", m.serversScreen, v -> m.serversScreen = v));

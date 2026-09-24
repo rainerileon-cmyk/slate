@@ -465,6 +465,69 @@ public final class SlateDraw {
         outline(g, x, y, w, h, Colors.scaleAlpha(border, alpha), t.radius());
     }
 
+    // ------------------------------------------------------------------ the "floating" look (build menu, pause card, setup)
+
+    /**
+     * A floating panel as the build menu draws its two columns: on the dark skin a hard shadow, a near-opaque {@code bg}
+     * plate with a hairline border and a faint top highlight; on the vanilla skin a dark translucent plate with the
+     * classic black-and-white two-tone edge. {@code alpha} scales everything (entrance fades).
+     */
+    public static void floatingPanel(final GuiGraphics g, final int x, final int y, final int w, final int h, final float alpha) {
+        if (alpha <= 0.004f || w <= 0 || h <= 0) return;
+        final Theme t = Theme.current();
+        final Palette p = t.palette();
+        if (t.isVanilla()) {
+            rect(g, x, y, w, h, Colors.scaleAlpha(0xB8000000, alpha));
+            outline(g, x, y, w, h, Colors.scaleAlpha(0xFF000000, alpha), 0);
+            outline(g, x + 1, y + 1, w - 2, h - 2, Colors.scaleAlpha(0x48FFFFFF, alpha), 0);
+            return;
+        }
+        final int r = t.radius();
+        shadow(g, x, y, w, h, 0.6f * alpha);
+        pixelRound(g, x, y, w, h, Colors.scaleAlpha(Colors.withAlpha(p.bg(), 0xF0), alpha), r);
+        hline(g, x + r + 1, y + 1, w - 2 * r - 2, Colors.scaleAlpha(0x14FFFFFF, alpha));
+        outline(g, x, y, w, h, Colors.scaleAlpha(p.border(), alpha), r);
+    }
+
+    /**
+     * A section caption with a rule running from its end to {@code x + w} (the build menu's "Shapes ----" titles).
+     * Muted heading text on the dark skin, white with shadow on vanilla. Height 10.
+     */
+    public static void sectionRule(final GuiGraphics g, final Component caption, final int x, final int y, final int w, final float alpha) {
+        if (alpha <= 0.004f || w <= 0) return;
+        final Theme t = Theme.current();
+        final Palette p = t.palette();
+        final boolean van = t.isVanilla();
+        final Component text = Fonts.heading(caption);
+        final FormattedCharSequence seq = truncate(text, w);
+        g.drawString(font(), seq, x, y + 1, Colors.scaleAlpha(van ? 0xFFFFFFFF : p.textMuted(), alpha), van);
+        final int lx = x + font().width(seq) + 6;
+        hline(g, lx, y + 5, x + w - lx, Colors.scaleAlpha(van ? 0x40FFFFFF : p.border(), alpha));
+    }
+
+    /** A short accent underline (a heading's cap): 2 px tall, fading out to the right. */
+    public static void accentCap(final GuiGraphics g, final int x, final int y, final int w, final float alpha) {
+        if (alpha <= 0.004f || w <= 0) return;
+        final int accent = Theme.current().accent();
+        hgradient(g, x, y, w, 2, Colors.scaleAlpha(accent, alpha), Colors.scaleAlpha(Colors.withAlpha(accent, 0x30), alpha));
+    }
+
+    /** A keycap-style chip with {@code label} inside (key hints, counters). Returns its width. Height 12. */
+    public static int chip(final GuiGraphics g, final Component label, final int x, final int y, final int color, final float alpha) {
+        final int w = width(label) + 8;
+        if (alpha <= 0.004f) return w;
+        final Theme t = Theme.current();
+        if (t.isVanilla()) {
+            rect(g, x, y, w, 12, Colors.scaleAlpha(0x80000000, alpha));
+            outline(g, x, y, w, 12, Colors.scaleAlpha(Colors.withAlpha(color, 0x90), alpha), 0);
+        } else {
+            pixelRound(g, x, y, w, 12, Colors.scaleAlpha(Colors.withAlpha(color, 0x2A), alpha), 2);
+            outline(g, x, y, w, 12, Colors.scaleAlpha(Colors.withAlpha(color, 0x80), alpha), 2);
+        }
+        g.drawString(font(), label, x + 4, y + 2, Colors.scaleAlpha(t.isVanilla() ? 0xFFFFFFFF : Colors.brighten(color, 0.3f), alpha), t.isVanilla());
+        return w;
+    }
+
     /** Scissor in GUI coordinates (wraps GuiGraphics.enableScissor, which ignores the pose). */
     public static void scissor(final GuiGraphics g, final int x, final int y, final int w, final int h) {
         g.enableScissor(x, y, x + Math.max(0, w), y + Math.max(0, h));

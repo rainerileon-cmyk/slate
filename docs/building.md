@@ -163,9 +163,10 @@ pick block runs. Turn this off with *Pick block picks shapes*.
 
 ## Build menu (R)
 
-Opens while you hold a block, a shape, the toolbox or a building tool, or while a mode is active (*Build menu key:
-Smart*). Set it to *Always* to open it anywhere; the Slate hub's **Build menu** entry also works. It is not a
-pause screen: the world keeps running behind it.
+Opens with an empty hand, while you hold a block, a shape, the toolbox or a building tool, or while a mode is active
+(*Build menu key: Smart*; only an unrelated item in hand, a sword or food, leaves R to other mods). Set it to
+*Always* to open it anywhere; the Slate hub's **Build menu** entry also works. It is not a pause screen: the world
+keeps running behind it.
 
 - **Left (about 40%): Shapes and Chisel wheels** for the held stack. Click a slice to swap. ◀ ▶ or PageUp /
   PageDown turn pages, and the search field makes matching slices glow and jumps to their page. The wheel does
@@ -425,7 +426,8 @@ are fixed.
 Spellbooks, Shoulder Surfing free look, BetterInventory's offhand, Create's modifier) and two use R (Iris' shader
 reload, Iron's spell wheel). Slate Building takes these keys **exclusively only while it would use them**. The
 swap key is claimed when the wheel would open (a block or shape in hand, or the in-world reshape conditions), and the
-build menu key when *Build menu key* says so (Smart: holding a block, shape, tool or toolbox, or a mode is active).
+build menu key when *Build menu key* says so (Smart: an empty hand, a block, shape, tool or toolbox in hand, or a
+mode is active; an unrelated item in hand leaves R alone).
 At those moments the other mappings on the key are not pressed. The rest of the time they get the key as usual.
 Releases always reach everyone, so nothing gets stuck. Turn the Alt claim off with *Swap key takes Alt*.
 
@@ -553,8 +555,10 @@ blocks are in `#minecraft:stairs`, `slabs`, `walls`, `fences` and `fence_gates`.
   material's stacks like any shape). Slate Building's own fences, walls and panes take diagonal arms too: with each
   other, and with the mods' twins in both directions (our fence grows an arm towards a diagonal oak fence and the oak
   fence grows one back). The arms are kept in the block entity, not in block states, so a wall's state count does
-  not multiply; the arm is part of the outline and the collision shape and renders as the material cut to the arm
-  and turned 45°. Arms follow each mod's own rules (a fence only joins fences, walls and panes join each other
+  not multiply. An arm renders as the material cut to the arm and turned 45°, running from inside the post to the
+  block corner; its selection outline is a proper turned box (a clean diagonal, exactly as the mods draw their
+  twins), and its collision is a tight run of small steps no wider than the drawn arm, so you cannot get caught on
+  an invisible edge beside it. Arms follow each mod's own rules (a fence only joins fences, walls and panes join each other
   as well as their own kind) and only exist while the matching mod is installed. For the twins' "same fence" rule
   our fence block counts as a wooden fence (the `minecraft:wooden_fences` tag), whatever its material: wooden
   fences join it both ways, a nether brick fence only from our side.
@@ -591,8 +595,9 @@ blocks are in `#minecraft:stairs`, `slabs`, `walls`, `fences` and `fence_gates`.
 - Left Alt goes to Slate Building only while you hold a block or variant, or hold the toolbox / a building tool while
   looking at a block you may reshape. In every other case Shoulder Surfing's free look, Relics and Create's toolbelt
   keep it. Turn off *Swap key takes Alt*, or rebind one of the keys, if you want Alt for them even then.
-- With *Build menu key: Smart*, R does nothing with an empty hand and no active mode (it stays with Iris and other
-  mods). Use *Always* or the Slate hub.
+- With *Build menu key: Smart*, R does nothing while an unrelated item (a sword, food, a spell book) is in your hand
+  and no mode is active: it stays with Iris and other mods then. An empty hand opens the menu. Use *Always* or the
+  Slate hub to open it in every case.
 - With a shader pack active, ghosts use a stronger fallback style, but they still look paler against bright packs.
 - The Rechiseled, Chipped and Chisel readers were tested against those mods' data formats, not the running mods.
   The DF pack has none of them.

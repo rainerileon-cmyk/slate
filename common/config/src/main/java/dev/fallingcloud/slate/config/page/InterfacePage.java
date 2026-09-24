@@ -34,16 +34,29 @@ public final class InterfacePage extends OptionPageBase {
     @Override
     protected List<Section> sections() {
         final List<Section> out = new ArrayList<>();
-        final Section look = Section.of("look", Component.translatable("slate_config.interface.look"));
-        look.custom(w -> new SlateSegmented<>(0, 0, Math.min(w, 260), List.of("DARK", "VANILLA"), Slate.config().isVanillaSkin() ? "VANILLA" : "DARK",
+        // The three switches of the setup screen: layout, menu style, container style, plus the way back to that screen.
+        final Section modes = Section.of("modes", Component.translatable("slate_config.interface.modes"));
+        modes.addAll(CoreBindings.all("customLayout"));
+        modes.custom(w -> new SlateSegmented<>(0, 0, Math.min(w, 260), List.of("DARK", "VANILLA"), Slate.config().isVanillaSkin() ? "VANILLA" : "DARK",
             s -> Component.translatable("slate.skin." + s.toLowerCase(java.util.Locale.ROOT)),
             s -> { CoreBindings.get("skin").ifPresent(b -> b.set(s)); refreshRows(); }));
+        modes.addAll(CoreBindings.all("reskinContainers"));
+        modes.add(Binding.of("interface:run_setup", OptionType.ACTION, Component.translatable("slate_config.interface.setup"))
+            .tooltip(Component.translatable("slate_config.interface.setup.tip"))
+            .actionIcon(Icon.SPARKLE)
+            .action(Component.translatable("slate_config.row.open"), () -> {
+                final net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+                mc.setScreen(new dev.fallingcloud.slate.core.client.setup.SlateSetupScreen(mc.screen));
+            })
+            .searchWords("setup layout style containers vanilla custom"));
+        out.add(modes);
+        final Section look = Section.of("look", Component.translatable("slate_config.interface.look"));
         look.custom(SwatchRow::new);
         look.addAll(CoreBindings.all("accent", "radius", "headingFont", "blurInGame"));
         out.add(look);
         out.add(Section.of("motion", Component.translatable("slate_config.interface.motion"), CoreBindings.all("motion", "transitions", "uiSounds", "toasts")));
         out.add(Section.of("restyle", Component.translatable("slate_config.interface.restyle"),
-            CoreBindings.all("reskinScope", "reskinContainers", "reskinAllowlist", "reskinDenylist")));
+            CoreBindings.all("reskinScope", "reskinAllowlist", "reskinDenylist")));
         out.add(Section.of("vanilla", Component.translatable("slate_config.interface.vanilla"), VanillaOptions.all(
             // Narrator/contrast/fonts live under Language & Accessibility, main hand and the operator tab under Gameplay.
             "guiScale", "darkMojangStudiosBackground", "hideSplashTexts", "panoramaScrollSpeed", "reducedDebugInfo")));

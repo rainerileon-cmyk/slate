@@ -133,7 +133,7 @@
   "slate_building.settings.general.exclusive_swap_key": "Swap key takes Alt",
   "slate_building.settings.general.exclusive_swap_key.desc": "While the swap wheel would open, other mods on the same key do not react. They keep the key the rest of the time.",
   "slate_building.settings.general.menu_key_context": "Build menu key",
-  "slate_building.settings.general.menu_key_context.desc": "Smart: only while holding a block, shape, tool or the toolbox, or while a mode is active. Always: every time.",
+  "slate_building.settings.general.menu_key_context.desc": "Smart: with an empty hand, a block, shape, tool or the toolbox in hand, or while a mode is active; an unrelated item (sword, food) leaves the key to other mods. Always: every time.",
   "slate_building.settings.general.menu_key_context.smart": "Smart",
   "slate_building.settings.general.menu_key_context.always": "Always",
   "slate_building.settings.general.pick_block_swaps": "Pick block picks shapes",

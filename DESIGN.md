@@ -154,7 +154,8 @@ Layout helpers in `core.layout.ui`: `Row`, `Column`, `Grid` (gap, padding, align
 - `Transitions` — cross-screen fade (120 ms) driven from `MinecraftMixin.setScreen`.
 - `Reskin` — the generic restyle of vanilla widgets/backgrounds/tooltips/lists on screens in scope
   (`CoreConfig.reskinScope: VANILLA_AND_SLATE | ALLOWLIST | ALL_NON_CONTAINER | NONE`). Container
-  screens (`AbstractContainerScreen`) are never touched.
+  screens (`AbstractContainerScreen`) follow `reskinContainers` instead (`screen.reskin.ContainerReskin`: panel,
+  slot wells, accent slot highlight, light labels, in either skin).
 
 ### Dev mode / layouts (`core.layout`)
 The FancyMenu-like editor, but simpler. Toggle with the keybind (default `F7`) or `CoreConfig.devMode`.
@@ -178,8 +179,12 @@ The FancyMenu-like editor, but simpler. Toggle with the keybind (default `F7`) o
 
 ### Config (`core.config`)
 `JsonConfig<T>` (Gson, atomic write, defaults on missing fields, `load()/save()/get()`), `CoreConfig`
-fields: `skin`, `accent` (hex), `motion` (0–2), `headingFont` (bool), `devMode`, `reskinScope`,
-`reskinAllowlist` (mod ids), `transitions`, `uiSounds`, `toasts`. The Config module edits these;
+fields: the three switches `customLayout` (Menu's screens replace vanilla's; off = vanilla screens plus a Slate
+button on vanilla's title and pause screens, added by `client.VanillaScreenButtons`), `skin` (`DARK`/`VANILLA`,
+the menu style) and `reskinContainers` (the container style, painted with `Theme.containerPalette()` in either
+skin), `setupDone` (the first-launch `client.setup.SlateSetupScreen` ran; `MinecraftSetupMixin` puts it at the
+head of the start-up screen chain until then), `accent` (hex), `motion` (0–2), `headingFont` (bool), `devMode`,
+`reskinScope`, `reskinAllowlist` (mod ids), `transitions`, `uiSounds`, `toasts`. The Config module edits these;
 Core exposes a small built-in settings page too so Core alone is usable.
 
 ### Slate hub

@@ -49,9 +49,14 @@ public class ShapeFenceBlock extends FenceBlock implements ShapeBlock, EntityBlo
     private static final Direction[] HORIZONTAL = {Direction.NORTH, Direction.EAST, Direction.SOUTH, Direction.WEST};
     /** Keyed by the connection bits (N 1, E 2, S 4, W 8). */
     private static final Map<Integer, List<AABB>> BOXES = new ConcurrentHashMap<>();
-    /** The arm as it points north (the two bars): what a diagonal arm is cut from before its turn ({@link DiagonalShapes}). */
-    private static final List<AABB> NORTH_ARM = List.of(ShapeBoxes.box(7, 12, 0, 9, 15, 6), ShapeBoxes.box(7, 6, 0, 9, 9, 6));
-    private final DiagonalShapes.ShapeCache diagonalShapes = new DiagonalShapes.ShapeCache(1, 6, 15);
+    /**
+     * The arm as it points north (the two bars): what a diagonal arm is cut from before its turn ({@link DiagonalShapes}).
+     * It runs to the block centre so its near end sits inside the post, never poking out beside the post's corner.
+     */
+    private static final List<AABB> NORTH_ARM = List.of(ShapeBoxes.box(7, 12, 0, 9, 15, 8), ShapeBoxes.box(7, 6, 0, 9, 9, 8));
+    /** The arm as vanilla's outline draws it (one 2 x 9 box, like a fence side's selection box): the turned outline box. */
+    private static final List<AABB> OUTLINE_ARM = List.of(ShapeBoxes.box(7, 6, 0, 9, 15, 8));
+    private final DiagonalShapes.ShapeCache diagonalShapes = new DiagonalShapes.ShapeCache(1, 6, 15, OUTLINE_ARM);
     private final DiagonalShapes.ShapeCache diagonalCollisions = new DiagonalShapes.ShapeCache(1, 0, 24);
 
     public ShapeFenceBlock(final BlockBehaviour.Properties properties) {

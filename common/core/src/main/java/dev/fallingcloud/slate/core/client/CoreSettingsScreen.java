@@ -20,7 +20,6 @@ import dev.fallingcloud.slate.core.widget.SlateLabel;
 import dev.fallingcloud.slate.core.widget.SlateModal;
 import dev.fallingcloud.slate.core.widget.SlateProgress;
 import dev.fallingcloud.slate.core.widget.SlateScrollPanel;
-import dev.fallingcloud.slate.core.widget.SlateSegmented;
 import dev.fallingcloud.slate.core.widget.SlateSlider;
 import dev.fallingcloud.slate.core.widget.SlateSwatches;
 import dev.fallingcloud.slate.core.widget.SlateTextField;
@@ -102,12 +101,19 @@ public final class CoreSettingsScreen extends SlateScreen {
         panel.add(preview.finish(), 0, y);
         y += preview.card.getHeight() + CARD_GAP;
 
+        // The three switches of the setup screen: layout, menu style, container style.
+        final Section modes = new Section(w, Component.translatable("slate.settings.section.modes"));
+        switchRow(modes, "layout", cfg.customLayout, v -> save(x -> x.customLayout = v));
+        switchRow(modes, "style", cfg.customStyle(), v -> save(x -> x.setCustomStyle(v)));
+        switchRow(modes, "containers", cfg.reskinContainers, v -> { save(x -> x.reskinContainers = v); Reskin.invalidate(); });
+        modes.row(new SlateButton(0, 0, 130, 16, Component.translatable("slate.settings.run_setup"),
+            () -> minecraft.setScreen(new dev.fallingcloud.slate.core.client.setup.SlateSetupScreen(this)))
+            .icon(Icon.SPARKLE).variant(SlateButton.Variant.GHOST).leftAligned());
+        panel.add(modes.finish(), 0, y);
+        y += modes.card.getHeight() + CARD_GAP;
+
         // Look
         final Section look = new Section(w, Component.translatable("slate.settings.section.look"));
-        look.row(new SlateLabel(0, 0, look.rowW, Component.translatable("slate.settings.skin")).style(SlateLabel.Style.MUTED));
-        look.row(new SlateSegmented<>(0, 0, look.rowW, List.of("DARK", "VANILLA"), cfg.isVanillaSkin() ? "VANILLA" : "DARK",
-            s -> Component.translatable("slate.skin." + s.toLowerCase(java.util.Locale.ROOT)), s -> save(x -> x.skin = s)));
-        look.flow.skip(2);
         look.row(new SlateLabel(0, 0, look.rowW, Component.translatable("slate.settings.accent")).style(SlateLabel.Style.MUTED));
         final int accent = Colors.fromHex(cfg.accent, Palette.DEFAULT_ACCENT);
         swatches = look.row(new SlateSwatches(0, 0, look.rowW, Palette.ACCENTS, accent, argb -> {
@@ -146,8 +152,6 @@ public final class CoreSettingsScreen extends SlateScreen {
         restyle.row(new SlateDropdown<>(0, 0, restyle.rowW, List.of("VANILLA_AND_SLATE", "ALLOWLIST", "ALL_NON_CONTAINER", "NONE"), cfg.reskinScope,
             s -> Component.translatable("slate.reskin." + s.toLowerCase(java.util.Locale.ROOT)), s -> { save(x -> x.reskinScope = s); Reskin.invalidate(); })
             .label(Component.translatable("slate.settings.reskin_scope")));
-        restyle.row(new SlateToggle(0, 0, restyle.rowW, Component.translatable("slate.settings.reskin_containers"), cfg.reskinContainers,
-            v -> { save(x -> x.reskinContainers = v); Reskin.invalidate(); }));
         panel.add(restyle.finish(), 0, y);
         y += restyle.card.getHeight() + CARD_GAP;
 
@@ -169,6 +173,13 @@ public final class CoreSettingsScreen extends SlateScreen {
         y += devSec.card.getHeight();
 
         panel.setContentHeight(y);
+    }
+
+    /** A switch with its explanation under it ({@code slate.setup.<key>} / {@code .desc}, shared with the setup screen). */
+    private void switchRow(final Section s, final String key, final boolean value, final Consumer<Boolean> onChange) {
+        s.row(new SlateToggle(0, 0, s.rowW, Component.translatable("slate.setup." + key), value, onChange));
+        s.row(new SlateLabel(0, 0, s.rowW, Component.translatable("slate.setup." + key + ".desc")).style(SlateLabel.Style.MUTED).wrap(true));
+        s.flow.skip(4);
     }
 
     private void confirmReset() {

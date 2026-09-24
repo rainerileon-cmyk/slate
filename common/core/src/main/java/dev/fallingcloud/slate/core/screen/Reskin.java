@@ -12,8 +12,8 @@ import org.jetbrains.annotations.Nullable;
  * Scope rules for the generic restyle of vanilla widgets, backgrounds, lists and tooltips. The actual
  * drawing lives in the {@code core.mixin} widget mixins and the {@code core.screen.reskin} helpers; they
  * all ask {@link #active()} first ({@link #dark()} for the dark-only replacements). Container screens
- * (inventories, chests, machines, the creative inventory) join in on the dark skin with {@code reskinContainers}
- * ({@link #containers()}); deny-listed mods never.
+ * (inventories, chests, machines, the creative inventory) join in with {@code reskinContainers} in either skin
+ * ({@link #containers()}: the container-style switch is independent of the menu style); deny-listed mods never.
  */
 public final class Reskin {
 
@@ -61,14 +61,17 @@ public final class Reskin {
         };
     }
 
-    /** Container screens join the restyle only with {@code reskinContainers}, on the dark skin (the vanilla skin IS their look). */
+    /** Container screens join the restyle only with {@code reskinContainers} (the container-style switch), in either skin. */
     private static boolean containerScope(final Screen s, final CoreConfig cfg) {
-        return cfg.reskinContainers && !Theme.current().isVanilla();
+        return cfg.reskinContainers;
     }
 
-    /** {@link #dark()} on a container screen: {@code ContainerReskin} replaces its background, slots and label colours. */
+    /**
+     * The container-style switch is in effect on the open screen: {@code ContainerReskin} replaces its background, slots,
+     * slot highlight and label colours, painting with {@link Theme#containerPalette()} whatever the skin.
+     */
     public static boolean containers() {
-        return Minecraft.getInstance().screen instanceof AbstractContainerScreen<?> && dark();
+        return Minecraft.getInstance().screen instanceof AbstractContainerScreen<?> && active();
     }
 
     /** Drop the cache (config changed). */

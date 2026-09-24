@@ -66,3 +66,17 @@ New module `slate_building` (user guide `docs/building.md`, contract `docs/build
 
 Decided overnight: the in-world reshape/chisel wheel claims Left Alt only while the toolbox or a building tool is
 in the main hand; an empty hand leaves Alt to Shoulder Surfing / Relics / Create.
+
+# Slate — layout / style switches and polish, 2026-09-24
+
+- Core: the three switches (`customLayout`, `skin`, `reskinContainers`), the first-launch `SlateSetupScreen` with live
+  mocks (`client.setup`), `VanillaScreenButtons` (Slate button on vanilla's title and pause screens, feedback row
+  removed), the container restyle in either skin with the build-menu look and an accent slot highlight, floating
+  panels / section rules / accent caps in `SlateDraw`, header accent cap. Settings, hub and Config's Interface page
+  carry the switches and "Run setup again".
+- Menu: swaps gated by the layout switch; pause menu rebuilt as one floating card (chips, rules, no feedback or Slate
+  buttons); title nav on a plate, no Slate button; details and quick-connect plates.
+- Building: diagonal arms of shape fences / walls / panes get a true turned outline (`DiagonalVoxelShape`), a collision
+  band as wide as the drawn arm, arms that run to the block centre; the build menu opens with an empty hand (Smart).
+- Not built here: the cloud session had no route to the Minecraft / NeoForge / Fabric mavens, so both loader builds
+  still have to be run locally (`cd neoforge && ./gradlew.bat build`, `cd fabric && ./gradlew.bat build`).

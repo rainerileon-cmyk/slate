@@ -10,6 +10,22 @@ import java.util.List;
  */
 public final class CoreConfig {
 
+    /**
+     * The three switches of the first-launch setup screen ({@code SlateSetupScreen}), each independent of the others:
+     * <ul>
+     *   <li>{@link #customLayout} - the LAYOUT: Slate Menu's rebuilt screens (title, worlds, servers, pause, options,
+     *       disconnected) replace vanilla's. Off = vanilla's own screens and button placement, with a Slate button
+     *       added to the title and pause screens so Slate stays reachable.</li>
+     *   <li>{@link #skin} - the STYLE of menus: {@code DARK} (Slate's modern look) or {@code VANILLA} (stone buttons,
+     *       still animated). {@link #customStyle()} reads it as a switch.</li>
+     *   <li>{@link #reskinContainers} - the STYLE of in-game containers (inventory, chests, furnaces, machines):
+     *       Slate's panel and slot wells, in any skin.</li>
+     * </ul>
+     */
+    public boolean customLayout = true;
+    /** The first-launch setup screen was confirmed (or skipped); until then it shows before the title screen. */
+    public boolean setupDone = false;
+
     /** {@code DARK} or {@code VANILLA}. */
     public String skin = "DARK";
     /** Accent colour as {@code #RRGGBB}. */
@@ -51,13 +67,22 @@ public final class CoreConfig {
     public List<String> reskinDenylist = new ArrayList<>(List.of(
         "de.keksuccino.fancymenu", "mezz.jei", "com.simibubi.create", "xaero"));
     /**
-     * Dark skin: inventory and container screens (chests, furnaces, machines, ...) get Slate's panel in place of
-     * their background texture, slot wells, light labels and Slate tooltips ({@code ContainerReskin}). A screen that
-     * draws its background in pieces keeps its own look; the creative inventory and the deny-list are never touched.
+     * Inventory and container screens (chests, furnaces, machines, ...) get Slate's panel in place of their background
+     * texture, slot wells, an accent slot highlight and light labels ({@code ContainerReskin}), whatever the skin. A
+     * screen that draws its background in pieces keeps its own look; the deny-list is never touched.
      */
     public boolean reskinContainers = true;
 
     public boolean isVanillaSkin() {
         return "VANILLA".equalsIgnoreCase(skin);
+    }
+
+    /** The menu-style switch: true = the dark skin, false = the vanilla skin. */
+    public boolean customStyle() {
+        return !isVanillaSkin();
+    }
+
+    public void setCustomStyle(final boolean on) {
+        skin = on ? "DARK" : "VANILLA";
     }
 }

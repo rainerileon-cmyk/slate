@@ -130,7 +130,7 @@ public final class SlateTitleScreen extends SlateScreen {
                     () -> mc.setScreen(new com.mojang.realmsclient.RealmsMainScreen(this))));
                 bx += 24;
             }
-            add(new SlateIconButton(bx, cy, 20, Icon.SLATE, Component.translatable("slate.hub.title"), () -> CoreActions.openScreen("slate:hub")));
+            // No Slate button here: the custom layout reaches Slate through Options (vanilla's own title screen gets one).
             cy += 28;
         }
         if (wide && cfg.showFriendsPanel && Modules.isLoaded("slate_multiplayer")) {
@@ -221,6 +221,13 @@ public final class SlateTitleScreen extends SlateScreen {
             super.renderBackground(g, mouseX, mouseY, partialTick);
         }
         renderLogo(g, fade);
+        // The nav column rests on a translucent plate (the build menu's floating panel), so the buttons form one
+        // block over the panorama instead of floating loose.
+        if (!t.isVanilla() && navBottom > 0) {
+            final int plateTop = logoY + 51 + (height < 300 ? 8 : 14) - 6;
+            SlateDraw.pixelRound(g, navLeft - 6, plateTop, NAV_W + 12, navBottom - plateTop + 6, Colors.withAlpha(t.palette().bg(), Math.round(0x8C * fade)), t.radius());
+            SlateDraw.outline(g, navLeft - 6, plateTop, NAV_W + 12, navBottom - plateTop + 6, Colors.withAlpha(t.palette().border(), Math.round(0xB0 * fade)), t.radius());
+        }
     }
 
     private void renderLogo(final GuiGraphics g, final float alpha) {

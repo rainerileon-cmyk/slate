@@ -42,6 +42,9 @@ public final class SlateClient {
         CoreElements.registerAll();
         ScreenIds.register(SlateHubScreen.class, "slate:hub", "Slate hub");
         ScreenIds.register(CoreSettingsScreen.class, "slate:settings", "Slate settings");
+        ScreenIds.register(dev.fallingcloud.slate.core.client.setup.SlateSetupScreen.class, "slate:setup", "Slate setup");
+        CoreActions.SCREEN_FACTORIES.put("slate:setup", p -> new dev.fallingcloud.slate.core.client.setup.SlateSetupScreen(p));
+        VanillaScreenButtons.init();
         SlateEvents.CLIENT_TICK_END.register(SlateClient::tick);
         SlateEvents.KEY_PRESSED.register((key, scan, mods) -> {
             if (HUB_KEY.matches(key, scan) && !HUB_KEY.isUnbound()) { Minecraft.getInstance().setScreen(new SlateHubScreen(null)); return true; }

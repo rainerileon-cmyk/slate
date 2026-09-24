@@ -234,8 +234,13 @@ public abstract class SlateScreen extends Screen {
             g.drawString(font, SlateDraw.truncate(Fonts.heading(getTitle()), right - tx), tx, ty, 0xFFFFFFFF, true);
             SlateDraw.vanillaSeparator(g, 0, HEADER_H - 2, width, true, this.minecraft.level != null);
         } else {
-            g.drawString(font, SlateDraw.truncate(Fonts.heading(getTitle()), right - tx), tx, ty, p.text(), false);
+            // In a world the header sits on the blurred scene: a translucent band gives it a plate to rest on.
+            if (this.minecraft.level != null) SlateDraw.rect(g, 0, 0, width, HEADER_H, Colors.withAlpha(p.bg(), 0x90));
+            final net.minecraft.util.FormattedCharSequence title = SlateDraw.truncate(Fonts.heading(getTitle()), right - tx);
+            g.drawString(font, title, tx, ty, p.text(), false);
             SlateDraw.hline(g, 0, HEADER_H - 1, width, p.border());
+            // The heading's accent cap: a short underline that fades out, the same mark the build menu's titles carry.
+            SlateDraw.accentCap(g, tx, HEADER_H - 2, Math.max(16, Math.min(font.width(title), 48)), 1f);
         }
     }
 

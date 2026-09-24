@@ -1,7 +1,9 @@
 # Slate Menu (`slate_menu`)
 
-Rebuilds Minecraft's main menus in Slate's style, in both skins. Every screen can be switched back to
-vanilla individually in `config/slate/menu.json`.
+Rebuilds Minecraft's main menus in Slate's style, in both skins. The whole set is Slate's **custom layout**
+switch (`customLayout` in `config/slate/core.json`, set on the first-launch setup screen or in Slate settings):
+with it off, every vanilla screen stays and Core adds a Slate button to vanilla's title and pause screens. With
+it on, every screen can still be switched back to vanilla individually in `config/slate/menu.json`.
 
 - **Title screen** — a left column of icon buttons (Singleplayer, Multiplayer, Friends when
   Multiplayer is installed, Screenshots, Mods when a mod list exists, Options, Quit), a **Continue**
@@ -18,9 +20,11 @@ vanilla individually in `config/slate/menu.json`.
   recent servers, LAN games, and a **Community** section from `config/slate/menu/community_servers.json`
   that a modpack can pre-fill. A "friends here" chip appears when Multiplayer knows friends are on a
   server. Right-click a server for its menu.
-- **Pause menu** — the vanilla actions (Back to game, Advancements, Statistics, Options, Open to LAN,
-  server links, Disconnect / Save & quit with confirmation) plus Screenshots, the Slate hub and Friends,
-  with the world or server name and the time played this session.
+- **Pause menu** — one floating card over the blurred world: the world or server name, the time played
+  this session and chips for the game mode, dimension, in-game day and time and difficulty; then the vanilla
+  actions grouped by rules (Back to game; Advancements, Statistics; Options, Open to LAN / server links /
+  player reporting; Screenshots, Friends; Disconnect / Save & quit with confirmation). Vanilla's feedback and
+  bug-report links are gone, and there is no Slate button: Options opens Slate's settings hub.
 - **Options** — a sidebar screen whose first page holds the options people actually change (FOV, render
   distance, GUI scale, fullscreen, vsync, max FPS, master volume) and whose other pages open the vanilla
   sub-screens, all restyled by Core; a "Slate settings hub" entry appears when the Config module is

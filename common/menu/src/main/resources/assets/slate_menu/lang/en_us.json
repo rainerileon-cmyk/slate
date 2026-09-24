@@ -63,6 +63,7 @@
   "slate_menu.worlds.version": "Version",
   "slate_menu.worlds.size": "Size on disk",
   "slate_menu.worlds.mode": "Game mode",
+  "slate_menu.worlds.details": "Details",
 
   "slate_menu.servers.online": "Online",
   "slate_menu.servers.online_count": "%s online · %s ms",
@@ -103,6 +104,7 @@
   "slate_menu.pause.confirm_quit_sp": "Save the world and return to the title screen?",
   "slate_menu.pause.confirm_quit_mp": "Disconnect from the server?",
   "slate_menu.pause.session": "Playing for %s",
+  "slate_menu.pause.day_time": "Day %s · %s",
 
   "slate_menu.disconnected.reconnect": "Reconnect to %s",
 
@@ -118,6 +120,7 @@
   "slate_menu.options.config_hub": "Settings hub (all mods)",
   "slate_menu.options.slate_hint": "Theme, accent, motion and the dev mode live in Slate settings.",
   "slate_menu.options.menu.section.screens": "Replace vanilla screens",
+  "slate_menu.options.menu.screens_hint": "These only apply while Slate's custom layout is on (Slate settings). With the vanilla layout every vanilla screen stays.",
   "slate_menu.options.menu.section.title": "Title screen",
   "slate_menu.options.menu.section.lists": "Worlds & servers",
   "slate_menu.options.menu.section.pause": "Pause menu",

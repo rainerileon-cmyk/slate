@@ -8,6 +8,7 @@ import dev.fallingcloud.slate.core.module.Modules;
 import dev.fallingcloud.slate.core.module.SlateModule;
 import dev.fallingcloud.slate.core.screen.ScreenIds;
 import dev.fallingcloud.slate.core.screen.ScreenSwaps;
+import dev.fallingcloud.slate.core.theme.Theme;
 import dev.fallingcloud.slate.menu.MenuConfig;
 import dev.fallingcloud.slate.menu.SlateMenu;
 import dev.fallingcloud.slate.menu.client.disconnect.SlateDisconnectedScreen;
@@ -62,13 +63,15 @@ public final class MenuClient {
         ScreenIds.register(ScreenshotViewer.class, "slate_menu:screenshot_viewer", "Screenshot viewer");
         ScreenIds.register(SlateDisconnectedScreen.class, "slate_menu:disconnected", "Slate disconnected");
 
-        ScreenSwaps.register(TitleScreen.class, s -> cfg().titleScreen && !Minecraft.getInstance().isDemo() ? new SlateTitleScreen() : null);
-        ScreenSwaps.register(SelectWorldScreen.class, s -> cfg().worldsScreen ? new SlateWorldsScreen(((SelectWorldScreenAccessor) s).slate$lastScreen()) : null);
-        ScreenSwaps.register(JoinMultiplayerScreen.class, s -> cfg().serversScreen ? new SlateServersScreen(((JoinMultiplayerScreenAccessor) s).slate$lastScreen()) : null);
-        ScreenSwaps.register(PauseScreen.class, s -> cfg().pauseScreen && ((PauseScreen) s).showsPauseMenu() ? new SlatePauseScreen() : null);
-        ScreenSwaps.register(OptionsScreen.class, s -> cfg().optionsScreen ? optionsScreen(((OptionsScreenAccessor) s).slate$lastScreen()) : null);
+        // Every swap is gated twice: Core's layout switch (the setup screen's "custom layout"; off = every vanilla screen
+        // stays), then the per-screen toggle in menu.json (an advanced override for one screen at a time).
+        ScreenSwaps.register(TitleScreen.class, s -> custom() && cfg().titleScreen && !Minecraft.getInstance().isDemo() ? new SlateTitleScreen() : null);
+        ScreenSwaps.register(SelectWorldScreen.class, s -> custom() && cfg().worldsScreen ? new SlateWorldsScreen(((SelectWorldScreenAccessor) s).slate$lastScreen()) : null);
+        ScreenSwaps.register(JoinMultiplayerScreen.class, s -> custom() && cfg().serversScreen ? new SlateServersScreen(((JoinMultiplayerScreenAccessor) s).slate$lastScreen()) : null);
+        ScreenSwaps.register(PauseScreen.class, s -> custom() && cfg().pauseScreen && ((PauseScreen) s).showsPauseMenu() ? new SlatePauseScreen() : null);
+        ScreenSwaps.register(OptionsScreen.class, s -> custom() && cfg().optionsScreen ? optionsScreen(((OptionsScreenAccessor) s).slate$lastScreen()) : null);
         ScreenSwaps.register(DisconnectedScreen.class, s -> {
-            if (!cfg().disconnectedScreen) return null;
+            if (!custom() || !cfg().disconnectedScreen) return null;
             final DisconnectedScreenAccessor acc = (DisconnectedScreenAccessor) s;
             return new SlateDisconnectedScreen(acc.slate$parent(), s.getTitle(), acc.slate$details());
         });
@@ -96,6 +99,11 @@ public final class MenuClient {
 
     public static MenuConfig cfg() {
         return SlateMenu.config();
+    }
+
+    /** Core's layout switch: with it off, no vanilla screen is replaced (Core adds its Slate button to vanilla's screens instead). */
+    public static boolean custom() {
+        return Theme.customLayout();
     }
 
     /**

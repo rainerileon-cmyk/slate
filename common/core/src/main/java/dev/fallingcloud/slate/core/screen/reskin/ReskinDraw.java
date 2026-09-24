@@ -156,54 +156,96 @@ public final class ReskinDraw {
 
     // ------------------------------------------------------------------ tooltips & tabs
 
-    /** Tooltip box around the text rect (vanilla's rect is the text bounds; the box is 3 px bigger + 1 px border). */
-    // ---- container screens (ContainerReskin): the panel that replaces the texture, and what the texture used to hold
+    // ---- container screens (ContainerReskin): the panel that replaces the texture, and what the texture used to hold.
+    // Painted with the CONTAINER palette (the dark one, in either skin) and the configured radius, so the container-style
+    // switch is independent of the menu style. The look is the build menu's: a hard shadow, a near-opaque layered
+    // panel with a hairline border and a top highlight, sunken slot wells with a pixel bevel, and an accent hover ring.
 
     /** A container screen's body in place of its background texture. */
     public static void containerPanel(final GuiGraphics g, final int x, final int y, final int w, final int h) {
-        final Palette p = Theme.current().palette();
-        SlateDraw.panel(g, x, y, w, h, p.surface(), p.borderStrong());
+        final Theme t = Theme.current();
+        final Palette p = t.containerPalette();
+        final int r = t.containerRadius();
+        containerShadow(g, x, y, w, h, r, p);
+        SlateDraw.pixelRound(g, x, y, w, h, Colors.withAlpha(p.bg(), 0xF6), r);
+        // A slightly lifted band along the top edge: the panel reads as a plate, not a hole.
+        SlateDraw.vgradient(g, x + r + 1, y + r + 1, w - 2 * r - 2, Math.min(24, h / 4), Colors.withAlpha(p.surface(), 0x70), 0);
+        SlateDraw.hline(g, x + r + 1, y + 1, w - 2 * r - 2, Colors.withAlpha(0xFFFFFF, 0x0C));
+        SlateDraw.outline(g, x, y, w, h, p.border(), r);
     }
 
-    /** One 18 x 18 slot well (the item is drawn on top by the screen). */
+    /** The 2 px hard offset shadow of a container panel (the theme's shadow uses the skin radius; this one the container's). */
+    private static void containerShadow(final GuiGraphics g, final int x, final int y, final int w, final int h, final int r, final Palette p) {
+        final int c = Colors.scaleAlpha(p.shadow(), 0.7f);
+        SlateDraw.pixelRound(g, x + 2, y + h - r - 2, w, r + 4, c, r);
+        SlateDraw.rect(g, x + w, y + 2, 2, h - r - 4, c);
+    }
+
+    /** One 18 x 18 slot well (the item is drawn on top by the screen): sunken, with a one-pixel bevel. */
     public static void containerSlot(final GuiGraphics g, final int x, final int y) {
-        final Palette p = Theme.current().palette();
-        SlateDraw.pixelRound(g, x, y, 18, 18, p.bg2(), 1);
-        SlateDraw.outline(g, x, y, 18, 18, p.border(), 1);
+        final Palette p = Theme.current().containerPalette();
+        SlateDraw.pixelRound(g, x, y, 18, 18, Colors.brighten(p.bg(), -0.32f), 1);
+        SlateDraw.outline(g, x, y, 18, 18, Colors.withAlpha(p.border(), 0xD0), 1);
+        // Bevel: darker along the top and left, a hair lighter along the bottom and right.
+        SlateDraw.hline(g, x + 1, y + 1, 16, Colors.withAlpha(0x000000, 0x48));
+        SlateDraw.vline(g, x + 1, y + 2, 15, Colors.withAlpha(0x000000, 0x48));
+        SlateDraw.hline(g, x + 2, y + 16, 15, Colors.withAlpha(0xFFFFFF, 0x0A));
+        SlateDraw.vline(g, x + 16, y + 2, 14, Colors.withAlpha(0xFFFFFF, 0x0A));
+    }
+
+    /**
+     * The hovered slot, in place of vanilla's flat white square: a soft white lift over the item and an accent ring
+     * around the well. Coordinates are the slot's (the screen has translated the pose to its image corner).
+     */
+    public static void containerSlotHighlight(final GuiGraphics g, final int x, final int y, final int z) {
+        final Palette p = Theme.current().containerPalette();
+        g.pose().pushPose();
+        g.pose().translate(0, 0, z);
+        SlateDraw.rect(g, x, y, 16, 16, Colors.withAlpha(0xFFFFFF, 0x2C));
+        SlateDraw.outline(g, x - 1, y - 1, 18, 18, Colors.withAlpha(p.accent(), 0xC8), 1);
+        SlateDraw.outline(g, x - 2, y - 2, 20, 20, Colors.withAlpha(p.accent(), 0x40), 2);
+        g.pose().popPose();
     }
 
     /** A sunken area (the player model's frame in the inventory). */
     public static void containerInset(final GuiGraphics g, final int x, final int y, final int w, final int h) {
-        final Palette p = Theme.current().palette();
-        SlateDraw.pixelRound(g, x, y, w, h, p.bg(), 2);
-        SlateDraw.outline(g, x, y, w, h, p.border(), 2);
+        final Palette p = Theme.current().containerPalette();
+        SlateDraw.pixelRound(g, x, y, w, h, Colors.brighten(p.bg(), -0.32f), 2);
+        SlateDraw.outline(g, x, y, w, h, Colors.withAlpha(p.border(), 0xD0), 2);
+        SlateDraw.hline(g, x + 2, y + 1, w - 4, Colors.withAlpha(0x000000, 0x48));
+        SlateDraw.vline(g, x + 1, y + 2, h - 4, Colors.withAlpha(0x000000, 0x48));
     }
 
     /** The "goes to" arrow between an input and its result (crafting grid, furnace). */
     public static void containerArrow(final GuiGraphics g, final int x, final int y) {
-        Icons.draw(g, Icon.ARROW_RIGHT, x + 4, y, 14, Theme.current().palette().textDim());
+        Icons.draw(g, Icon.ARROW_RIGHT, x + 4, y, 14, Theme.current().containerPalette().textDim());
     }
 
-    /** A screen that painted its body its own way: a dark veil over it, so it still sits in the dark skin. */
+    /** A screen that painted its body its own way: a dark veil with the panel's edge, so it still sits in the style. */
     public static void containerTint(final GuiGraphics g, final int x, final int y, final int w, final int h) {
-        final Palette p = Theme.current().palette();
-        SlateDraw.pixelRound(g, x, y, w, h, Colors.withAlpha(p.bg(), 0xD0), Theme.current().radius());
-        SlateDraw.outline(g, x, y, w, h, p.borderStrong(), Theme.current().radius());
+        final Theme t = Theme.current();
+        final Palette p = t.containerPalette();
+        final int r = t.containerRadius();
+        SlateDraw.pixelRound(g, x, y, w, h, Colors.withAlpha(p.bg(), 0xD4), r);
+        SlateDraw.outline(g, x, y, w, h, p.border(), r);
     }
 
-    /** A creative inventory tab (the item is drawn on it by the screen). */
+    /** A creative inventory tab (the item is drawn on it by the screen): the selected one carries an accent cap. */
     public static void containerTab(final GuiGraphics g, final int x, final int y, final int w, final int h, final boolean selected) {
-        final Palette p = Theme.current().palette();
-        SlateDraw.pixelRound(g, x, y, w, h, selected ? p.surface() : p.bg2(), 2);
-        SlateDraw.outline(g, x, y, w, h, selected ? p.borderStrong() : p.border(), 2);
+        final Palette p = Theme.current().containerPalette();
+        SlateDraw.pixelRound(g, x, y, w, h, selected ? Colors.withAlpha(p.bg(), 0xF6) : Colors.withAlpha(p.bg2(), 0xE0), 2);
+        SlateDraw.outline(g, x, y, w, h, selected ? p.borderStrong() : Colors.withAlpha(p.border(), 0xC0), 2);
+        if (selected) SlateDraw.rect(g, x + 3, y + 1, w - 6, 2, p.accent());
     }
 
     /** The creative inventory's scroll thumb (its track is part of the panel). */
     public static void containerThumb(final GuiGraphics g, final int x, final int y, final int w, final int h, final boolean enabled) {
-        final Palette p = Theme.current().palette();
-        SlateDraw.pixelRound(g, x, y, w, h, enabled ? p.textDim() : Colors.withAlpha(p.textDim(), 0x60), 1);
+        final Palette p = Theme.current().containerPalette();
+        SlateDraw.pixelRound(g, x, y, w, h, enabled ? p.borderStrong() : Colors.withAlpha(p.borderStrong(), 0x60), 1);
+        if (enabled) SlateDraw.rect(g, x + 1, y + 1, Math.max(1, w - 2), 1, Colors.withAlpha(0xFFFFFF, 0x18));
     }
 
+    /** Tooltip box around the text rect (vanilla's rect is the text bounds; the box is 4 px bigger + 1 px border). */
     public static void tooltipBackground(final GuiGraphics g, final int x, final int y, final int w, final int h, final int z) {
         final Theme t = Theme.current();
         final Palette p = t.palette();

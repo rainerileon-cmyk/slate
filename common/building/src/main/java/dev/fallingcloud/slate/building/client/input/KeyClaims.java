@@ -18,9 +18,10 @@ import net.minecraft.world.item.ItemStack;
  *       crosshair is on a variant block and the player has a hammer (in-world reshape wheel). Never with an empty hand
  *       (Shoulder Surfing's free look, Relics and Create keep Alt there), never in spectator, with a screen open, or
  *       when {@code wheel.swapEnabled} or {@code wheel.exclusiveSwapKey} is off.</li>
- *   <li>{@link BuildKeys#BUILD_MENU} (R): {@code wheel.menuKeyContext = ALWAYS}, or ({@code SMART}) while holding a
- *       block, a variant, the toolbox or a building tool, or while a building mode is active. In spectator (no mode
- *       but Measure can run there) only while a mode is active, unless {@code ALWAYS}.</li>
+ *   <li>{@link BuildKeys#BUILD_MENU} (R): {@code wheel.menuKeyContext = ALWAYS}, or ({@code SMART}) with an empty
+ *       hand or while holding a block, a variant, the toolbox or a building tool, or while a building mode is active;
+ *       an unrelated item in hand (sword, food) leaves R alone. In spectator (no mode but Measure can run there) only
+ *       while a mode is active, unless {@code ALWAYS}.</li>
  *   <li>{@link BuildKeys#CANCEL} (Q, vanilla's drop key) only while a building mode has a pending selection or a
  *       running operation to cancel; dropping items works as usual otherwise.</li>
  * </ul>
@@ -49,7 +50,11 @@ public final class KeyClaims {
         return mc.screen == null && WheelTarget.resolve() != null;   // resolve(): swapEnabled, not spectator, a target
     }
 
-    /** Whether pressing the build-menu key right now should open the build menu. */
+    /**
+     * Whether pressing the build-menu key right now should open the build menu. {@code SMART}: with an empty hand, a
+     * block, a variant, the toolbox or a building tool in the main hand, or while a mode is active; only an item that
+     * is none of those (a sword, food, a spell book) leaves the key to the other mods on it.
+     */
     public static boolean menuWanted() {
         final Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return false;
@@ -58,10 +63,11 @@ public final class KeyClaims {
         // A spectator keeps their inventory, but no building mode except Measure runs there: leave R to Iris & co.
         if (mc.player.isSpectator()) return false;
         final ItemStack held = mc.player.getMainHandItem();
-        return held.getItem() instanceof BlockItem
+        return held.isEmpty()
+            || held.getItem() instanceof BlockItem
             || held.getItem() instanceof ToolboxItem
             || held.getItem() instanceof BuildingToolItem
-            || (!held.isEmpty() && VariantRegistry.get().identify(held).isPresent());
+            || VariantRegistry.get().identify(held).isPresent();
     }
 
     private KeyClaims() {}

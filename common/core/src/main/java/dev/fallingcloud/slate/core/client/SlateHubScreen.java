@@ -10,6 +10,7 @@ import dev.fallingcloud.slate.core.layout.ui.Rect;
 import dev.fallingcloud.slate.core.module.Modules;
 import dev.fallingcloud.slate.core.module.SlateModule;
 import dev.fallingcloud.slate.core.platform.SlatePlatform;
+import dev.fallingcloud.slate.core.screen.Reskin;
 import dev.fallingcloud.slate.core.screen.SlateScreen;
 import dev.fallingcloud.slate.core.theme.Colors;
 import dev.fallingcloud.slate.core.theme.Palette;
@@ -19,7 +20,6 @@ import dev.fallingcloud.slate.core.widget.SlateCard;
 import dev.fallingcloud.slate.core.widget.SlateIconButton;
 import dev.fallingcloud.slate.core.widget.SlateLabel;
 import dev.fallingcloud.slate.core.widget.SlateScrollPanel;
-import dev.fallingcloud.slate.core.widget.SlateSegmented;
 import dev.fallingcloud.slate.core.widget.SlateSwatches;
 import dev.fallingcloud.slate.core.widget.SlateToggle;
 import dev.fallingcloud.slate.core.widget.SlateWidget;
@@ -81,17 +81,32 @@ public final class SlateHubScreen extends SlateScreen {
             int cy = CARD_PAD;
             card.add(new SlateLabel(0, 0, inner, Component.translatable("slate.hub.theme")).style(SlateLabel.Style.TITLE), CARD_PAD, cy);
             cy += 16;
-            final int segW = Math.min(130, inner / 3);
-            card.add(new SlateSegmented<>(0, 0, segW, List.of("DARK", "VANILLA"), Theme.current().isVanilla() ? "VANILLA" : "DARK",
-                s -> Component.translatable("slate.skin." + s.toLowerCase(java.util.Locale.ROOT)),
-                s -> { Slate.configFile().update(cfg -> cfg.skin = s); Theme.reload(); }), CARD_PAD, cy);
+            // The three switches (layout, menu style, container style), two per row when the card is wide enough.
+            final boolean twoCols = inner >= 300;
+            final int colW = twoCols ? (inner - 8) / 2 : inner;
+            final SlateToggle layout = new SlateToggle(0, 0, colW, Component.translatable("slate.setup.layout"), Slate.config().customLayout,
+                v -> { Slate.configFile().update(cfg -> cfg.customLayout = v); Theme.reload(); });
+            layout.tip(Component.translatable("slate.setup.layout.desc"));
+            final SlateToggle style = new SlateToggle(0, 0, colW, Component.translatable("slate.setup.style"), Slate.config().customStyle(),
+                v -> { Slate.configFile().update(cfg -> cfg.setCustomStyle(v)); Theme.reload(); Reskin.invalidate(); });
+            style.tip(Component.translatable("slate.setup.style.desc"));
+            final SlateToggle containers = new SlateToggle(0, 0, colW, Component.translatable("slate.setup.containers"), Slate.config().reskinContainers,
+                v -> { Slate.configFile().update(cfg -> cfg.reskinContainers = v); Theme.reload(); Reskin.invalidate(); });
+            containers.tip(Component.translatable("slate.setup.containers.desc"));
+            card.add(layout, CARD_PAD, cy);
+            if (twoCols) { card.add(style, CARD_PAD + colW + 8, cy); cy += ROW_H; card.add(containers, CARD_PAD, cy); }
+            else { cy += ROW_H; card.add(style, CARD_PAD, cy); cy += ROW_H; card.add(containers, CARD_PAD, cy); }
+            cy += ROW_H + 4;
             final int accent = Colors.fromHex(Slate.config().accent, Palette.DEFAULT_ACCENT);
-            final SlateSwatches sw = new SlateSwatches(0, 0, inner - segW - 12, Palette.ACCENTS, accent,
+            final SlateSwatches sw = new SlateSwatches(0, 0, inner, Palette.ACCENTS, accent,
                 argb -> { Slate.configFile().update(cfg -> cfg.accent = Colors.toHex(argb)); Theme.reload(); });
-            card.add(sw, CARD_PAD + segW + 12, cy + Math.max(0, (ROW_H - sw.getHeight()) / 2));
-            cy += Math.max(ROW_H, sw.getHeight()) + 8;
+            card.add(sw, CARD_PAD, cy);
+            cy += sw.getHeight() + 8;
             card.add(new SlateButton(0, 0, 130, 16, Component.translatable("slate.hub.settings"), () -> minecraft.setScreen(new CoreSettingsScreen(this)))
                 .icon(Icon.SETTINGS).variant(SlateButton.Variant.GHOST).leftAligned(), CARD_PAD - 4, cy);
+            card.add(new SlateButton(0, 0, 130, 16, Component.translatable("slate.settings.run_setup"),
+                () -> minecraft.setScreen(new dev.fallingcloud.slate.core.client.setup.SlateSetupScreen(this)))
+                .icon(Icon.SPARKLE).variant(SlateButton.Variant.GHOST).leftAligned(), CARD_PAD + 134, cy);
             cy += 16 + CARD_PAD;
             card.setHeight(cy);
             panel.add(card, 0, y);

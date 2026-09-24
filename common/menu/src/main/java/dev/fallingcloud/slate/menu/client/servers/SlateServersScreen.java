@@ -530,6 +530,16 @@ public final class SlateServersScreen extends SlateScreen {
     }
 
     @Override
+    public void renderBackground(final GuiGraphics g, final int mouseX, final int mouseY, final float partialTick) {
+        super.renderBackground(g, mouseX, mouseY, partialTick);
+        // The quick-connect bar and its status line sit on one floating plate (drawn under the widgets).
+        if (quickField != null && !Theme.current().isVanilla()) {
+            final Rect c = contentRect();
+            SlateDraw.floatingPanel(g, c.x() - 6, quickField.getY() - 6, c.w() + 12, quickStatusY + 12 - (quickField.getY() - 6), 1f);
+        }
+    }
+
+    @Override
     protected void renderContent(final GuiGraphics g, final int mouseX, final int mouseY, final float partialTick) {
         final Theme t = Theme.current();
         final Palette p = t.palette();

@@ -46,9 +46,14 @@ public class ShapePaneBlock extends IronBarsBlock implements ShapeBlock, EntityB
     private static final Direction[] HORIZONTAL = {Direction.NORTH, Direction.EAST, Direction.SOUTH, Direction.WEST};
     /** Keyed by the connection bits (N 1, E 2, S 4, W 8). */
     private static final Map<Integer, List<AABB>> BOXES = new ConcurrentHashMap<>();
-    /** The pane as it points north: what a diagonal pane is cut from before its turn ({@link DiagonalShapes}). */
-    private static final List<AABB> NORTH_ARM = List.of(ShapeBoxes.box(7, 0, 0, 9, 16, 7));
-    private final DiagonalShapes.ShapeCache diagonalShapes = new DiagonalShapes.ShapeCache(1, 0, 16);
+    /**
+     * The pane as it points north: what a diagonal pane is cut from before its turn ({@link DiagonalShapes}). It runs to
+     * the block centre so its near end sits inside the post.
+     */
+    private static final List<AABB> NORTH_ARM = List.of(ShapeBoxes.box(7, 0, 0, 9, 16, 8));
+    private final DiagonalShapes.ShapeCache diagonalShapes = new DiagonalShapes.ShapeCache(1, 0, 16, NORTH_ARM);
+    /** Collision: the same arms as plain stepped unions (no outline edges needed). */
+    private final DiagonalShapes.ShapeCache diagonalCollisions = new DiagonalShapes.ShapeCache(1, 0, 16);
 
     public ShapePaneBlock(final BlockBehaviour.Properties properties) {
         super(DiagonalShapes.properties(ShapeBehaviour.refine(properties), DiagonalShapes.Kind.PANE));
@@ -105,7 +110,7 @@ public class ShapePaneBlock extends IronBarsBlock implements ShapeBlock, EntityB
 
     @Override
     protected VoxelShape getCollisionShape(final BlockState state, final BlockGetter level, final BlockPos pos, final CollisionContext context) {
-        return diagonalShapes.get(state, DiagonalShapes.mask(level, pos), super.getCollisionShape(state, level, pos, context));
+        return diagonalCollisions.get(state, DiagonalShapes.mask(level, pos), super.getCollisionShape(state, level, pos, context));
     }
 
     private static List<AABB> computeBoxes(final int bits) {

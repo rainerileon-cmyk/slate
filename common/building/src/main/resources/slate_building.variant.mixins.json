@@ -14,7 +14,8 @@
     "InventoryMixin",
     "LivingEntityFrictionMixin",
     "RecipeManagerMixin",
-    "StairBlockAccessor"
+    "StairBlockAccessor",
+    "VoxelShapeAccessor"
   ],
   "client": [
     "MultiPlayerGameModeHitSoundMixin"

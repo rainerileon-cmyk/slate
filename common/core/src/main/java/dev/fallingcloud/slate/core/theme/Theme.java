@@ -21,7 +21,10 @@ public final class Theme {
 
     private final Skin skin;
     private final Palette palette;
+    /** The dark palette with the current accent: what container screens are painted with in either skin. */
+    private final Palette containerPalette;
     private final int radius;
+    private final int containerRadius;
     private final float motion;
     private final boolean headingFont;
     private final boolean transitions;
@@ -33,7 +36,9 @@ public final class Theme {
         this.skin = Skin.parse(cfg.skin);
         final int accent = Colors.fromHex(cfg.accent, Palette.DEFAULT_ACCENT);
         this.palette = skin == Skin.VANILLA ? Palette.vanilla(accent) : Palette.dark(accent);
-        this.radius = skin == Skin.VANILLA ? 0 : Math.max(0, Math.min(4, cfg.radius));
+        this.containerPalette = Palette.dark(accent);
+        this.containerRadius = Math.max(0, Math.min(4, cfg.radius));
+        this.radius = skin == Skin.VANILLA ? 0 : containerRadius;
         this.motion = (float) Math.max(0, Math.min(2, cfg.motion));
         this.headingFont = cfg.headingFont;
         this.transitions = cfg.transitions;
@@ -57,8 +62,20 @@ public final class Theme {
     public Skin skin() { return skin; }
     public boolean isVanilla() { return skin == Skin.VANILLA; }
     public Palette palette() { return palette; }
+    /**
+     * The palette container screens are restyled with: the dark one, in either skin, so the container-style switch
+     * works on its own ({@code reskinContainers}).
+     */
+    public Palette containerPalette() { return containerPalette; }
     /** Pixel-stepped corner radius; 0 on the vanilla skin. */
     public int radius() { return radius; }
+    /** The configured corner radius, used by the container restyle in either skin. */
+    public int containerRadius() { return containerRadius; }
+    /**
+     * The layout switch: Slate Menu's rebuilt screens replace vanilla's (true) or vanilla's own screens show (false).
+     * Read live from the config, so a change applies at the next screen open.
+     */
+    public static boolean customLayout() { return Slate.config().customLayout; }
     /** 0 = no motion (everything snaps), 1 = default speeds, 2 = half speed. */
     public float motion() { return motion; }
     public boolean transitions() { return transitions; }

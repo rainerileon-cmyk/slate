@@ -6,7 +6,7 @@ polished and animated. Minecraft 1.21.1, **NeoForge and Fabric** from one shared
 
 | Module | Mod id | What it does |
 |---|---|---|
-| Core | `slate` | Theme engine (dark + vanilla skins, accent colours), widget toolkit, animations, screen transitions, restyling of vanilla screens, the **development mode** layout editor (edit any menu: move/hide/add buttons, labels, images, panels with actions), Slate hub |
+| Core | `slate` | The first-launch setup (three switches with live previews: custom layout, custom menu style, custom container style), theme engine (dark + vanilla skins, accent colours), widget toolkit, animations, screen transitions, restyling of vanilla screens and containers, the **development mode** layout editor (edit any menu: move/hide/add buttons, labels, images, panels with actions), Slate hub |
 | Menu | `slate_menu` | Rebuilt title, worlds, servers, pause, options screens; favourites, search, live pings, quick connect, community servers, screenshot gallery |
 | Multiplayer | `slate_multiplayer` | Friends, friend groups, presence, DMs and group chats with media, invites, screen sharing, Simple Voice Chat integration; a social hub on any server that has it |
 | Chat | `slate_chat` | In-game chat rebuilt: channels, grouped messages with heads, images/GIFs/voice clips/video, emotes, mentions, history and search |
@@ -36,7 +36,7 @@ compile against vendored jars in `MinecraftMods/Source/libs` (or `-Pslate.libs=<
 
 ## Configuration
 
-Everything lives under `config/slate/`: `core.json` (skin, accent, motion, dev mode, restyle scope),
+Everything lives under `config/slate/`: `core.json` (the three switches: `customLayout`, `skin`, `reskinContainers`; accent, motion, dev mode, restyle scope; `setupDone`),
 `menu.json`, `multiplayer.json`, `chat.json`, `config.json`, `building.json` (client building preferences),
 `building-server.json` (server building rules, synced to players), `building-chisel.json` (chisel groups),
 `layouts/<screen>.json` (dev-mode layouts), `config/pages/*.json` (curated settings pages). Modpacks ship

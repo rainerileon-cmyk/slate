@@ -46,6 +46,7 @@ public final class CoreBindings {
     }
 
     static {
+        bool("customLayout", c -> c.customLayout, (c, v) -> c.customLayout = v);
         DEFS.put("skin", () -> base("skin", OptionType.CHOICE)
             .choices(List.of(Choice.of("DARK", Component.translatable("slate.skin.dark").getString()), Choice.of("VANILLA", Component.translatable("slate.skin.vanilla").getString())))
             .getter(() -> Slate.config().isVanillaSkin() ? "VANILLA" : "DARK")
