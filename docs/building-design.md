@@ -269,8 +269,9 @@ unbound — right click also confirms), `cancel` (unbound), `exit_mode` (unbound
 ## 5. Swap wheel and build menu (owner C, `building.client.wheel`, `building.client.menu`)
 
 **Alt wheel** (overlay drawn in the HUD pass, not a Screen, so the player can keep walking):
-- Opens while the swap key is held and the main-hand stack identifies as a variant (or: empty hand / building
-  tool while looking at a variant block and the player may reshape → in-world reshape wheel).
+- Opens while the swap key is held and the main-hand stack identifies as a variant (or: the Builder's Toolbox or a building
+  tool in the main hand while looking at a block the player may reshape → in-world reshape wheel; an empty hand never
+  claims Alt, so Shoulder Surfing / Relics / Create keep it).
 - Virtual cursor from mouse deltas (camera frozen via `onMouseLook`), recentred on open. Centre disc = FULL
   (rendered as the 3D item); slices around it = the wheel's entries rendered as 3D items (the real variant
   stacks), current shape highlighted, unavailable ones hidden (`hideUnavailable`) or greyed.

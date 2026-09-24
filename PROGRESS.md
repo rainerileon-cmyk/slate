@@ -60,10 +60,9 @@ New module `slate_building` (user guide `docs/building.md`, contract `docs/build
 | 4 | review | read-only review of the integrated tree: 46 confirmed findings (3 critical dupes) | DONE |
 | 5 | fix-ops / fix-variants / fix-ui / fix-render | all confirmed findings fixed (economy dupes, unloaded chunks, reshape loot guard, natives kept with deleteNatives, stuck keys on Fabric, HUD, re-planning) | DONE, merged (8fc2d4c, afc02da, 1fdfcf4, 2d87f57); both loaders green |
 | 6 | COMPAT | DF-pack dev run (`:dev:runClientCompat`): Sodium, Iris, Diagonal*, OPAC, BetterInventory pass; KleeSlabs, Create toolbelt and JEI subtype compat added | DONE, merged (f1f351d) |
-| 7 | POLISH | compat patches (KleeSlabs probe in `canBreak`, JEI stand-in entries, Create copper stairs by name), review leftovers | RUNNING (sbwt/base) |
+| 7 | POLISH | compat patches (KleeSlabs probe in `canBreak`, JEI stand-in entries, Create copper stairs by name), in-world wheel only with toolbox/tool in hand, area-reshape loot guard, onboarding tip; full harness NeoForge + Fabric + DF compat, all 0 FAIL | DONE (3ef0b37, d3a500b) |
 | 7 | DOCS | `docs/building.md`, README, DESIGN, this section | DONE (agent/b-docs) |
-| 8 | lead | merge building → master (user's dirty files untouched), final build both loaders, jars, morning report | TODO |
+| 8 | lead | merge building → master (user's uncommitted files untouched), final build both loaders, morning report `docs/MORNING-REPORT-2026-09-24.md` | DONE |
 
-Open decision for the user: with an empty hand looking at a block the player may reshape (any block in creative),
-Left Alt goes to the in-world reshape wheel, so Shoulder Surfing / Relics / Create lose it there. The compat
-report proposes claiming Alt for the in-world wheel only while a building tool is held.
+Decided overnight: the in-world reshape/chisel wheel claims Left Alt only while the toolbox or a building tool is
+in the main hand; an empty hand leaves Alt to Shoulder Surfing / Relics / Create.

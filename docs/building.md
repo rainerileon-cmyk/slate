@@ -125,7 +125,7 @@ missing shapes* off. When you own a Chisel, the material's **chisel groups** fol
 rename, remove and reorder wheels (drag or Alt+↑/↓), pick each wheel's shapes from a palette, see a live
 preview in the held material, set slices per page, or reset to the defaults. Changes save immediately.
 
-**In-world reshape (Hammer).** With an empty hand or a building tool, look at a placed block and hold the swap
+**In-world reshape (Hammer).** With the Builder's Toolbox or a building tool in your main hand, look at a placed block and hold the swap
 key. The same wheel appears for that block, and picking a shape rebuilds it in place with its material and,
 where the shapes share one, its orientation. This needs a Hammer of any tier in your toolbox (creative counts).
 Going up in units costs the difference from your materials, and going down refunds it: a double slab turned into
@@ -428,6 +428,7 @@ Building settings screen shows the same rows. Client settings apply live. Server
 | `hud.scale` | `1.0` | Chip size (0.5–2) | Build menu & HUD › HUD size |
 | `hud.actionBar` | `true` | Result line after an operation | Build menu & HUD › Result line |
 | `hud.sounds` | `true` | Quiet clicks for the wheel, swaps and modes | General › Sounds |
+| `hud.hints` | `true` | A short tip with the swap and menu keys the first times you hold a block that can change shape (shown at most twice, `hud.onboardingShown` counts) | General › Tips for new players |
 | `modes.confirmWithRightClick` | `true` | A third right-click applies | Building modes › Right-click applies |
 | `modes.livePreview` | `true` | Plan ghosts while the box still follows the crosshair (small selections) | Building modes › Live preview |
 | `modes.labels` | `true` | Size labels above the selection | Building modes › Size labels |
@@ -473,9 +474,9 @@ edited as text, e.g. `16, 32, 64, 128`. `/slatebuild reload` re-reads the file a
 | `ops.undoPerMemory` | `10` | Extra undo steps per Memory upgrade | › Undo steps per Memory upgrade |
 | `ops.durabilityPerBlocks` | `4` | One durability per this many changed blocks | › Blocks per durability |
 | `ops.pasteOpLevel` | `0` | Operator level needed to paste (0: everyone) | › Paste permission level |
-| `ops.creativeMaxVolume` | `262144` | Blocks per operation in creative (and the Capacity ceiling) | file only |
-| `ops.maxUndoBlocks` | `200000` | Positions kept in one player's history | file only |
-| `ops.maxUndoDataKiB` | `65536` | Container data kept in one player's history (creative operations) | file only |
+| `ops.creativeMaxVolume` | `262144` | Blocks per operation in creative (and the Capacity ceiling) | › Creative volume limit |
+| `ops.maxUndoBlocks` | `200000` | Positions kept in one player's history | › Undo memory (blocks) |
+| `ops.maxUndoDataKiB` | `65536` | Container data kept in one player's history (creative operations) | › Undo memory (contents), shown in MiB |
 | `ops.disabledModes` | `[]` | Mode ids turned off, e.g. `["paste", "move"]` | file only |
 | `toolbox.durability` | `250, 750, 2000, 5000` | Tool durability per tier (applied to a tool the next time it wears) | Server: toolbox & chisel › Tool durability |
 | `toolbox.allowPouch` | `true` | Operations use the pouch (off: it takes no new items) | › Toolbox pouch |
@@ -542,12 +543,12 @@ blocks are in `#minecraft:stairs`, `slabs`, `walls`, `fences` and `fence_gates`.
   stay separate (glass gets Slate Building's own pane). Map other natives with `variantOverrides`.
 - Dropping a native slab item onto one of Slate Building's half slabs does not merge them. Slate Building only
   creates its own half slabs for materials that have no native slab, so this rarely comes up.
-- With an empty hand (or a building tool) looking at a block you may reshape (any block in creative, or with a
-  Hammer in survival), Left Alt goes to the reshape wheel, and Shoulder Surfing's free look, Relics or Create's
-  toolbelt do not get it. Turn off *Swap key takes Alt*, or rebind one of the keys, if that is in the way.
+- Left Alt goes to Slate Building only while you hold a block or variant, or hold the toolbox / a building tool while
+  looking at a block you may reshape. In every other case Shoulder Surfing's free look, Relics and Create's toolbelt
+  keep it. Turn off *Swap key takes Alt*, or rebind one of the keys, if you want Alt for them even then.
 - With *Build menu key: Smart*, R does nothing with an empty hand and no active mode (it stays with Iris and other
   mods). Use *Always* or the Slate hub.
-- Under some shader packs, ghosts are faint.
+- With a shader pack active, ghosts use a stronger fallback style, but they still look paler against bright packs.
 - The Rechiseled, Chipped and Chisel readers were tested against those mods' data formats, not the running mods.
   The DF pack has none of them.
 
