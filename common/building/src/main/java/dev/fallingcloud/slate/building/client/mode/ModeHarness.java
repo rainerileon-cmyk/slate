@@ -83,7 +83,12 @@ final class ModeHarness {
             })
             .screenshot("selection-applied")
             .log("selection: left-click cancels")
+            .run(() -> {
+                // Without the ops server's planners the apply is refused and the selection stays: clear it the user's way.
+                if (ClientModeState.selectionPending()) check(BuildInput.fireAttack(), "left-click clears a refused selection");
+            })
             .run(() -> ModeController.INSTANCE.debugClick(new BlockPos(-4, -60, 9), Direction.UP))
+            .run(() -> check(ClientModeState.pending() == ClientModeState.Pending.FIRST_ANCHOR, "a new click starts a new selection"))
             .run(() -> check(BuildInput.fireAttack(), "left-click on a pending selection is consumed"))
             .run(() -> check(ClientModeState.pending() == ClientModeState.Pending.NONE && ClientModeState.anchors().isEmpty(),
                 "left-click clears the selection"))
@@ -121,7 +126,9 @@ final class ModeHarness {
         final BlockPos centre = new BlockPos(0, -61, 4);
         s.log("mirror: activate on the targeted block")
             .command("item replace entity @s hotbar.0 with minecraft:stone_bricks 64")
-            .run(() -> aim(Vec3.atCenterOf(centre)))
+            .command("tp @s 0.5 -58 0.5")                              // within placing reach of the test block
+            .wait(5)
+            .run(() -> aim(topOf(centre)))
             .wait(5)
             .run(() -> check(ClientModeState.activate(BuildModes.MIRROR_MODE), "mirror activates"))
             .run(() -> check(ClientModeState.anchors().equals(List.of(centre)), "the centre is the targeted block"))
@@ -131,13 +138,14 @@ final class ModeHarness {
             .run(() -> ClientModeState.setParam(BuildModes.MIRROR_MODE, "axis", "XZ"))
             .wait(20)
             .screenshot("mirror-xz")
-            .run(() -> place(new BlockPos(3, -61, 7), Direction.UP))
+            .run(() -> place(new BlockPos(2, -61, 3), Direction.UP))
             .wait(30)
             .run(() -> {
-                world("placed", new BlockPos(3, -60, 7));
-                world("mirrored across X", new BlockPos(-3, -60, 7));
-                world("mirrored across Z", new BlockPos(3, -60, 1));
-                world("mirrored across both", new BlockPos(-3, -60, 1));
+                // Centre (0, -61, 4): x' = -x, z' = 8 - z.
+                world("placed", new BlockPos(2, -60, 3));
+                world("mirrored across X", new BlockPos(-2, -60, 3));
+                world("mirrored across Z", new BlockPos(2, -60, 5));
+                world("mirrored across both", new BlockPos(-2, -60, 5));
                 state("server symmetry " + (ClientModeState.symmetry() == null ? "none" : ClientModeState.symmetry().mode().id()));
             })
             .screenshot("mirror-placed")
@@ -161,7 +169,7 @@ final class ModeHarness {
         s.log("paste: synthetic clipboard")
             .run(() -> ClientModeState.setClipboard(sampleClipboard()))
             .run(() -> check(ClientModeState.activate(BuildModes.PASTE), "paste activates"))
-            .run(() -> aim(Vec3.atCenterOf(new BlockPos(0, -61, 6))))
+            .run(() -> aim(topOf(new BlockPos(0, -61, 6))))
             .wait(30)
             .run(() -> state("paste hover"))
             .run(() -> check(ClientModeState.stats().hasBox(), "the clipboard footprint follows the crosshair"))
@@ -181,17 +189,22 @@ final class ModeHarness {
 
     // ---- helpers ----
 
+    /** A clean smooth-stone floor, the player hovering (creative flight) a few blocks up and back, looking at it. */
     private static void stage(final BuildingHarness.Script s) {
         s.command("time set noon")
             .command("weather clear")
-            .command("fill -12 -60 -8 12 -48 18 minecraft:air")
-            .command("fill -12 -61 -8 12 -61 18 minecraft:smooth_stone")
-            .command("tp @s 0.5 -60 -5.5 0 25")
+            .command("fill -12 -60 -10 12 -48 18 minecraft:air")
+            .command("fill -12 -61 -10 12 -61 18 minecraft:smooth_stone")
+            .command("tp @s 0.5 -57 -5.5 0 30")
             .command("item replace entity @s hotbar.0 with minecraft:oak_planks 64")
             .command("item replace entity @s hotbar.1 with minecraft:stone_bricks 64")
             .run(() -> {
                 final Minecraft mc = Minecraft.getInstance();
-                if (mc.player != null) mc.player.getInventory().selected = 0;
+                if (mc.player != null) {
+                    mc.player.getInventory().selected = 0;
+                    mc.player.getAbilities().flying = true;
+                    mc.player.onUpdateAbilities();
+                }
                 mc.getToasts().clear();
                 ClientModeState.deactivate();
             })
@@ -222,6 +235,11 @@ final class ModeHarness {
         e.put("pos", new IntArrayTag(new int[] {x, y, z}));
         e.putInt("state", state);
         return e;
+    }
+
+    /** A point just under the middle of {@code pos}'s top face: the view ray enters that block through its top. */
+    private static Vec3 topOf(final BlockPos pos) {
+        return new Vec3(pos.getX() + 0.5, pos.getY() + 0.98, pos.getZ() + 0.5);
     }
 
     /** Turns the player to look at {@code at} (client rotation; the server follows with the next movement packet). */

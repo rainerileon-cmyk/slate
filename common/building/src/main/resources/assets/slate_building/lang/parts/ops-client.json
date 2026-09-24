@@ -22,6 +22,7 @@
   "slate_building.notice.cannot_build": "You can't build here",
   "slate_building.notice.empty_clipboard": "Your clipboard is empty. Copy something first",
   "slate_building.notice.hold_block": "Hold the block to build with",
+  "slate_building.notice.aim_at_block": "Aim at a block",
   "slate_building.notice.nothing": "Nothing would change here",
   "slate_building.notice.press_confirm": "Press %s to apply",
   "slate_building.notice.not_enough": "Not enough %s (%s of %s)",

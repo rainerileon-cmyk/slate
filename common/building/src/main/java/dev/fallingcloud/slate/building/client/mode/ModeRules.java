@@ -41,7 +41,7 @@ final class ModeRules {
         if (mode == BuildModes.PASTE && ops.pasteOpLevel > 0 && !player.hasPermissions(ops.pasteOpLevel)) {
             return Component.translatable("slate_building.notice.paste_permission");
         }
-        return ToolboxAccess.of(player).lockReason(mode);
+        return ToolboxAccess.of(player).lockReason(mode);    // fresh: activation must not see a stale toolbox
     }
 
     /** Whether the server can take this mode's payloads (false on servers without Slate Building). */
@@ -55,8 +55,24 @@ final class ModeRules {
         return Minecraft.getInstance().getConnection() != null && SlateNetwork.get().serverHasChannel(ApplyOp.TYPE);
     }
 
+    private static @Nullable Player cachedFor;
+    private static int cachedTick = Integer.MIN_VALUE;
+    private static long cachedGameMode = -1;
+    private static ToolboxAccess.Capabilities cached = ToolboxAccess.Capabilities.NONE;
+
+    /**
+     * The player's capabilities, computed at most once per client tick (the preview and the raycast ask every frame;
+     * the toolbox lookup walks the inventory). A game-mode switch refreshes at once.
+     */
     static ToolboxAccess.Capabilities capabilities(final Player player) {
-        return ToolboxAccess.of(player);
+        final long mode = player.isCreative() ? 1 : player.isSpectator() ? 2 : 0;
+        if (player != cachedFor || player.tickCount != cachedTick || mode != cachedGameMode) {
+            cached = ToolboxAccess.of(player);
+            cachedFor = player;
+            cachedTick = player.tickCount;
+            cachedGameMode = mode;
+        }
+        return cached;
     }
 
     /** The player's operation limits under the rules of the server they are on. */

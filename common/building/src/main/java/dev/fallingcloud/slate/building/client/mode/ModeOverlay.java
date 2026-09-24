@@ -34,6 +34,7 @@ final class ModeOverlay {
     record Frame(BuildMode mode, ClientModeState.Pending pending, List<BlockPos> anchors, @Nullable ModeTarget target,
                  ModeGeometry.Shape shape, ClientModeState.Stats stats, int symmetryRadius) {}
 
+    private static final int DRAWN_SYMMETRY_RADIUS = 32;
     private static final long APPLY_FLASH_MS = 650;
     private static final long CANCEL_FLASH_MS = 260;
 
@@ -87,7 +88,8 @@ final class ModeOverlay {
             || pending == ClientModeState.Pending.PREVIEW || pending == ClientModeState.Pending.DESTINATION;
 
         // Aim cursor: where the next click lands.
-        if (target != null && pending != ClientModeState.Pending.SELECTED && pending != ClientModeState.Pending.PREVIEW) {
+        if (target != null && pending != ClientModeState.Pending.SELECTED && pending != ClientModeState.Pending.PREVIEW
+            && (!target.air() || ModeController.airAllowed(f.mode()))) {
             final int cursor = target.air() ? Colors.withAlpha(pal.text(), pulse(0x70, 0xC0)) : Colors.withAlpha(pal.accent(), 0xA0);
             OverlayRenderer.marker(target.pos(), cursor);
         }
@@ -210,7 +212,8 @@ final class ModeOverlay {
         if (f.anchors().isEmpty()) return;
         final BlockPos c = f.anchors().get(0);
         final float in = TOGGLE_IN.get();
-        final int r = f.symmetryRadius();
+        // The symmetry reaches symmetryRadius blocks; the guides stop at a readable size (the label says the rest).
+        final int r = Math.max(4, Math.min(f.symmetryRadius(), DRAWN_SYMMETRY_RADIUS));
         final ModeParams params = ClientModeState.params(f.mode());
         final double cx = c.getX() + 0.5;
         final double cy = c.getY() + 0.5;
@@ -247,7 +250,9 @@ final class ModeOverlay {
                 .append(Component.translatable("slate_building.stats.slices", slices));
         }
         if (ClientModeState.settings().labels) {
-            OverlayRenderer.label(new Vec3(cx, cy + 1.1, cz), label, Colors.withAlpha(pal.text(), (int) (0xFF * in)));
+            final Component full = Component.empty().append(label).append(Component.translatable("slate_building.stats.separator"))
+                .append(Component.translatable("slate_building.stats.radius", f.symmetryRadius()));
+            OverlayRenderer.label(new Vec3(cx, cy + 1.1, cz), full, Colors.withAlpha(pal.text(), (int) (0xFF * in)));
         }
     }
 

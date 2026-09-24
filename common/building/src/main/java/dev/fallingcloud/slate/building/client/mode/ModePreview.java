@@ -14,7 +14,6 @@ import dev.fallingcloud.slate.building.ops.Palette;
 import dev.fallingcloud.slate.building.ops.Plan;
 import dev.fallingcloud.slate.building.ops.PlanContext;
 import dev.fallingcloud.slate.building.ops.Planners;
-import dev.fallingcloud.slate.building.toolbox.ToolboxAccess;
 import dev.fallingcloud.slate.building.toolbox.UpgradeType;
 import dev.fallingcloud.slate.building.variant.ShapeBlock;
 import java.util.ArrayList;
@@ -226,7 +225,7 @@ final class ModePreview {
 
     private static @Nullable Component precheck(final Player player, final BuildMode mode, final List<BlockPos> anchors,
                                                 final Palette palette, final @Nullable Clipboard clipboard, final Limits limits) {
-        final Component locked = ToolboxAccess.of(player).lockReason(mode);
+        final Component locked = ModeRules.capabilities(player).lockReason(mode);
         if (locked != null) return locked;
         if (mode.changesWorld() && !player.mayBuild()) return Component.translatable("slate_building.notice.cannot_build");
         if (mode == BuildModes.PASTE && (clipboard == null || clipboard.isEmpty())) {
@@ -365,7 +364,7 @@ final class ModePreview {
         final int sx = box == null ? 0 : (int) Math.round(box.getXsize());
         final int sy = box == null ? 0 : (int) Math.round(box.getYsize());
         final int sz = box == null ? 0 : (int) Math.round(box.getZsize());
-        final boolean supply = !creative && ToolboxAccess.of(player).upgrade(UpgradeType.SUPPLY_LINK) > 0;
+        final boolean supply = !creative && ModeRules.capabilities(player).upgrade(UpgradeType.SUPPLY_LINK) > 0;
         final double distance = mode.kind() == ModeKind.MEASURE || mode == BuildModes.LINE ? shape.distance() : 0;
         stats = new ClientModeState.Stats(sx, sy, sz, (long) sx * sy * sz, p == null ? 0 : p.changes().size(),
             p == null ? 0 : p.requestedCount(), place, replace, remove, missing, blocked, materials, p != null && p.ok(),

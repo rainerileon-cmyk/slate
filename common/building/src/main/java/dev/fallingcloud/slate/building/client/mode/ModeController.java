@@ -184,6 +184,11 @@ final class ModeController implements BuildInput.Handler {
     private void click(final LocalPlayer player, final BuildMode mode, final boolean confirm) {
         final ClientModeState.Pending pending = ClientModeState.pending();
         final List<BlockPos> anchors = ClientModeState.anchors();
+        if (pending == ClientModeState.Pending.FIRST_ANCHOR && anchors.isEmpty()
+            || pending == ClientModeState.Pending.DESTINATION && anchors.size() < 2) {
+            startSelection(player, mode);                // inconsistent state (set from outside): start over
+            return;
+        }
         switch (mode.kind()) {
             case AREA, MEASURE -> {
                 switch (pending) {
@@ -205,6 +210,10 @@ final class ModeController implements BuildInput.Handler {
                     applyOrHint(player, mode, confirm);
                 } else {
                     final ModeTarget t = targetFor(player, mode, ModeTarget.Role.POINT, null);
+                    if (t.air() && !airAllowed(mode)) {
+                        refuse(Component.translatable("slate_building.notice.aim_at_block"));
+                        return;
+                    }
                     ClientModeState.setSelection(List.of(t.pos()), t.face(), ClientModeState.Pending.PREVIEW);
                     ModePreview.invalidate();
                     ModeSounds.selected();
@@ -245,6 +254,11 @@ final class ModeController implements BuildInput.Handler {
         }
         ClientModeState.notice(Component.translatable("slate_building.notice.press_confirm", BuildKeys.CONFIRM.getTranslatedKeyMessage()),
             ClientModeState.Severity.INFO);
+    }
+
+    /** Whether a click on air makes sense for {@code mode} (extend needs a block face to grow from). */
+    static boolean airAllowed(final BuildMode mode) {
+        return mode != BuildModes.EXTEND && mode.kind() != ModeKind.TOGGLE;
     }
 
     private static boolean confirmsWithRightClick() {
@@ -291,7 +305,29 @@ final class ModeController implements BuildInput.Handler {
         ModeSounds.apply();
         ModePreview.clear();
         applyingTicks = 0;
+        applied = new Applied(mode, anchors, face, ClientModeState.pending());
         ClientModeState.setSelection(anchors, face, ClientModeState.Pending.APPLYING);
+    }
+
+    /** What was last sent, so a selection the server refused outright can be handed back for adjusting. */
+    private record Applied(BuildMode mode, List<BlockPos> anchors, Direction face, ClientModeState.Pending pending) {}
+
+    private @Nullable Applied applied;
+
+    /** The server answered the last apply: done → back to an empty selection; nothing happened → the selection returns. */
+    private void onApplyResult() {
+        final Applied last = applied;
+        applied = null;
+        if (ClientModeState.pending() != ClientModeState.Pending.APPLYING) return;
+        final net.minecraft.world.level.Level level = Minecraft.getInstance().level;
+        final dev.fallingcloud.slate.building.net.OpResult r = ClientModeState.lastResult();
+        final boolean nothing = r != null && r.placed() + r.broken() == 0;
+        if (last != null && nothing && last.mode() == ClientModeState.current() && last.mode().changesWorld() && level != null) {
+            ClientModeState.setSelection(last.anchors(), last.face(), last.pending());
+            ModePreview.invalidate();
+        } else {
+            ClientModeState.clearSelection();
+        }
     }
 
     private static @Nullable ClientModeState.MaterialNeed firstShort(final ClientModeState.Stats stats) {
@@ -367,7 +403,7 @@ final class ModeController implements BuildInput.Handler {
             }
             return null;
         }
-        if (!ctrl && !shift && target != null && target.air() && mode.kind() != ModeKind.TOGGLE
+        if (!ctrl && !shift && target != null && target.air() && airAllowed(mode)
             && (pending == ClientModeState.Pending.NONE || pending == ClientModeState.Pending.FIRST_ANCHOR
                 || pending == ClientModeState.Pending.DESTINATION || pending == ClientModeState.Pending.APPLYING)) {
             return ScrollAction.AIR;
@@ -602,7 +638,10 @@ final class ModeController implements BuildInput.Handler {
         // An apply that never hears back (refused silently, or an older server) stops waiting.
         if (ClientModeState.pending() == ClientModeState.Pending.APPLYING) {
             if (ClientModeState.progress() != null) applyingTicks = 0;
-            else if (++applyingTicks > APPLY_TIMEOUT_TICKS) ClientModeState.clearSelection();
+            else if (++applyingTicks > APPLY_TIMEOUT_TICKS) {
+                applied = null;
+                ClientModeState.clearSelection();
+            }
         }
 
         if (symmetryResendIn > 0 && --symmetryResendIn == 0) {
@@ -643,7 +682,8 @@ final class ModeController implements BuildInput.Handler {
                 if (m != null && m.kind() == ModeKind.TOGGLE && symmetryOnSent) symmetryResendIn = 3;
             }
             case RESULT -> {
-                if (ClientModeState.pending() == ClientModeState.Pending.APPLYING) ClientModeState.clearSelection();
+                if (ClientModeState.isResetting()) return;
+                onApplyResult();
                 ModePreview.invalidate();
                 final var r = ClientModeState.lastResult();
                 if (r != null && r.placed() + r.broken() > 0) ModeSounds.done();
@@ -669,9 +709,13 @@ final class ModeController implements BuildInput.Handler {
             symmetryInFlight = 0;
             symmetryResendIn = -1;
             historyKnown = false;
+            applied = null;
             return;
         }
-        if (before != null && before.kind() == ModeKind.TOGGLE && symmetryOnSent) sendSymmetry(false);
+        // Mirror → radial just replaces the symmetry; anything else turns it off.
+        if (before != null && before.kind() == ModeKind.TOGGLE && symmetryOnSent && (now == null || now.kind() != ModeKind.TOGGLE)) {
+            sendSymmetry(false);
+        }
         final LocalPlayer player = Minecraft.getInstance().player;
         if (now == null) {
             if (before != null) ModeSounds.modeOff();
@@ -772,12 +816,13 @@ final class ModeController implements BuildInput.Handler {
                         } else if (ModeGeometry.kind(mode) == ModeGeometry.Kind.SPHERE || ModeGeometry.kind(mode) == ModeGeometry.Kind.CYLINDER) {
                             h.add(hint(Component.translatable("slate_building.hint.key.shift_scroll"), "radius"));
                         }
+                        if (ClientModeState.settings().arrowNudge) h.add(hint(Component.translatable("slate_building.hint.key.arrows"), "move"));
                     }
                     default -> h.add(hint(rmb, "corner_a"));
                 }
             }
         }
-        if (air && pending != ClientModeState.Pending.SELECTED && pending != ClientModeState.Pending.PREVIEW && mode.kind() != ModeKind.TOGGLE) {
+        if (air && pending != ClientModeState.Pending.SELECTED && pending != ClientModeState.Pending.PREVIEW && airAllowed(mode)) {
             h.add(new ClientModeState.Hint(Component.translatable("slate_building.hint.key.scroll"),
                 Component.translatable("slate_building.hint.air_distance", ClientModeState.airDistance())));
         }
