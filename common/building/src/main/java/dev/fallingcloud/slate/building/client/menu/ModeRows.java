@@ -3,10 +3,7 @@ package dev.fallingcloud.slate.building.client.menu;
 import dev.fallingcloud.slate.building.client.gfx.UiDraw;
 import dev.fallingcloud.slate.building.client.input.BuildKeys;
 import dev.fallingcloud.slate.building.client.mode.ClientModeState;
-import dev.fallingcloud.slate.building.config.BuildingServerSettings;
-import dev.fallingcloud.slate.building.config.ServerOps;
 import dev.fallingcloud.slate.building.ops.BuildMode;
-import dev.fallingcloud.slate.building.toolbox.ToolboxAccess;
 import dev.fallingcloud.slate.core.gfx.Anim;
 import dev.fallingcloud.slate.core.gfx.Clock;
 import dev.fallingcloud.slate.core.gfx.Ease;
@@ -60,13 +57,10 @@ final class ModeRows implements SlateList.RowRenderer<BuildMode> {
         locks.clear();
         final Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
-        final ToolboxAccess.Capabilities caps = ToolboxAccess.of(mc.player);
-        final ServerOps ops = BuildingServerSettings.effective(mc.player).ops();
+        // The mode controller's own rule (server module, rules, spectator, paste permission, toolbox tier), so a row
+        // is locked exactly when activating it would be refused.
         for (final BuildMode m : modes) {
-            final Component reason;
-            if (!ops.enabled) reason = Component.translatable("slate_building.ui.menu.ops_disabled");
-            else if (ops.disabledModes != null && ops.disabledModes.contains(m.id())) reason = Component.translatable("slate_building.ui.menu.mode_disabled");
-            else reason = caps.lockReason(m);
+            final Component reason = ClientModeState.unavailableReason(m);
             if (reason != null) locks.put(m.id(), reason);
         }
     }

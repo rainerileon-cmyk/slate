@@ -5,6 +5,7 @@ import dev.fallingcloud.slate.building.ops.BuildModes;
 import dev.fallingcloud.slate.building.ops.Clipboard;
 import dev.fallingcloud.slate.building.ops.ModeKind;
 import dev.fallingcloud.slate.building.ops.ModeParams;
+import dev.fallingcloud.slate.building.ops.plan.ClipboardPlanners;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.core.BlockPos;
@@ -22,7 +23,8 @@ import org.jetbrains.annotations.Nullable;
  *
  * <p>Anchor conventions sent to the server ({@code ApplyOp.anchors}): AREA/MEASURE {@code [A, B]} (sphere: A centre,
  * B on the surface; cylinder: A base centre, B radius + height), POINT {@code [point]}, MOVE {@code [A, B, D]} where D
- * is the block the moved selection's minimum corner lands on.
+ * is the clicked destination block; paste and move boxes sit against the clicked face like the server's
+ * {@link ClipboardPlanners#origin}.
  */
 final class ModeGeometry {
 
@@ -61,7 +63,8 @@ final class ModeGeometry {
      * The shape of {@code anchors} (committed anchors plus the live one that follows the crosshair) in {@code mode}.
      * {@code clipboard} sizes paste and move previews.
      */
-    static Shape shape(final BuildMode mode, final ModeParams params, final List<BlockPos> anchors, final @Nullable Clipboard clipboard) {
+    static Shape shape(final BuildMode mode, final ModeParams params, final List<BlockPos> anchors, final Direction face,
+                       final @Nullable Clipboard clipboard) {
         if (anchors.isEmpty()) return Shape.NONE;
         final BlockPos a = anchors.get(0);
         final BlockPos b = anchors.size() > 1 ? anchors.get(1) : a;
@@ -71,7 +74,8 @@ final class ModeGeometry {
             case POINT -> {
                 if (mode == BuildModes.PASTE && clipboard != null) {
                     final Vec3i size = rotatedSize(clipboard.size(), params);
-                    final AABB box = new AABB(a.getX(), a.getY(), a.getZ(), a.getX() + size.getX(), a.getY() + size.getY(), a.getZ() + size.getZ());
+                    final BlockPos o = ClipboardPlanners.origin(a, face, size);
+                    final AABB box = new AABB(o.getX(), o.getY(), o.getZ(), o.getX() + size.getX(), o.getY() + size.getY(), o.getZ() + size.getZ());
                     yield new Shape(box, 0, 0, 0, clipboard.entries().size(), max(size));
                 }
                 yield new Shape(new AABB(a), 0, 0, 0, 1, 1);
@@ -108,12 +112,12 @@ final class ModeGeometry {
         };
     }
 
-    /** The destination box of a move ({@code [A, B, D]}): the source size, rotated, with its minimum corner on D. */
-    static @Nullable AABB moveDestination(final ModeParams params, final List<BlockPos> anchors) {
+    /** The destination box of a move ({@code [A, B, D]}): the source size, rotated, against {@code face} of D (as the server). */
+    static @Nullable AABB moveDestination(final ModeParams params, final List<BlockPos> anchors, final Direction face) {
         if (anchors.size() < 3) return null;
         final AABB src = boxOf(anchors.get(0), anchors.get(1));
         final Vec3i size = rotatedSize(new Vec3i((int) src.getXsize(), (int) src.getYsize(), (int) src.getZsize()), params);
-        final BlockPos d = anchors.get(2);
+        final BlockPos d = ClipboardPlanners.origin(anchors.get(2), face, size);
         return new AABB(d.getX(), d.getY(), d.getZ(), d.getX() + size.getX(), d.getY() + size.getY(), d.getZ() + size.getZ());
     }
 

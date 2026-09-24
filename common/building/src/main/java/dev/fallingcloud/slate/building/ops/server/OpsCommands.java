@@ -3,6 +3,7 @@ package dev.fallingcloud.slate.building.ops.server;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import dev.fallingcloud.slate.building.SlateBuilding;
+import dev.fallingcloud.slate.building.chisel.ChiselSystem;
 import dev.fallingcloud.slate.building.config.BuildingServerSettings;
 import dev.fallingcloud.slate.building.ops.Limits;
 import dev.fallingcloud.slate.building.ops.ToolType;
@@ -19,7 +20,7 @@ import net.minecraft.server.level.ServerPlayer;
 /**
  * {@code /slatebuild undo | redo | cancel | limits | reload}. Registered by each loader's ops glue (NeoForge
  * {@code RegisterCommandsEvent}, Fabric {@code CommandRegistrationCallback}). {@code reload} (permission 2) re-reads
- * {@code building-server.json} and sends it to everyone.
+ * {@code building-server.json}, rebuilds the variant registry and the chisel groups, and sends both to everyone.
  */
 public final class OpsCommands {
 
@@ -70,8 +71,9 @@ public final class OpsCommands {
 
     private static int reload(final CommandSourceStack source) {
         SlateBuilding.serverConfigFile().load();
-        VariantRegistry.invalidate();
+        VariantRegistry.invalidate();                  // rebuilt lazily from the new variant rules (both sides)
         BuildingServerSettings.broadcast(source.getServer());
+        ChiselSystem.rebuild(source.getServer());      // chisel rules + building-chisel.json, resent to everyone
         source.sendSuccess(() -> Component.translatable("slate_building.command.reloaded"), true);
         return 1;
     }

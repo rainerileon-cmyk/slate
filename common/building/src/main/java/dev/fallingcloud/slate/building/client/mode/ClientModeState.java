@@ -409,12 +409,12 @@ public final class ClientModeState {
     public static @Nullable Notice notice() { return notice; }
 
     /**
-     * Tells the player something about the building mode: stored for the HUD ({@link Change#NOTICE}) and shown on the
-     * vanilla action bar, so it is visible even with the HUD chip hidden. Never a toast.
+     * Tells the player something about the building mode: stored for the HUD ({@link Change#NOTICE}), which shows it on
+     * its result line; with that line turned off it goes to the vanilla action bar instead. Never a toast.
      */
     public static void notice(final Component text, final Severity severity) {
         notice = new Notice(text, severity, Util.getMillis());
-        ModeRules.showActionBar(text, severity);
+        if (!dev.fallingcloud.slate.building.client.hud.ModeHud.showsNotices()) ModeRules.showActionBar(text, severity);
         fire(Change.NOTICE);
     }
 

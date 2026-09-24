@@ -4,7 +4,6 @@ import dev.fallingcloud.slate.building.SlateBuilding;
 import dev.fallingcloud.slate.building.block.ShapeBlockEntity;
 import dev.fallingcloud.slate.building.client.BuildingHarness;
 import dev.fallingcloud.slate.building.client.mode.ClientModeState;
-import dev.fallingcloud.slate.building.client.model.ShapeGeometry;
 import dev.fallingcloud.slate.building.config.PreviewSettings;
 import dev.fallingcloud.slate.building.ops.BuildModes;
 import dev.fallingcloud.slate.building.ops.ModeParams;
@@ -45,9 +44,6 @@ import net.minecraft.world.phys.Vec3;
  * label, marker, line, mirror plane), planned-result ghosts in every style (shaded and through the shader-pack
  * fallback), the hull mode above {@code maxBlocks} and a ghost inside a grass tuft (the z-fighting case). The
  * player stands on invisible barriers placed under each camera position.
- *
- * <p>While the shape blocks are the skeleton placeholders the stand-in geometry is switched on for the run (see
- * {@link ShapeGeometry#useStandIns}); with the real blocks it has no effect.
  */
 final class RenderHarness {
 
@@ -63,7 +59,6 @@ final class RenderHarness {
     private static void build(final BuildingHarness.Script s) {
         final Runnable demo = RenderHarness::submitDemo;
         s.log("render: showcase")
-            .run(() -> ShapeGeometry.useStandIns(true))
             .command("time set noon")
             .command("weather clear")
             .command("gamerule doDaylightCycle false")
@@ -137,7 +132,6 @@ final class RenderHarness {
         camera(s, -7.5, -60, -4.5, new Vec3(-7.5, -59.6, -7.5)).wait(25).screenshot("render-grass");
         s.run(() -> {
             BuildingRender.FRAME.unregister(demo);
-            ShapeGeometry.useStandIns(false);
         }).log("render: done");
     }
 

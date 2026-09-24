@@ -31,7 +31,8 @@ public final class Controls {
         final Object v = b.get();
         switch (b.type()) {
             case BOOLEAN -> {
-                return new SlateToggle(x + w - SlateToggle.SWITCH_W, y, SlateToggle.SWITCH_W, Component.empty(), OptionValues.asBoolean(v, false), onChange::accept);
+                // Label-less: 10 px of (empty) label room, or the toggle draws its label ellipsis over the switch.
+                return new SlateToggle(x + w - SlateToggle.SWITCH_W - 10, y, SlateToggle.SWITCH_W + 10, Component.empty(), OptionValues.asBoolean(v, false), onChange::accept);
             }
             case INT, DOUBLE -> {
                 final NumberRange r = b.range();

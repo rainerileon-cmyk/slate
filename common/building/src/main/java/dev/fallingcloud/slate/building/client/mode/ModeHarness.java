@@ -5,6 +5,7 @@ import dev.fallingcloud.slate.building.client.BuildingHarness;
 import dev.fallingcloud.slate.building.client.input.BuildInput;
 import dev.fallingcloud.slate.building.ops.BuildMode;
 import dev.fallingcloud.slate.building.ops.BuildModes;
+import dev.fallingcloud.slate.building.ops.Clipboard;
 import dev.fallingcloud.slate.building.ops.ModeParams;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -14,9 +15,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.IntArrayTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.NbtUtils;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.level.Level;
@@ -41,7 +39,57 @@ final class ModeHarness {
         BuildingHarness.register("selection", ModeHarness::selection);
         BuildingHarness.register("mirror", ModeHarness::mirror);
         BuildingHarness.register("paste", ModeHarness::paste);
+        BuildingHarness.register("move", ModeHarness::move);
         BuildingHarness.register("dimension", ModeHarness::dimension);
+    }
+
+    /**
+     * Move, end to end with the server: a stone + gold pillar is selected, the destination is a click on the floor's top
+     * face (the ops server's anchor convention: the clicked block + its face), the preview must land where the server
+     * puts it, and after the apply the pillar stands there and its old place is empty; then undo brings it back.
+     */
+    private static void move(final BuildingHarness.Script s) {
+        final BlockPos base = new BlockPos(3, -60, 6);
+        final BlockPos floor = new BlockPos(-3, -61, 6);
+        stage(s);
+        s.log("move: pillar")
+            .command("setblock 3 -60 6 minecraft:stone")
+            .command("setblock 3 -59 6 minecraft:gold_block")
+            .run(() -> check(ClientModeState.activate(BuildModes.MOVE), "move activates"))
+            .run(() -> ModeController.INSTANCE.debugClick(base, Direction.UP))
+            .run(() -> ModeController.INSTANCE.debugClick(base.above(), Direction.UP))
+            .run(() -> check(ClientModeState.pending() == ClientModeState.Pending.DESTINATION, "two corners, then the destination follows"))
+            .run(() -> ModeController.INSTANCE.debugClick(floor, Direction.UP))
+            .run(() -> check(ClientModeState.pending() == ClientModeState.Pending.SELECTED
+                && ClientModeState.anchors().equals(List.of(base, base.above(), floor)) && ClientModeState.face() == Direction.UP,
+                "the destination is the clicked block and face"))
+            .wait(25)
+            .run(() -> {
+                state("move preview");
+                final net.minecraft.world.phys.AABB placed = ModePreview.placedBounds();
+                check(placed != null && placed.equals(new net.minecraft.world.phys.AABB(-3, -60, 6, -2, -58, 7)),
+                    "the preview lands on top of the clicked block (" + placed + ")");
+            })
+            .screenshot("move-preview")
+            .run(() -> ModeController.INSTANCE.confirm())
+            .waitUntil(() -> ClientModeState.pending() != ClientModeState.Pending.APPLYING, 240)
+            .wait(30)
+            .run(() -> {
+                final Minecraft mc = Minecraft.getInstance();
+                check(mc.level != null && mc.level.getBlockState(floor.above()).is(Blocks.STONE)
+                    && mc.level.getBlockState(floor.above(2)).is(Blocks.GOLD_BLOCK), "the pillar moved");
+                check(mc.level != null && mc.level.getBlockState(base).isAir() && mc.level.getBlockState(base.above()).isAir(),
+                    "its old place is empty");
+            })
+            .screenshot("move-applied")
+            .run(() -> ModeController.INSTANCE.undo())
+            .wait(40)
+            .run(() -> {
+                final Minecraft mc = Minecraft.getInstance();
+                check(mc.level != null && mc.level.getBlockState(base).is(Blocks.STONE)
+                    && mc.level.getBlockState(floor.above()).isAir(), "undo moves it back");
+            })
+            .run(ClientModeState::deactivate);
     }
 
     /** Fill: corner A, box following the crosshair, corner B, preview, resize, apply; then cancel, walls, measure. */
@@ -191,7 +239,7 @@ final class ModeHarness {
             .run(() -> state("paste hover"))
             .run(() -> check(ClientModeState.stats().hasBox(), "the clipboard footprint follows the crosshair"))
             .screenshot("paste-hover")
-            .run(() -> ModeController.INSTANCE.debugClick(new BlockPos(0, -60, 6), Direction.UP))
+            .run(() -> ModeController.INSTANCE.debugClick(new BlockPos(0, -61, 6), Direction.UP))
             .run(() -> check(ClientModeState.pending() == ClientModeState.Pending.PREVIEW, "a click fixes the paste preview"))
             .run(() -> ModeController.INSTANCE.debugStepParam(1))
             .run(() -> check("90".equals(ClientModeState.params(BuildModes.PASTE).getChoice("rotation")), "Shift+scroll rotates the paste"))
@@ -230,30 +278,16 @@ final class ModeHarness {
             .wait(20);
     }
 
-    /** A 4×2×3 (x, y, z) clipboard: a stone-brick floor with oak stairs on it. */
+    /** A 4×2×3 (x, y, z) clipboard: a stone-brick floor with oak stairs on it, in the ops server's sync format. */
     private static CompoundTag sampleClipboard() {
-        final CompoundTag tag = new CompoundTag();
-        tag.put("size", new IntArrayTag(new int[] {4, 2, 3}));
-        final ListTag palette = new ListTag();
-        palette.add(NbtUtils.writeBlockState(Blocks.STONE_BRICKS.defaultBlockState()));
-        palette.add(NbtUtils.writeBlockState(Blocks.OAK_STAIRS.defaultBlockState()));
-        tag.put("palette", palette);
-        final ListTag blocks = new ListTag();
+        final List<Clipboard.Entry> entries = new java.util.ArrayList<>();
         for (int x = 0; x < 4; x++) {
             for (int z = 0; z < 3; z++) {
-                blocks.add(entry(x, 0, z, 0));
-                if (z == 1) blocks.add(entry(x, 1, z, 1));
+                entries.add(new Clipboard.Entry(new BlockPos(x, 0, z), Blocks.STONE_BRICKS.defaultBlockState(), null));
+                if (z == 1) entries.add(new Clipboard.Entry(new BlockPos(x, 1, z), Blocks.OAK_STAIRS.defaultBlockState(), null));
             }
         }
-        tag.put("blocks", blocks);
-        return tag;
-    }
-
-    private static CompoundTag entry(final int x, final int y, final int z, final int state) {
-        final CompoundTag e = new CompoundTag();
-        e.put("pos", new IntArrayTag(new int[] {x, y, z}));
-        e.putInt("state", state);
-        return e;
+        return new Clipboard(new net.minecraft.core.Vec3i(4, 2, 3), entries).toTag();
     }
 
     /** A point just under the middle of {@code pos}'s top face: the view ray enters that block through its top. */

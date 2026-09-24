@@ -10,12 +10,10 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.Block;
-import org.jetbrains.annotations.Nullable;
 
 /**
  * Where the wheels get their knowledge of variants and chisel groups: {@link VariantRegistry} and
- * {@link ChiselGroups#client()} in play. The dev harness can layer a {@link Source} on top (for screenshots before
- * every area is merged); the overlay asks the live source first, so a layered source only fills gaps.
+ * {@link ChiselGroups#client()}.
  */
 public final class WheelSources {
 
@@ -48,42 +46,9 @@ public final class WheelSources {
         @Override public List<ChiselGroups.Group> chiselGroups(final Block material) { return ChiselGroups.client().groupsOf(material); }
     };
 
-    private static @Nullable Source fallback;
-
-    /** The source the UI uses: live answers first, then the layered fallback (if any) for what the live one lacks. */
+    /** The source the UI uses: the real registries. */
     public static Source get() {
-        final Source fb = fallback;
-        if (fb == null) return LIVE;
-        return new Source() {
-            @Override public Optional<Variant> identify(final ItemStack stack) {
-                final Optional<Variant> v = LIVE.identify(stack);
-                return v.isPresent() ? v : fb.identify(stack);
-            }
-
-            @Override public Optional<Variant> identify(final BlockGetter level, final BlockPos pos) {
-                final Optional<Variant> v = LIVE.identify(level, pos);
-                return v.isPresent() ? v : fb.identify(level, pos);
-            }
-
-            @Override public boolean isAvailable(final Block material, final Shape shape) {
-                return LIVE.isAvailable(material, shape) || fb.isAvailable(material, shape);
-            }
-
-            @Override public ItemStack stackFor(final Block material, final Shape shape, final int count) {
-                final ItemStack s = LIVE.stackFor(material, shape, count);
-                return !s.isEmpty() ? s : fb.stackFor(material, shape, count);
-            }
-
-            @Override public List<ChiselGroups.Group> chiselGroups(final Block material) {
-                final List<ChiselGroups.Group> g = LIVE.chiselGroups(material);
-                return !g.isEmpty() ? g : fb.chiselGroups(material);
-            }
-        };
-    }
-
-    /** Dev harness only: answers for what the live registries do not know yet. Null removes it. */
-    public static void layer(final @Nullable Source source) {
-        fallback = source;
+        return LIVE;
     }
 
     private WheelSources() {}

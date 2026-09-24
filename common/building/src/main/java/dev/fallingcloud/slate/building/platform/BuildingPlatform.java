@@ -27,8 +27,9 @@ public interface BuildingPlatform {
 
     /**
      * Whether {@code p} may break the block at {@code pos} as far as the loader's protection hooks are concerned.
-     * NeoForge posts {@code BlockEvent.BreakEvent} (via {@code CommonHooks.fireBlockBreak}, which also resends the
-     * block to the client when cancelled); Fabric asks {@code PlayerBlockBreakEvents.BEFORE}. Does not break anything.
+     * NeoForge posts {@code BlockEvent.BreakEvent} directly (not {@code CommonHooks.fireBlockBreak}, whose held-item
+     * rule refuses every break while a creative player holds a sword); Fabric asks {@code PlayerBlockBreakEvents.BEFORE}.
+     * Both refuse game-master blocks to players who may not use them. Does not break anything.
      */
     boolean canBreak(ServerPlayer p, ServerLevel level, BlockPos pos, BlockState state);
 

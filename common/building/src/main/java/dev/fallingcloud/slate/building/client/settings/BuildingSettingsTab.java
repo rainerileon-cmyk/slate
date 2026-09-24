@@ -52,6 +52,7 @@ public final class BuildingSettingsTab {
             case DOUBLE -> OptionType.DOUBLE;
             case CHOICE -> OptionType.CHOICE;
             case INFO -> OptionType.INFO;
+            case TIERS -> OptionType.STRING;
         };
         final Binding b = Binding.of("slate_building:" + s.id(), type, s.label())
             .tooltip(s.tooltip())
@@ -59,7 +60,8 @@ public final class BuildingSettingsTab {
             .setter(s.set())
             .enabledIf(s.enabled())
             .restart(s.restart())
-            .searchWords("building slate_building " + s.id().replace('.', ' ').replace('_', ' '));
+            .searchWords("building slate_building " + s.id().replace('.', ' ').replace('_', ' ')
+                + (s.type() == BuildingSettings.Type.TIERS ? " tiers per tier" : ""));
         if (s.def() != null) b.def(s.def());
         if (s.type() == BuildingSettings.Type.INT || s.type() == BuildingSettings.Type.DOUBLE) b.range(s.min(), s.max(), s.step());
         if (s.type() == BuildingSettings.Type.CHOICE) {

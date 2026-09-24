@@ -164,6 +164,16 @@ public final class OpsSelfTest {
 
         // ---------- creative ----------
         s.add(new Stage("creative setup", p -> {
+            // Other scenarios of the same run (render showcase, camera barriers) may have built here: start from air.
+            final ServerLevel level = p.serverLevel();
+            final BlockPos.MutableBlockPos m = new BlockPos.MutableBlockPos();
+            for (int y = Y; y <= Y + 12; y++) {
+                for (int z = 8; z <= 44; z++) {
+                    for (int x = -34; x <= 56; x++) {
+                        if (!level.getBlockState(m.set(x, y, z)).isAir()) level.setBlock(m, Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS);
+                    }
+                }
+            }
             p.setGameMode(GameType.CREATIVE);
             p.getInventory().clearContent();
             p.getInventory().setItem(0, new ItemStack(Items.STONE, 64));
@@ -233,7 +243,11 @@ public final class OpsSelfTest {
         }, p -> firstProblem(is(p.serverLevel(), mirrorClick.above(), Blocks.STONE),
             is(p.serverLevel(), new BlockPos(53, Y, 12), Blocks.STONE))));
 
-        s.add(new Stage("mirror a break", p -> p.gameMode.destroyBlock(mirrorClick.above()),
+        s.add(new Stage("mirror a break", p -> {
+            // Re-armed in the same tick: the client's mode controller switches a symmetry it did not ask for off again.
+            Symmetry.set(p, BuildModes.MIRROR_MODE.id(), params(BuildModes.MIRROR_MODE).set("axis", "X").toTag(), mirrorCentre);
+            p.gameMode.destroyBlock(mirrorClick.above());
+        },
             p -> {
                 final String problem = firstProblem(is(p.serverLevel(), mirrorClick.above(), Blocks.AIR),
                     is(p.serverLevel(), new BlockPos(53, Y, 12), Blocks.AIR));

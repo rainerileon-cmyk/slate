@@ -2,15 +2,18 @@ package dev.fallingcloud.slate.building.client.menu;
 
 import dev.fallingcloud.slate.building.client.BuildingIcons;
 import dev.fallingcloud.slate.building.client.gfx.UiDraw;
+import dev.fallingcloud.slate.building.client.wheel.WheelActions;
 import dev.fallingcloud.slate.building.ops.ToolType;
 import dev.fallingcloud.slate.building.toolbox.ToolTier;
 import dev.fallingcloud.slate.building.toolbox.ToolboxAccess;
 import dev.fallingcloud.slate.building.toolbox.UpgradeType;
+import dev.fallingcloud.slate.building.toolbox.client.ToolboxClient;
 import dev.fallingcloud.slate.core.gfx.Icons;
 import dev.fallingcloud.slate.core.gfx.SlateDraw;
 import dev.fallingcloud.slate.core.theme.Colors;
 import dev.fallingcloud.slate.core.theme.Palette;
 import dev.fallingcloud.slate.core.theme.Theme;
+import dev.fallingcloud.slate.core.widget.SlateSounds;
 import dev.fallingcloud.slate.core.widget.SlateWidget;
 import java.util.ArrayList;
 import java.util.List;
@@ -52,6 +55,9 @@ final class ToolboxChip extends SlateWidget {
                 .withColor(UiDraw.tierColor(tier) & 0xFFFFFF));
         }
         if (!any) tip.add(Component.translatable("slate_building.ui.menu.toolbox_none").withStyle(ChatFormatting.GRAY));
+        if (mc.player != null && !ToolboxAccess.find(mc.player).isEmpty()) {
+            tip.add(Component.translatable("slate_building.ui.menu.toolbox_open").withStyle(ChatFormatting.DARK_GRAY));
+        }
         for (final UpgradeType u : UpgradeType.values()) {
             final int n = caps.upgrade(u);
             if (n > 0) tip.add(Component.translatable("slate_building.ui.menu.upgrade_count", u.displayName(), n).withStyle(ChatFormatting.DARK_AQUA));
@@ -72,8 +78,18 @@ final class ToolboxChip extends SlateWidget {
         return 16 + n * 11 + 3;
     }
 
+    /** Opens the toolbox the player carries (the server picks it like operations do); refuses without one. */
     @Override
-    public void onClick(final double mouseX, final double mouseY) {}
+    public void onClick(final double mouseX, final double mouseY) {
+        final Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null) return;
+        if (ToolboxAccess.find(mc.player).isEmpty()) {
+            WheelActions.deny();
+            return;
+        }
+        SlateSounds.click();
+        ToolboxClient.requestOpen();
+    }
 
     @Override
     public void playDownSound(final net.minecraft.client.sounds.SoundManager handler) {}

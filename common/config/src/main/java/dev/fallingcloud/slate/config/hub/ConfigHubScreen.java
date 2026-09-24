@@ -110,14 +110,14 @@ public final class ConfigHubScreen extends SidebarScreen {
         pages.add(new VideoPage());
         pages.add(new AudioPage());
         pages.add(new ControlsPage());
-        pages.add(new CategoryPage(GAMEPLAY, Component.translatable("slate_config.page.gameplay"), Icon.SWORD, List.of(new GameplayGeneralPage())));
+        pages.add(new CategoryPage(GAMEPLAY, Component.translatable("slate_config.page.gameplay"), Icon.GAMEPLAY, List.of(new GameplayGeneralPage())));
         pages.add(new InterfacePage());
         pages.add(new CategoryPage(MULTIPLAYER, Component.translatable("slate_config.page.multiplayer"), Icon.MULTIPLAYER,
             List.of(new SimplePages.OnlinePage(), new SimplePages.ChatPage())));
         final List<SidebarPage> custom = new ArrayList<>(List.of(new ModsPage(), new ResourcePacksPage()));
         if (SlatePlatform.get().isModLoaded("iris")) custom.add(new ShaderPacksPage());
         custom.add(new SkinPage());
-        pages.add(new CategoryPage(CUSTOMIZATION, Component.translatable("slate_config.page.customization"), Icon.BRUSH, custom));
+        pages.add(new CategoryPage(CUSTOMIZATION, Component.translatable("slate_config.page.customization"), Icon.CUSTOMIZE, custom));
         pages.add(new CategoryPage(LANGUAGE_ACCESSIBILITY, Component.translatable("slate_config.page.language_accessibility"), Icon.LANGUAGE,
             List.of(new LanguagePage(), new SimplePages.AccessibilityPage())));
         pages.add(new FavouritesPage());

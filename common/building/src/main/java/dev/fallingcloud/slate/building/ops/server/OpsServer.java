@@ -152,7 +152,7 @@ public final class OpsServer {
         s.lastOpTick = player.server.getTickCount();
 
         final ModeParams params = ModeParams.fromTag(mode, paramsTag);
-        final int paySlot = Inventory.isHotbarSlot(slot) ? slot : player.getInventory().selected;
+        final int paySlot = Inventory.isHotbarSlot(slot) || slot == Inventory.SLOT_OFFHAND ? slot : player.getInventory().selected;
         final PlanContext ctx = PlanContext.create(player, mode, params, anchors, face, paySlot, s.clipboard);
         final Plan plan = Planners.plan(ctx);
         if (!plan.ok()) {

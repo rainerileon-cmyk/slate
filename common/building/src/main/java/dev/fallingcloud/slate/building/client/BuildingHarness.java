@@ -178,6 +178,13 @@ public final class BuildingHarness {
                 continue;
             }
             final Script script = new Script();
+            // Every scenario starts from the same state, whatever the one before it left behind (a spectator camera,
+            // an open screen, an active building mode).
+            script.command("gamemode creative").run(() -> {
+                final Minecraft mc = Minecraft.getInstance();
+                if (mc.screen != null) mc.setScreen(null);
+                dev.fallingcloud.slate.building.client.mode.ClientModeState.deactivate();
+            });
             try {
                 builder.accept(script);
             } catch (final RuntimeException e) {

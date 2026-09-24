@@ -20,16 +20,21 @@ import org.jetbrains.annotations.Nullable;
  * it is an "air" point. Reach is vanilla block reach plus the tool-tier reach bonus.
  *
  * <p>Which block a corner lands on depends on the mode: modes that build new blocks (fill, walls, line, hollow,
- * outline, cylinder, sphere, paste, move destination) take the block in front of the clicked face, like normal
- * placing (a clicked replaceable such as grass is used directly); modes that work on existing blocks (replace,
- * clear, copy, ...) and any mode whose {@code replace} rule is "everything" take the clicked block itself.
+ * outline, cylinder, sphere) take the block in front of the clicked face, like normal placing (a clicked
+ * replaceable such as grass is used directly); modes that work on existing blocks (replace, clear, copy, ...) and
+ * any mode whose {@code replace} rule is "everything" take the clicked block itself.
+ *
+ * <p>Paste and the move destination follow the ops server's convention ({@code PlanContext}): the anchor is the
+ * clicked block and the box sits against the clicked face ({@code ClipboardPlanners.origin}). A clicked replaceable
+ * block is built into, so the anchor is the block behind it; on air the anchor is the block under the air point with
+ * face UP, so the box stands on the air point.
  *
  * <p>On air, the first corner sits {@code airDistance} blocks along the view; the moving second corner prefers the
  * axis plane through corner A that faces the camera most directly (so a box drawn in the air stays a flat floor or
  * wall until the view tilts), within reach.
  *
  * @param pos     the anchor a click would set
- * @param face    the clicked face, or the face towards the player on air
+ * @param face    the clicked face, or the face towards the player on air (UP for paste / move destinations)
  * @param air     true when nothing within reach was hit
  * @param clicked the block actually hit (null on air)
  */
@@ -48,6 +53,10 @@ record ModeTarget(BlockPos pos, Direction face, boolean air, @Nullable BlockPos 
         if (hit instanceof BlockHitResult bhr && hit.getType() == HitResult.Type.BLOCK) {
             final BlockPos clicked = bhr.getBlockPos();
             final Direction face = bhr.getDirection();
+            if (against(mode, role)) {
+                final BlockPos anchor = level.getBlockState(clicked).canBeReplaced() ? clicked.relative(face.getOpposite()) : clicked;
+                return new ModeTarget(anchor, face, false, clicked);
+            }
             if (!onFace(mode, params, role)) return new ModeTarget(clicked, face, false, clicked);
             final BlockState state = level.getBlockState(clicked);
             final BlockPos pos = state.canBeReplaced() ? clicked : clicked.relative(face);
@@ -60,15 +69,19 @@ record ModeTarget(BlockPos pos, Direction face, boolean air, @Nullable BlockPos 
         }
         final int distance = ClientModeState.settings().airDistance((int) Math.floor(reach));
         final BlockPos pos = BlockPos.containing(eye.add(look.scale(distance)));
+        if (against(mode, role)) return new ModeTarget(pos.below(), Direction.UP, true, null);
         return new ModeTarget(pos, towardsPlayer, true, null);
+    }
+
+    /** Whether a click of {@code role} in {@code mode} anchors a box against the clicked face (paste, move destination). */
+    static boolean against(final BuildMode mode, final Role role) {
+        return role == Role.DESTINATION || role == Role.POINT && mode == BuildModes.PASTE;
     }
 
     /** Whether a click of {@code role} in {@code mode} takes the block in front of the clicked face. */
     static boolean onFace(final BuildMode mode, final ModeParams params, final Role role) {
         return switch (role) {
-            case DESTINATION -> true;
-            case CENTRE -> false;
-            case POINT -> mode == BuildModes.PASTE;
+            case DESTINATION, CENTRE, POINT -> false;
             case CORNER -> {
                 if (mode.param("replace") != null && "ALL".equals(params.getChoice("replace"))) yield false;
                 yield mode == BuildModes.FILL || mode == BuildModes.WALLS || mode == BuildModes.LINE

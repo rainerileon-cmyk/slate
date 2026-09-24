@@ -25,8 +25,6 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-import net.minecraft.world.level.block.state.properties.SlabType;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -80,10 +78,6 @@ public final class ChiselSwap {
         if (!(stack.getItem() instanceof BlockItem item)) return Optional.empty();
         final Block block = item.getBlock();
         if (block instanceof ShapeBlock) return Optional.empty();       // a shape item without a (known) material
-        if (ChiselVariantFallback.active()) {
-            final Variant shaped = ChiselVariantFallback.identify(block);
-            if (shaped != null) return Optional.of(shaped);
-        }
         return Optional.of(Variant.full(block));
     }
 
@@ -94,27 +88,19 @@ public final class ChiselSwap {
         if (v.isPresent()) return v;
         final Block block = state.getBlock();
         if (block instanceof ShapeBlock) return Optional.empty();
-        if (ChiselVariantFallback.active()) {
-            final Variant shaped = ChiselVariantFallback.identify(block);
-            if (shaped != null) return Optional.of(shaped);
-        }
         return Optional.of(Variant.full(block));
     }
 
     /** Material units a placed block is worth (2 for a double slab, n for n layers, else 1). */
     public static int units(final BlockState state, final @Nullable BlockEntity be) {
-        final int units = VariantRegistry.get().units(state, be);
-        if (units == 1 && ChiselVariantFallback.active()
-            && state.hasProperty(BlockStateProperties.SLAB_TYPE) && state.getValue(BlockStateProperties.SLAB_TYPE) == SlabType.DOUBLE) return 2;
-        return units;
+        return VariantRegistry.get().units(state, be);
     }
 
     /** The native block realising ({@code material}, {@code shape}), or null (FULL is the material itself). */
     public static @Nullable Block nativeBlock(final Block material, final Shape shape) {
         if (shape == Shape.FULL) return material;
         final Block b = VariantRegistry.get().nativeBlock(material, shape);
-        if (b != null) return b;
-        return ChiselVariantFallback.active() ? ChiselVariantFallback.nativeBlock(material, shape) : null;
+        return b;
     }
 
     /** {@code count} of (material, shape) as items: the native item, else our shape item; EMPTY when that shape does not exist. */
@@ -122,8 +108,7 @@ public final class ChiselSwap {
         final ItemStack s = VariantRegistry.get().stackFor(material, shape, count);
         if (!s.isEmpty()) return s;
         if (shape == Shape.FULL) return material.asItem() == Items.AIR ? ItemStack.EMPTY : new ItemStack(material, count);
-        final Block n = ChiselVariantFallback.active() ? ChiselVariantFallback.nativeBlock(material, shape) : null;
-        return n == null || n.asItem() == Items.AIR ? ItemStack.EMPTY : new ItemStack(n, count);
+        return ItemStack.EMPTY;
     }
 
     // ------------------------------------------------------------------ held stacks

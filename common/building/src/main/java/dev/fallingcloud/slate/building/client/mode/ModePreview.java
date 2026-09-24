@@ -118,7 +118,7 @@ final class ModePreview {
         final Level level = player.level();
         final ModeParams params = ClientModeState.params(mode);
         final Clipboard clipboard = mode == BuildModes.PASTE ? ClipboardReader.current(level) : null;
-        shape = ModeGeometry.shape(mode, params, anchors, clipboard);
+        shape = ModeGeometry.shape(mode, params, anchors, face, clipboard);
         if (mode.kind() == ModeKind.MEASURE) {
             // Client-only: geometry, no plan.
             if (plan != null || preError != null) { preError = null; setPlan(null, 0); }

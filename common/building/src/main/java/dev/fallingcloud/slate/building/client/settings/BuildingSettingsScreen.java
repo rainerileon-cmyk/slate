@@ -7,6 +7,7 @@ import dev.fallingcloud.slate.core.widget.SlateDropdown;
 import dev.fallingcloud.slate.core.widget.SlateLabel;
 import dev.fallingcloud.slate.core.widget.SlateScrollPanel;
 import dev.fallingcloud.slate.core.widget.SlateSlider;
+import dev.fallingcloud.slate.core.widget.SlateTextField;
 import dev.fallingcloud.slate.core.widget.SlateToggle;
 import dev.fallingcloud.slate.core.widget.SlateWidget;
 import java.util.ArrayList;
@@ -53,6 +54,20 @@ public final class BuildingSettingsScreen extends SlateScreen {
                 y += desc.getHeight() + 4;
             }
             for (final BuildingSettings.Setting s : g.settings()) {
+                if (s.type() == BuildingSettings.Type.TIERS) {
+                    // Label on the left, the four per-tier values as text on the right.
+                    final int fw = Math.min(150, w / 2);
+                    final SlateLabel l = new SlateLabel(0, 0, w - fw - 6, s.label());
+                    if (s.tooltip() != null) l.tip(s.tooltip());
+                    final SlateTextField f = new SlateTextField(0, 0, fw, s.label()).text(String.valueOf(s.get().get()));
+                    f.onChange(v -> s.set().accept(v));
+                    f.active = s.enabled().getAsBoolean();
+                    f.setEditable(f.active);
+                    sp.add(l, 0, y + (ROW_H - l.getHeight()) / 2);
+                    sp.add(f, w - fw, y + (ROW_H - f.getHeight()) / 2);
+                    y += ROW_H;
+                    continue;
+                }
                 final AbstractWidget row = row(s, w);
                 if (row == null) continue;
                 sp.add(row, 0, y + (ROW_H - row.getHeight()) / 2);

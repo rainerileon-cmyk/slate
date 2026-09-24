@@ -10,8 +10,6 @@ import dev.fallingcloud.slate.building.toolbox.ToolboxContents;
 import dev.fallingcloud.slate.building.toolbox.ToolboxMenu;
 import dev.fallingcloud.slate.building.toolbox.ToolboxSelfTest;
 import dev.fallingcloud.slate.core.net.SlateNetwork;
-import dev.fallingcloud.slate.core.platform.Loader;
-import dev.fallingcloud.slate.core.platform.SlatePlatform;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -46,9 +44,7 @@ public final class ToolboxClient {
      * real cursor is parked for the whole run so it never adds a stray hover to a shot.
      */
     private static void harness(final BuildingHarness.Script s) {
-        // Core's TooltipRenderUtilMixin (its NeoForge-only @Dynamic overload) fails to apply on a Fabric DEV client and
-        // crashes the first tooltip; skip the tooltip shots there until Core is fixed.
-        final boolean tooltips = SlatePlatform.get().loader() != Loader.FABRIC || !SlatePlatform.get().isDevelopmentEnvironment();
+        final boolean tooltips = true;   // Core's NeoForge-only tooltip overload now lives in a NeoForge-only mixin config
         s.command("time set noon")
             .command("weather clear")
             .command("gamemode survival")

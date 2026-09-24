@@ -9,11 +9,13 @@ import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.GameMasterBlock;
 import net.minecraft.world.level.block.state.BlockState;
-import net.neoforged.neoforge.common.CommonHooks;
+import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.common.util.BlockSnapshot;
 import net.neoforged.neoforge.common.util.FakePlayer;
 import net.neoforged.neoforge.event.EventHooks;
+import net.neoforged.neoforge.event.level.BlockEvent;
 
 /**
  * NeoForge implementation of {@link BuildingPlatform} (ServiceLoader, see this jar's {@code META-INF/services}).
@@ -24,9 +26,11 @@ public final class NeoForgeBuildingPlatform implements BuildingPlatform {
 
     @Override
     public boolean canBreak(final ServerPlayer p, final ServerLevel level, final BlockPos pos, final BlockState state) {
-        // Also applies the held item's canAttackBlock, adventure-mode rules and game-master blocks, and resends the
-        // block to the client when a listener cancels.
-        return !CommonHooks.fireBlockBreak(level, p.gameMode.getGameModeForPlayer(), p, pos, state).isCanceled();
+        // The BreakEvent claim and protection mods listen to, posted directly. Not CommonHooks.fireBlockBreak: that also
+        // applies the held item's canAttackBlock (a creative player holding a sword could clear nothing) and sends
+        // block updates to the client for a break that has not happened yet. Game-master blocks keep vanilla's rule.
+        if (state.getBlock() instanceof GameMasterBlock && !p.canUseGameMasterBlocks()) return false;
+        return !NeoForge.EVENT_BUS.post(new BlockEvent.BreakEvent(level, pos, state, p)).isCanceled();
     }
 
     @Override

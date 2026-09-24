@@ -176,12 +176,12 @@ public final class Economy {
     private List<SlotRef> sources() {
         final List<SlotRef> out = new ArrayList<>(ToolboxAccess.pouch(player));
         final Inventory inv = player.getInventory();
-        if (Inventory.isHotbarSlot(paySlot)) out.add(new SlotRef(inv, paySlot));
+        if (Inventory.isHotbarSlot(paySlot) || paySlot == Inventory.SLOT_OFFHAND) out.add(new SlotRef(inv, paySlot));
         for (int i = 0; i < inv.items.size(); i++) {
             if (i == paySlot) continue;
             out.add(new SlotRef(inv, i));
         }
-        out.add(new SlotRef(inv, Inventory.SLOT_OFFHAND));
+        if (paySlot != Inventory.SLOT_OFFHAND) out.add(new SlotRef(inv, Inventory.SLOT_OFFHAND));
         final LinkedContainer link = ToolboxAccess.supplyLink(player);
         if (link != null) out.addAll(link.slots());
         out.removeIf(ref -> ref.get().getItem() instanceof ToolboxItem);

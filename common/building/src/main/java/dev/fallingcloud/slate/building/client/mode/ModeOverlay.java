@@ -32,7 +32,7 @@ final class ModeOverlay {
 
     /** What the controller knows this frame. */
     record Frame(BuildMode mode, ClientModeState.Pending pending, List<BlockPos> anchors, @Nullable ModeTarget target,
-                 ModeGeometry.Shape shape, ClientModeState.Stats stats, int symmetryRadius) {}
+                 ModeGeometry.Shape shape, ClientModeState.Stats stats, int symmetryRadius, Direction face) {}
 
     private static final int DRAWN_SYMMETRY_RADIUS = 32;
     private static final long APPLY_FLASH_MS = 650;
@@ -172,7 +172,7 @@ final class ModeOverlay {
     private static @Nullable AABB moveDestination(final Frame f) {
         final AABB planned = ModePreview.placedBounds();
         if (planned != null) return planned;
-        return ModeGeometry.moveDestination(ClientModeState.params(f.mode()), f.anchors());
+        return ModeGeometry.moveDestination(ClientModeState.params(f.mode()), f.anchors(), f.face());
     }
 
     private static int boxColour(final Frame f, final Palette pal) {

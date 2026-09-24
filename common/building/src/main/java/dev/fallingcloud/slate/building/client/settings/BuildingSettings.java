@@ -1,6 +1,7 @@
 package dev.fallingcloud.slate.building.client.settings;
 
 import dev.fallingcloud.slate.building.SlateBuilding;
+import dev.fallingcloud.slate.building.chisel.ChiselSystem;
 import dev.fallingcloud.slate.building.client.ServerSettingsClient;
 import dev.fallingcloud.slate.building.client.wheel.WheelConfig;
 import dev.fallingcloud.slate.building.config.BuildingConfig;
@@ -40,7 +41,8 @@ import org.jetbrains.annotations.Nullable;
  */
 public final class BuildingSettings {
 
-    public enum Type { BOOL, INT, DOUBLE, CHOICE, INFO }
+    /** {@code TIERS}: four per-tool-tier numbers edited as text ("16, 32, 64, 128"). */
+    public enum Type { BOOL, INT, DOUBLE, CHOICE, INFO, TIERS }
 
     /** One setting. {@code choices} are stored ids, labelled by {@code choiceLabel}. */
     public record Setting(String id, Type type, Component label, @Nullable Component tooltip, Supplier<Object> get,
@@ -57,7 +59,10 @@ public final class BuildingSettings {
         out.add(preview());
         out.add(wheel());
         out.add(menuHud());
-        out.add(server());
+        out.add(modes());
+        out.add(serverVariants());
+        out.add(serverOps());
+        out.add(serverTools());
         return out;
     }
 
@@ -122,16 +127,27 @@ public final class BuildingSettings {
     private static Group menuHud() {
         final List<Setting> s = new ArrayList<>();
         final HudSettings d = new HudSettings();
-        final ModeSettings md = new ModeSettings();
         s.add(bool("hud.enabled", () -> cfg().hud.enabled, v -> cfg().hud.enabled = v, d.enabled));
         s.add(choice("hud.anchor", () -> cfg().hud.anchor, v -> cfg().hud.anchor = v, d.anchor,
             List.of("TOP_LEFT", "TOP", "TOP_RIGHT", "LEFT", "RIGHT", "BOTTOM_LEFT", "BOTTOM", "BOTTOM_RIGHT")));
         s.add(number("hud.scale", () -> (double) WheelConfig.hudScale(), v -> cfg().hud.scale = v, d.scale, 0.5, 2.0, 0.05,
             v -> Component.literal(String.format(Locale.ROOT, "%.2f×", ((Number) v).doubleValue()))));
         s.add(bool("hud.action_bar", () -> cfg().hud.actionBar, v -> cfg().hud.actionBar = v, d.actionBar));
-        s.add(integer("modes.air_distance", () -> cfg().modes.airDistance, v -> cfg().modes.airDistance = v, md.airDistance, 1, 16, 1));
-        s.add(bool("modes.confirm_right_click", () -> cfg().modes.confirmWithRightClick, v -> cfg().modes.confirmWithRightClick = v, md.confirmWithRightClick));
         return new Group("menu_hud", group("menu_hud"), null, s, false);
+    }
+
+    /** How selections feel in the world (D2's {@code modes} section; the controller reads these fields live). */
+    private static Group modes() {
+        final List<Setting> s = new ArrayList<>();
+        final ModeSettings md = new ModeSettings();
+        s.add(bool("modes.confirm_right_click", () -> cfg().modes.confirmWithRightClick, v -> cfg().modes.confirmWithRightClick = v, md.confirmWithRightClick));
+        s.add(bool("modes.livePreview", () -> cfg().modes.livePreview, v -> cfg().modes.livePreview = v, md.livePreview));
+        s.add(bool("modes.labels", () -> cfg().modes.labels, v -> cfg().modes.labels = v, md.labels));
+        s.add(bool("modes.arrowNudge", () -> cfg().modes.arrowNudge, v -> cfg().modes.arrowNudge = v, md.arrowNudge));
+        s.add(bool("modes.escapeCancels", () -> cfg().modes.escapeCancels, v -> cfg().modes.escapeCancels = v, md.escapeCancels));
+        s.add(bool("modes.openContainers", () -> cfg().modes.openContainers, v -> cfg().modes.openContainers = v, md.openContainers));
+        s.add(integer("modes.air_distance", () -> cfg().modes.airDistance, v -> cfg().modes.airDistance = v, md.airDistance, 1, 16, 1));
+        return new Group("modes", group("modes"), null, s, false);
     }
 
     // ------------------------------------------------------------------ server rules
@@ -160,6 +176,7 @@ public final class BuildingSettings {
 
     private static volatile boolean serverDirty;
     private static volatile boolean variantsDirty;
+    private static volatile boolean chiselDirty;
     private static boolean initialised;
 
     /** Flushes server-rule edits once per client tick (sliders change every frame while dragged). */
@@ -183,8 +200,13 @@ public final class BuildingSettings {
         SlateBuilding.serverConfigFile().save();
         if (variantsDirty) VariantRegistry.invalidate();
         variantsDirty = false;
+        final boolean chisel = chiselDirty;
+        chiselDirty = false;
         final IntegratedServer server = Minecraft.getInstance().getSingleplayerServer();
-        if (server != null) server.execute(() -> BuildingServerSettings.broadcast(server));
+        if (server != null) server.execute(() -> {
+            BuildingServerSettings.broadcast(server);
+            if (chisel) ChiselSystem.rebuild(server);
+        });
     }
 
     private static Setting rule(final String id, final Function<BuildingServerConfig, Boolean> read,
@@ -200,43 +222,133 @@ public final class BuildingSettings {
 
     private static Setting ruleInt(final String id, final Function<BuildingServerConfig, Integer> read,
                                    final BiConsumer<BuildingServerConfig, Integer> write, final int def, final int min, final int max) {
+        return ruleInt(id, read, write, def, min, max, 1);
+    }
+
+    private static Setting ruleInt(final String id, final Function<BuildingServerConfig, Integer> read,
+                                   final BiConsumer<BuildingServerConfig, Integer> write, final int def, final int min, final int max,
+                                   final int step) {
         return new Setting("server." + id, Type.INT, label("server." + id), tooltip("server." + id),
             () -> read.apply(rules()), v -> {
                 if (serverReadOnly()) return;
-                write.accept(local(), ((Number) v).intValue());
+                write.accept(local(), (int) Math.max(min, Math.min(max, Math.round(((Number) v).doubleValue()))));
                 saveServer(false);
-            }, def, min, max, 1, List.of(), Component::literal, () -> !serverReadOnly(), null, false);
+            }, def, min, max, step, List.of(), Component::literal, () -> !serverReadOnly(), null, false);
     }
 
-    private static Group server() {
+    /**
+     * A per-tier rule (four values for copper / iron / diamond / netherite tools) edited as text: "16, 32, 64, 128".
+     * Anything that does not parse into four numbers inside {@code min..max} is ignored.
+     */
+    private static Setting ruleTiers(final String id, final Function<BuildingServerConfig, int[]> read,
+                                     final BiConsumer<BuildingServerConfig, int[]> write, final int[] def, final int min, final int max) {
+        return new Setting("server." + id, Type.TIERS, label("server." + id), tooltip("server." + id),
+            () -> tiersText(read.apply(rules())), v -> {
+                if (serverReadOnly()) return;
+                final int[] parsed = parseTiers(String.valueOf(v), min, max);
+                if (parsed == null) return;
+                write.accept(local(), parsed);
+                saveServer(false);
+            }, tiersText(def), min, max, 0, List.of(), Component::literal, () -> !serverReadOnly(), null, false);
+    }
+
+    /** "16, 32, 64, 128" (missing entries repeat the last one, like {@code ToolTier.index}). */
+    public static String tiersText(final int @Nullable [] values) {
+        if (values == null || values.length == 0) return "";
+        final StringBuilder b = new StringBuilder();
+        for (int i = 0; i < 4; i++) {
+            if (i > 0) b.append(", ");
+            b.append(values[Math.min(i, values.length - 1)]);
+        }
+        return b.toString();
+    }
+
+    /** Four comma/space separated whole numbers inside {@code min..max}, else null. */
+    public static int @Nullable [] parseTiers(final String text, final int min, final int max) {
+        final String[] parts = text.trim().split("[,;/\\s]+");
+        if (parts.length != 4) return null;
+        final int[] out = new int[4];
+        for (int i = 0; i < 4; i++) {
+            try {
+                out[i] = Integer.parseInt(parts[i].trim());
+            } catch (final NumberFormatException e) {
+                return null;
+            }
+            if (out[i] < min || out[i] > max) return null;
+        }
+        return out;
+    }
+
+    private static Setting status() {
+        return new Setting("server.status", Type.INFO, label("server.status"), null,
+            () -> Component.translatable(serverReadOnly() ? "slate_building.settings.server.remote" : "slate_building.settings.server.local"),
+            x -> {}, null, 0, 0, 0, List.of(), Component::literal, () -> true, null, false);
+    }
+
+    private static Group serverVariants() {
         final List<Setting> s = new ArrayList<>();
         final ServerVariants v = new ServerVariants();
-        final ServerOps o = new ServerOps();
-        final ServerToolbox tb = new ServerToolbox();
-        final ServerChisel ch = new ServerChisel();
-        s.add(new Setting("server.status", Type.INFO, label("server.status"), null,
-            () -> Component.translatable(serverReadOnly() ? "slate_building.settings.server.remote" : "slate_building.settings.server.local"),
-            x -> {}, null, 0, 0, 0, List.of(), Component::literal, () -> true, null, false));
+        s.add(status());
         s.add(rule("unify", c -> c.variants.unify, (c, b) -> c.variants.unify = b, v.unify, true, false));
         s.add(rule("custom_shapes", c -> c.variants.customShapes, (c, b) -> c.variants.customShapes = b, v.customShapes, true, false));
         s.add(rule("rebalance_recipes", c -> c.variants.rebalanceRecipes, (c, b) -> c.variants.rebalanceRecipes = b, v.rebalanceRecipes, true, true));
         s.add(rule("delete_native_variants", c -> c.variants.deleteNativeVariants, (c, b) -> c.variants.deleteNativeVariants = b, v.deleteNativeVariants, true, true));
         s.add(rule("swap_needs_tool", c -> c.variants.swapNeedsTool, (c, b) -> c.variants.swapNeedsTool = b, v.swapNeedsTool, false, false));
+        return new Group("server_variants", group("server_variants"), Component.translatable("slate_building.settings.group.server.desc"), s, false);
+    }
+
+    private static Group serverOps() {
+        final List<Setting> s = new ArrayList<>();
+        final ServerOps o = new ServerOps();
+        s.add(status());
         s.add(rule("ops_enabled", c -> c.ops.enabled, (c, b) -> c.ops.enabled = b, o.enabled, false, false));
         s.add(rule("require_toolbox", c -> c.ops.requireToolbox, (c, b) -> c.ops.requireToolbox = b, o.requireToolbox, false, false));
         s.add(rule("creative_bypass", c -> c.ops.creativeBypass, (c, b) -> c.ops.creativeBypass = b, o.creativeBypass, false, false));
         s.add(rule("place_what_you_can", c -> c.ops.placeWhatYouCan, (c, b) -> c.ops.placeWhatYouCan = b, o.placeWhatYouCan, false, false));
         s.add(rule("respect_claims", c -> c.ops.respectClaims, (c, b) -> c.ops.respectClaims = b, o.respectClaims, false, false));
         s.add(rule("allow_block_entities", c -> c.ops.allowBlockEntities, (c, b) -> c.ops.allowBlockEntities = b, o.allowBlockEntities, false, false));
+        s.add(rule("effects", c -> c.ops.effects, (c, b) -> c.ops.effects = b, o.effects, false, false));
+        s.add(ruleTiers("max_volume", c -> c.ops.maxVolume, (c, a) -> c.ops.maxVolume = a, o.maxVolume, 1, 1_048_576));
+        s.add(ruleTiers("max_span", c -> c.ops.maxSpan, (c, a) -> c.ops.maxSpan = a, o.maxSpan, 1, 1024));
+        s.add(ruleTiers("reach_bonus", c -> c.ops.reachBonus, (c, a) -> c.ops.reachBonus = a, o.reachBonus, 0, 256));
+        s.add(ruleTiers("blocks_per_tick", c -> c.ops.blocksPerTick, (c, a) -> c.ops.blocksPerTick = a, o.blocksPerTick, 1, 4096));
+        s.add(ruleTiers("extend_max", c -> c.ops.extendMax, (c, a) -> c.ops.extendMax = a, o.extendMax, 1, 65536));
+        s.add(ruleTiers("symmetry_radius", c -> c.ops.symmetryRadius, (c, a) -> c.ops.symmetryRadius = a, o.symmetryRadius, 1, 512));
+        s.add(ruleInt("global_blocks_per_tick", c -> c.ops.globalBlocksPerTick, (c, n) -> c.ops.globalBlocksPerTick = n, o.globalBlocksPerTick, 64, 16384, 64));
+        s.add(ruleInt("min_ticks_between_ops", c -> c.ops.minTicksBetweenOps, (c, n) -> c.ops.minTicksBetweenOps = n, o.minTicksBetweenOps, 0, 100));
         s.add(ruleInt("undo_depth", c -> c.ops.undoDepth, (c, n) -> c.ops.undoDepth = n, o.undoDepth, 1, 100));
+        s.add(ruleInt("undo_per_memory", c -> c.ops.undoPerMemory, (c, n) -> c.ops.undoPerMemory = n, o.undoPerMemory, 0, 100));
         s.add(ruleInt("durability_per_blocks", c -> c.ops.durabilityPerBlocks, (c, n) -> c.ops.durabilityPerBlocks = n, o.durabilityPerBlocks, 1, 64));
+        s.add(ruleInt("paste_op_level", c -> c.ops.pasteOpLevel, (c, n) -> c.ops.pasteOpLevel = n, o.pasteOpLevel, 0, 4));
+        return new Group("server_ops", group("server_ops"), Component.translatable("slate_building.settings.group.server.desc"), s, false);
+    }
+
+    private static Group serverTools() {
+        final List<Setting> s = new ArrayList<>();
+        final ServerToolbox tb = new ServerToolbox();
+        final ServerChisel ch = new ServerChisel();
+        s.add(status());
         s.add(rule("allow_pouch", c -> c.toolbox.allowPouch, (c, b) -> c.toolbox.allowPouch = b, tb.allowPouch, false, false));
-        s.add(rule("chisel_enabled", c -> c.chisel.enabled, (c, b) -> c.chisel.enabled = b, ch.enabled, false, false));
+        s.add(ruleInt("supply_link_range", c -> c.toolbox.supplyLinkRange, (c, n) -> c.toolbox.supplyLinkRange = n, tb.supplyLinkRange, 4, 256));
+        s.add(ruleTiers("tool_durability", c -> c.toolbox.durability, (c, a) -> c.toolbox.durability = a, tb.durability, 1, 100_000));
+        s.add(chiselRule("chisel_enabled", c -> c.chisel.enabled, (c, b) -> c.chisel.enabled = b, ch.enabled));
         s.add(rule("chisel_in_world", c -> c.chisel.inWorld, (c, b) -> c.chisel.inWorld = b, ch.inWorld, false, false));
-        s.add(rule("chisel_stonecutter", c -> c.chisel.stonecutterGroups, (c, b) -> c.chisel.stonecutterGroups = b, ch.stonecutterGroups, false, true));
-        s.add(rule("chisel_families", c -> c.chisel.blockFamilies, (c, b) -> c.chisel.blockFamilies = b, ch.blockFamilies, false, true));
-        s.add(rule("chisel_mod_compat", c -> c.chisel.modCompat, (c, b) -> c.chisel.modCompat = b, ch.modCompat, false, true));
-        return new Group("server", group("server"), Component.translatable("slate_building.settings.group.server.desc"), s, false);
+        s.add(chiselRule("chisel_stonecutter", c -> c.chisel.stonecutterGroups, (c, b) -> c.chisel.stonecutterGroups = b, ch.stonecutterGroups));
+        s.add(chiselRule("chisel_families", c -> c.chisel.blockFamilies, (c, b) -> c.chisel.blockFamilies = b, ch.blockFamilies));
+        s.add(chiselRule("chisel_mod_compat", c -> c.chisel.modCompat, (c, b) -> c.chisel.modCompat = b, ch.modCompat));
+        return new Group("server_tools", group("server_tools"), Component.translatable("slate_building.settings.group.server.desc"), s, false);
+    }
+
+    /** A chisel rule that changes which groups exist: the integrated server rebuilds the index right away. */
+    private static Setting chiselRule(final String id, final Function<BuildingServerConfig, Boolean> read,
+                                      final BiConsumer<BuildingServerConfig, Boolean> write, final boolean def) {
+        return new Setting("server." + id, Type.BOOL, label("server." + id), tooltip("server." + id),
+            () -> read.apply(rules()), v -> {
+                if (serverReadOnly()) return;
+                write.accept(local(), Boolean.TRUE.equals(v));
+                chiselDirty = true;
+                saveServer(false);
+            }, def, 0, 0, 0, List.of(), Component::literal, () -> !serverReadOnly(), null, false);
     }
 
     // ------------------------------------------------------------------ builders

@@ -58,8 +58,8 @@ public final class BuildingClient {
     }
 
     /**
-     * Opens the Building settings: the Slate Config hub on its Gameplay category (where the "Building" tab lives)
-     * when Slate Config is installed, else the standalone {@link #SETTINGS_SCREEN}.
+     * Opens the Building settings: the Slate Config hub on the "Building" tab of its Gameplay category
+     * ({@code gameplay/building}) when Slate Config is installed, else the standalone {@link #SETTINGS_SCREEN}.
      */
     public static void openSettings(final @Nullable Screen parent) {
         if (SlatePlatform.get().isModLoaded("slate_config")) {
@@ -74,23 +74,35 @@ public final class BuildingClient {
     }
 
     /**
-     * The Building settings as a screen, for loader "Config" buttons: the Slate Config hub on its Gameplay category,
+     * The Building settings as a screen, for loader "Config" buttons: the Slate Config hub on {@code gameplay/building},
      * else the standalone {@link #SETTINGS_SCREEN}, else null (no settings UI installed).
      */
     public static @Nullable Screen settingsScreen(final @Nullable Screen parent) {
-        if (SlatePlatform.get().isModLoaded("slate_config")) return ConfigBridge.hub(parent);
+        return settingsScreen(parent, null);
+    }
+
+    /**
+     * {@link #settingsScreen(Screen)} opened on one section ({@code BuildingSettings} group id, e.g. {@code server_ops});
+     * the standalone screen ignores the section.
+     */
+    public static @Nullable Screen settingsScreen(final @Nullable Screen parent, final @Nullable String section) {
+        if (SlatePlatform.get().isModLoaded("slate_config")) return ConfigBridge.hub(parent, section);
         final java.util.function.Function<Screen, Screen> factory = CoreActions.SCREEN_FACTORIES.get(SETTINGS_SCREEN);
         return factory != null ? factory.apply(parent) : null;
     }
 
     /** Only loaded after the {@code slate_config} presence check (soft dependency). */
     private static final class ConfigBridge {
+        /** Slate Config page path of the Building tab: category {@code gameplay}, tab {@code building}. */
+        private static final String TAB_PATH = dev.fallingcloud.slate.config.api.SettingsTabs.GAMEPLAY + "/"
+            + dev.fallingcloud.slate.building.client.settings.BuildingSettingsTab.TAB_ID;
+
         static void openBuildingTab(final @Nullable Screen parent) {
-            dev.fallingcloud.slate.config.SlateConfigApi.openHub(parent, dev.fallingcloud.slate.config.api.SettingsTabs.GAMEPLAY);
+            dev.fallingcloud.slate.config.SlateConfigApi.openHub(parent, TAB_PATH);
         }
 
-        static Screen hub(final @Nullable Screen parent) {
-            return dev.fallingcloud.slate.config.SlateConfigApi.hub(parent, dev.fallingcloud.slate.config.api.SettingsTabs.GAMEPLAY);
+        static Screen hub(final @Nullable Screen parent, final @Nullable String section) {
+            return dev.fallingcloud.slate.config.SlateConfigApi.hub(parent, section == null ? TAB_PATH : TAB_PATH + "/" + section);
         }
     }
 

@@ -5,6 +5,7 @@ import dev.fallingcloud.slate.building.client.mode.ClientModeState;
 import dev.fallingcloud.slate.building.client.model.ShapeModels;
 import dev.fallingcloud.slate.building.config.PreviewSettings;
 import dev.fallingcloud.slate.building.mixin.render.BlockItemInvoker;
+import dev.fallingcloud.slate.building.ops.SymmetryMath;
 import dev.fallingcloud.slate.building.variant.ShapeBlock;
 import dev.fallingcloud.slate.building.variant.Variant;
 import dev.fallingcloud.slate.building.variant.VariantRegistry;
@@ -184,9 +185,10 @@ final class HandPreview {
 
         final ClientModeState.Symmetry symmetry = ClientModeState.symmetry();
         if (settings.showMirrored && symmetry != null && style == GhostRenderer.Style.PLACE) {
-            for (final SymmetryPreview.Image image : SymmetryPreview.images(symmetry, pos, state)) {
+            final int radius = SymmetryMath.radius(player);
+            for (final SymmetryMath.Image image : SymmetryMath.images(symmetry.mode(), symmetry.params(), symmetry.centre(), radius, pos)) {
                 if (!level.isLoaded(image.pos()) || !level.getBlockState(image.pos()).canBeReplaced()) continue;
-                addWithPartner(ghosts, weights, image.pos(), image.state(), material, GhostRenderer.Style.PLACE, 0.7F);
+                addWithPartner(ghosts, weights, image.pos(), image.apply(state), material, GhostRenderer.Style.PLACE, 0.7F);
             }
         }
         final float[] w = new float[weights.size()];

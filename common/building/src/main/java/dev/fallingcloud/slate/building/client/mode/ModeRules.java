@@ -8,7 +8,7 @@ import dev.fallingcloud.slate.building.ops.BuildMode;
 import dev.fallingcloud.slate.building.ops.BuildModes;
 import dev.fallingcloud.slate.building.ops.Limits;
 import dev.fallingcloud.slate.building.ops.ModeKind;
-import dev.fallingcloud.slate.building.ops.ToolType;
+import dev.fallingcloud.slate.building.ops.SymmetryMath;
 import dev.fallingcloud.slate.building.toolbox.ToolboxAccess;
 import dev.fallingcloud.slate.core.net.SlateNetwork;
 import net.minecraft.ChatFormatting;
@@ -85,10 +85,9 @@ final class ModeRules {
         return player.blockInteractionRange() + Math.max(0, limits(player).reachBonus());
     }
 
-    /** Radius of the symmetry of a TOGGLE mode for this player (square tier 1..4 → 16/32/64/128). */
+    /** Radius of the symmetry of a TOGGLE mode for this player (the server's symmetryRadius at the square tier). */
     static int symmetryRadius(final Player player) {
-        final int tier = Math.max(1, capabilities(player).tier(ToolType.SQUARE));
-        return 16 << (Math.min(4, tier) - 1);
+        return SymmetryMath.radius(player);
     }
 
     /** Shows {@code text} on the vanilla action bar (toast-free feedback that works with any HUD setup). */

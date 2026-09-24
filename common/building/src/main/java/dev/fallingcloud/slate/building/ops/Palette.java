@@ -102,7 +102,7 @@ public record Palette(List<WeightedEntry> entries, Pattern pattern) {
     }
 
     /**
-     * The palette an operation of {@code mode} uses for {@code player}: the stack in hotbar slot {@code slot} (the
+     * The palette an operation of {@code mode} uses for {@code player}: the stack in hotbar slot {@code slot} or the offhand ({@link Inventory#SLOT_OFFHAND}) (the
      * selected slot when out of range) for HELD and for modes without a {@code palette} parameter, or every usable
      * block on the hotbar for HOTBAR_RANDOM / HOTBAR_CHECKER. Stacks that cannot be built with (non-blocks, doors,
      * beds, container blocks in survival, shape items without a material) are left out; the result may be empty.
@@ -130,7 +130,7 @@ public record Palette(List<WeightedEntry> entries, Pattern pattern) {
             if (out.isEmpty()) return EMPTY;
             return new Palette(out, "HOTBAR_CHECKER".equals(choice) ? Pattern.CHECKER : Pattern.RANDOM);
         }
-        final ItemStack held = Inventory.isHotbarSlot(slot) ? inv.getItem(slot) : player.getMainHandItem();
+        final ItemStack held = Inventory.isHotbarSlot(slot) || slot == Inventory.SLOT_OFFHAND ? inv.getItem(slot) : player.getMainHandItem();
         final WeightedEntry e = entryOf(held, player);
         return e == null ? EMPTY : new Palette(List.of(e), Pattern.SINGLE);
     }

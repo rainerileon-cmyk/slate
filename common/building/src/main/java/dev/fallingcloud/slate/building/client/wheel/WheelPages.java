@@ -1,6 +1,7 @@
 package dev.fallingcloud.slate.building.client.wheel;
 
 import dev.fallingcloud.slate.building.chisel.ChiselGroups;
+import dev.fallingcloud.slate.building.chisel.ChiselSwap;
 import dev.fallingcloud.slate.building.client.BuildingIcons;
 import dev.fallingcloud.slate.building.config.BuildingServerSettings;
 import dev.fallingcloud.slate.building.config.WheelSettings;
@@ -86,8 +87,9 @@ public final class WheelPages {
             final List<WheelSlice> slices = new ArrayList<>();
             for (final Block member : group.members()) {
                 if (member == null) continue;
-                ItemStack stack = WheelSources.get().stackFor(member, t.shape(), t.count());
-                if (stack.isEmpty()) stack = new ItemStack(member, Math.max(1, t.count()));
+                // Only members that exist in the target's shape (the server refuses the others): ChiselSwap's rule.
+                final ItemStack stack = ChiselSwap.stackFor(member, t.shape(), Math.max(1, t.count()));
+                if (stack.isEmpty()) continue;
                 slices.add(new WheelSlice(WheelSlice.Kind.CHISEL, t.shape(), member, stack, BuildingIcons.CHISEL,
                     label(stack, member, t.shape()), true, null, member == t.material()));
             }
@@ -124,13 +126,8 @@ public final class WheelPages {
     public static @Nullable Component chiselLock(final WheelTarget t) {
         final Player player = Minecraft.getInstance().player;
         if (player == null) return Component.translatable("slate_building.ui.chisel.disabled");
-        final BuildingServerSettings rules = BuildingServerSettings.effective(player);
-        if (!rules.chisel().enabled || (!t.held() && !rules.chisel().inWorld)) return Component.translatable("slate_building.ui.chisel.disabled");
-        final int need = t.held() ? 1 : 2;
-        if (ToolboxAccess.of(player).tier(ToolType.CHISEL) >= need) return null;
-        return need == 1 ? needs(ToolType.CHISEL)
-            : Component.translatable("slate_building.lock.needs_tool", Component.translatable("slate_building.tool_tiered",
-                dev.fallingcloud.slate.building.toolbox.ToolTier.byLevel(need).displayName(), ToolType.CHISEL.displayName()));
+        // The chisel's own rules (server switches, Chisel tier 1 for held stacks, tier 2 in the world), as the server checks them.
+        return t.held() ? ChiselSwap.heldLock(player) : ChiselSwap.inWorldLock(player);
     }
 
     private static Component needs(final ToolType tool) {

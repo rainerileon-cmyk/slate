@@ -11,6 +11,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.CreativeModeTab;
+import net.minecraft.world.level.block.GameMasterBlock;
 import net.minecraft.world.level.block.state.BlockState;
 
 /**
@@ -22,6 +23,7 @@ public final class FabricBuildingPlatform implements BuildingPlatform {
 
     @Override
     public boolean canBreak(final ServerPlayer p, final ServerLevel level, final BlockPos pos, final BlockState state) {
+        if (state.getBlock() instanceof GameMasterBlock && !p.canUseGameMasterBlocks()) return false;   // vanilla's rule, as on NeoForge
         return PlayerBlockBreakEvents.BEFORE.invoker().beforeBlockBreak(level, p, pos, state, level.getBlockEntity(pos));
     }
 

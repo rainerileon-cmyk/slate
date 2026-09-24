@@ -169,7 +169,7 @@ final class ModeController implements BuildInput.Handler {
     private boolean claimsUse(final LocalPlayer player) {
         final ItemStack main = player.getMainHandItem();
         if (main.getItem() instanceof ToolboxItem) return false;               // the toolbox opens as usual
-        if (!main.isEmpty() && !ClientPalette.placeable(main) && main.getUseAnimation() != UseAnim.NONE) return false;
+        if (!main.isEmpty() && !ClientPalette.placeable(player, main) && main.getUseAnimation() != UseAnim.NONE) return false;
         final ModeSettings s = ClientModeState.settings();
         if (s.openContainers && !player.isSecondaryUseActive() && target != null && target.clicked() != null) {
             final Level level = player.level();
@@ -227,8 +227,9 @@ final class ModeController implements BuildInput.Handler {
                         ModeSounds.selected();
                     }
                     case DESTINATION -> {
-                        final BlockPos d = destination(player, mode, anchors);
-                        ClientModeState.setSelection(List.of(anchors.get(0), anchors.get(1), d), ClientModeState.face(), ClientModeState.Pending.SELECTED);
+                        // The ops server's convention: [A, B, clicked block] + the destination's face (PlanContext).
+                        final ModeTarget d = targetFor(player, mode, ModeTarget.Role.DESTINATION, null);
+                        ClientModeState.setSelection(List.of(anchors.get(0), anchors.get(1), d.pos()), d.face(), ClientModeState.Pending.SELECTED);
                         ModePreview.invalidate();
                         ModeSounds.selected();
                     }
@@ -517,36 +518,6 @@ final class ModeController implements BuildInput.Handler {
         return ModeTarget.Role.CORNER;
     }
 
-    /**
-     * The minimum corner D of a move's destination for the targeted block: the (rotated) selection sits on the clicked
-     * face, centred on the crosshair along the other two axes.
-     */
-    private BlockPos destination(final LocalPlayer player, final BuildMode mode, final List<BlockPos> anchors) {
-        final ModeTarget t = targetFor(player, mode, ModeTarget.Role.DESTINATION, null);
-        return destinationFor(t, mode, anchors);
-    }
-
-    private static BlockPos destinationFor(final ModeTarget t, final BuildMode mode, final List<BlockPos> anchors) {
-        final AABB src = ModeGeometry.boxOf(anchors.get(0), anchors.get(1));
-        final net.minecraft.core.Vec3i size = ModeGeometry.rotatedSize(
-            new net.minecraft.core.Vec3i((int) src.getXsize(), (int) src.getYsize(), (int) src.getZsize()), ClientModeState.params(mode));
-        final BlockPos p = t.pos();
-        int x = p.getX() - size.getX() / 2;
-        int y = p.getY();
-        int z = p.getZ() - size.getZ() / 2;
-        if (t.air()) return new BlockPos(x, p.getY() - size.getY() / 2, z);   // floating: centred on the air point
-        switch (t.face()) {
-            case DOWN -> y = p.getY() - size.getY() + 1;
-            case EAST -> x = p.getX();
-            case WEST -> x = p.getX() - size.getX() + 1;
-            case SOUTH -> z = p.getZ();
-            case NORTH -> z = p.getZ() - size.getZ() + 1;
-            default -> {}
-        }
-        if (t.face().getAxis().isHorizontal()) y = p.getY();
-        return new BlockPos(x, y, z);
-    }
-
     /** Re-centres a TOGGLE mode's symmetry on the targeted block. */
     private void recentre(final LocalPlayer player, final BuildMode mode) {
         final BlockPos centre = centreTarget(player, mode);
@@ -581,7 +552,7 @@ final class ModeController implements BuildInput.Handler {
         if (mode.kind() == ModeKind.TOGGLE) {
             ClientModeState.setStats(ClientModeState.Stats.EMPTY);
             ModeOverlay.draw(new ModeOverlay.Frame(mode, pending, anchors, target, ModeGeometry.Shape.NONE, ClientModeState.Stats.EMPTY,
-                ModeRules.symmetryRadius(player)));
+                ModeRules.symmetryRadius(player), Direction.UP));
             updateHints(mode, pending);
             return;
         }
@@ -589,11 +560,13 @@ final class ModeController implements BuildInput.Handler {
         final List<BlockPos> live = liveAnchors(mode, pending, anchors, target);
         final boolean following = pending == ClientModeState.Pending.NONE || pending == ClientModeState.Pending.FIRST_ANCHOR
             || pending == ClientModeState.Pending.DESTINATION;
-        final Direction face = ClientModeState.face() != null ? ClientModeState.face() : target.face();
+        // The destination / hover point faces the crosshair's face; a committed selection keeps its own.
+        final Direction face = pending == ClientModeState.Pending.DESTINATION || pending == ClientModeState.Pending.NONE
+            || ClientModeState.face() == null ? target.face() : ClientModeState.face();
         final ClientModeState.Stats stats = ModePreview.update(player, mode, live, face, following);
         ClientModeState.setStats(stats);
         ModePreview.submitGhosts();
-        ModeOverlay.draw(new ModeOverlay.Frame(mode, pending, live, target, ModePreview.shape(), stats, 0));
+        ModeOverlay.draw(new ModeOverlay.Frame(mode, pending, live, target, ModePreview.shape(), stats, 0, face));
         updateHints(mode, pending);
     }
 
@@ -602,7 +575,7 @@ final class ModeController implements BuildInput.Handler {
                                               final ModeTarget t) {
         return switch (pending) {
             case FIRST_ANCHOR -> anchors.isEmpty() ? List.of() : List.of(anchors.get(0), t.pos());
-            case DESTINATION -> anchors.size() < 2 ? List.of() : List.of(anchors.get(0), anchors.get(1), destinationFor(t, mode, anchors));
+            case DESTINATION -> anchors.size() < 2 ? List.of() : List.of(anchors.get(0), anchors.get(1), t.pos());
             case SELECTED, PREVIEW -> anchors;
             case NONE -> mode.kind() == ModeKind.POINT && (!t.air() || mode == BuildModes.PASTE) ? List.of(t.pos()) : List.of();
             case APPLYING -> List.of();
