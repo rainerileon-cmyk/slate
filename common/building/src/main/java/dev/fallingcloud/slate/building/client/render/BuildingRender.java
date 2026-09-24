@@ -1,5 +1,6 @@
 package dev.fallingcloud.slate.building.client.render;
 
+import com.mojang.blaze3d.systems.RenderSystem;
 import dev.fallingcloud.slate.building.SlateBuilding;
 import dev.fallingcloud.slate.building.client.model.ShapeItemModels;
 import dev.fallingcloud.slate.building.client.model.ShapeQuadBaker;
@@ -100,7 +101,12 @@ public final class BuildingRender {
         }
     }
 
+    /** Leaving a world. Fabric fires the disconnect event on the network thread; GPU buffers are freed on the render thread. */
     private static void onLeave() {
+        if (!RenderSystem.isOnRenderThread()) {
+            Minecraft.getInstance().execute(BuildingRender::onLeave);
+            return;
+        }
         GhostRenderer.clearAll();
         OverlayRenderer.clearAll();
         HandPreview.reset();
