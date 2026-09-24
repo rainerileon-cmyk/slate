@@ -1,28 +1,49 @@
 package dev.fallingcloud.slate.building.block;
 
+import com.mojang.serialization.MapCodec;
 import dev.fallingcloud.slate.building.variant.Shape;
-import dev.fallingcloud.slate.building.variant.ShapeBlock;
 import java.util.List;
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.block.EntityBlock;
-import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.core.Direction;
+import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Mirror;
+import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.phys.AABB;
-import net.minecraft.world.level.block.Block;
+import org.jetbrains.annotations.Nullable;
 
 /**
- * The PANEL shape block (Create's copycat panel: a 3 px plate against its facing side). One instance serves every material; the material lives in {@link ShapeBlockEntity}.
+ * PANEL (Create's copycat panel): a 3 px plate; {@link #FACING} is the direction its free face looks, so it lies
+ * against the opposite side ({@code (0,0,0)-(16,3,16)} for UP).
  *
- * <p>Owner: A (variants). Skeleton placeholder: registered, has the block entity, and reports a full cube with one
- * unit so everything downstream compiles and runs; A adds states, geometry, placement, merging and material
- * delegation (design §2). Keep the constructor signature: {@code BuildingBlocks} constructs it with shared base
- * properties that the constructor may refine.
+ * <p>Placement exactly as Create: facing = the opposite of the nearest look direction, i.e. the plate lies against
+ * the clicked face.
  */
-public class PanelBlock extends Block implements ShapeBlock, EntityBlock {
+public class PanelBlock extends CustomShapeBlock {
+
+    public static final MapCodec<PanelBlock> CODEC = simpleCodec(PanelBlock::new);
+    public static final DirectionProperty FACING = BlockStateProperties.FACING;
+    /** Plate thickness in pixels. */
+    public static final int THICKNESS = 3;
 
     public PanelBlock(final BlockBehaviour.Properties properties) {
         super(properties);
+        registerDefaultState(defaultBlockState().setValue(FACING, Direction.UP));
+    }
+
+    @Override
+    protected MapCodec<PanelBlock> codec() {
+        return CODEC;
+    }
+
+    @Override
+    protected void createBlockStateDefinition(final StateDefinition.Builder<Block, BlockState> builder) {
+        super.createBlockStateDefinition(builder);
+        builder.add(FACING);
     }
 
     @Override
@@ -31,17 +52,24 @@ public class PanelBlock extends Block implements ShapeBlock, EntityBlock {
     }
 
     @Override
-    public List<AABB> renderBoxes(final BlockState state) {
-        return FULL_CUBE;
+    protected List<AABB> computeBoxes(final BlockState state) {
+        return List.of(ShapeBoxes.plate(state.getValue(FACING), THICKNESS));
     }
 
     @Override
-    public int units(final BlockState state) {
-        return 1;
+    protected @Nullable BlockState placementShape(final BlockPlaceContext ctx) {
+        // Without a player (machines, building operations) there is no look direction: lie against the clicked face.
+        final Direction look = ctx.getPlayer() != null ? ctx.getNearestLookingDirection() : ctx.getClickedFace().getOpposite();
+        return defaultBlockState().setValue(FACING, look.getOpposite());
     }
 
     @Override
-    public BlockEntity newBlockEntity(final BlockPos pos, final BlockState state) {
-        return new ShapeBlockEntity(pos, state);
+    protected BlockState rotate(final BlockState state, final Rotation rotation) {
+        return state.setValue(FACING, rotation.rotate(state.getValue(FACING)));
+    }
+
+    @Override
+    protected BlockState mirror(final BlockState state, final Mirror mirror) {
+        return state.setValue(FACING, mirror.mirror(state.getValue(FACING)));
     }
 }
