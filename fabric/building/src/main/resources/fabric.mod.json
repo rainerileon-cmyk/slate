@@ -11,7 +11,7 @@
   "entrypoints": {
     "main": ["dev.fallingcloud.slate.building.fabric.SlateBuildingFabric"],
     "client": ["dev.fallingcloud.slate.building.fabric.SlateBuildingFabricClient"],
-    "jei_mod_plugin": ["dev.fallingcloud.slate.building.compat.jei.BuildingJeiPlugin"]
+    "jei_mod_plugin": ["dev.fallingcloud.slate.building.compat.jei.BuildingJeiPlugin", "dev.fallingcloud.slate.building.compat.jei.BuildingJeiSubtypes"]
   },
   "mixins": [
     "slate_building.mixins.json",

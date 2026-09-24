@@ -33,6 +33,7 @@ public final class SlateBuildingNeoForge {
         NeoOpsGlue.init(modBus);
         NeoToolboxGlue.init(modBus);
         NeoChiselGlue.init(modBus);
+        dev.fallingcloud.slate.building.neoforge.compat.NeoCompatGlue.init(modBus);
 
         if (FMLEnvironment.dist.isClient()) SlateBuildingNeoForgeClient.init(modBus, container);
     }

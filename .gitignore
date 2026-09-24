@@ -2,6 +2,7 @@
 build/
 run/
 run-server/
+run-compat/
 runs/
 *.iml
 .idea/

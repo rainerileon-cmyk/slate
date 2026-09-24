@@ -26,6 +26,7 @@ final class SlateBuildingNeoForgeClient {
         NeoOpsGlue.initClient(modBus);
         NeoToolboxGlue.initClient(modBus);
         NeoChiselGlue.initClient(modBus);
+        dev.fallingcloud.slate.building.neoforge.compat.NeoCompatGlue.initClient(modBus);
 
         if (ModList.get().isLoaded("slate_config")) {
             container.registerExtensionPoint(IConfigScreenFactory.class, (mod, parent) -> BuildingClient.settingsScreen(parent));
