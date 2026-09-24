@@ -48,7 +48,6 @@
   "slate_building.toolbox.screen.tools": "%s/%s tools",
   "slate_building.toolbox.screen.upgrades": "Upgrades",
   "slate_building.toolbox.screen.no_upgrades": "No upgrades yet",
-  "slate_building.toolbox.screen.no_upgrades.hint": "They raise the limits",
   "slate_building.toolbox.screen.unlocks.tip": "What this toolbox unlocks, by tool. Hover a mode for details.",
 
   "slate_building.toolbox.stat.area": "Area",
@@ -72,7 +71,8 @@
   "slate_building.toolbox.screen.unlocked": "Unlocked",
   "slate_building.toolbox.screen.tool_missing": "Not in this toolbox",
   "slate_building.toolbox.screen.empty_hint": "Put tools in the slots on the left to unlock building modes.",
-  "slate_building.toolbox.screen.creative": "Creative: all modes unlocked",
+  "slate_building.toolbox.screen.creative": "Creative",
+  "slate_building.toolbox.screen.creative.tip": "In creative mode every building mode is unlocked, whatever the toolbox holds",
   "slate_building.toolbox.screen.locked": "This toolbox is open",
 
   "slate_building.toolbox.effect.reach": "Reach ×%s",

@@ -75,6 +75,7 @@ public final class ToolboxClient {
             .run(() -> onServer(ToolboxSelfTest::menu))
             .waitUntil(() -> pending.isDone(), 200)
             .run(() -> results("menu", pending.join()))
+            .run(() -> ToolboxScreen.debugHover(-1))   // screenshots ignore the real cursor
             .run(() -> Minecraft.getInstance().getToasts().clear())
             .wait(60)
             .screenshot("toolbox-dark")
@@ -88,14 +89,17 @@ public final class ToolboxClient {
             .run(() -> ToolboxScreen.debugHover(ToolboxContents.toolSlot(ToolType.SQUARE)))
             .wait(30)
             .screenshot("toolbox-dark-focus")
-            .run(() -> ToolboxScreen.debugHover(null))
+            .run(() -> ToolboxScreen.debugHover(-1))
             .skin("VANILLA")
             .wait(20)
             .screenshot("toolbox-vanilla")
             .run(() -> ToolboxScreen.debugHover(ToolboxContents.toolSlot(ToolType.TROWEL)))
             .wait(8)
             .screenshot("toolbox-vanilla-tool-tooltip")
-            .run(() -> ToolboxScreen.debugHover(null))
+            .run(() -> ToolboxScreen.debugHover(ToolboxContents.FIRST_POUCH))
+            .wait(8)
+            .screenshot("toolbox-vanilla-hover")
+            .run(() -> ToolboxScreen.debugHover(-1))
             .skin("DARK")
             .run(ToolboxClient::closeScreen)
             .wait(10)
@@ -112,6 +116,7 @@ public final class ToolboxClient {
             .screenshot("toolbox-vanilla-empty")
             .skin("DARK")
             .run(ToolboxClient::closeScreen)
+            .run(() -> ToolboxScreen.debugHover(null))
             .wait(10);
     }
 

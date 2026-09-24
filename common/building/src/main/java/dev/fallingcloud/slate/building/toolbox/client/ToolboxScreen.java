@@ -141,7 +141,10 @@ public class ToolboxScreen extends AbstractContainerScreen<ToolboxMenu> {
         }
     }
 
-    /** Harness hook: render as if menu slot {@code slot} were hovered (null: normal). */
+    /**
+     * Harness hook for unattended screenshots: the real cursor is ignored and menu slot {@code slot} is drawn as hovered
+     * (with its tooltip); -1 parks the cursor off the screen; null restores normal input.
+     */
     public static void debugHover(final @Nullable Integer slot) {
         debugHover = slot;
     }
@@ -172,13 +175,16 @@ public class ToolboxScreen extends AbstractContainerScreen<ToolboxMenu> {
     public void render(final GuiGraphics g, final int mouseX, final int mouseY, final float partialTick) {
         topPos = baseTop + Math.round((1f - open.get()) * ENTER_SLIDE);
         hits.clear();
-        super.render(g, mouseX, mouseY, partialTick);
-        if (debugHover != null && debugHover >= 0 && debugHover < menu.slots.size()) {
-            hoveredSlot = menu.slots.get(debugHover);
-            renderTooltip(g, leftPos + hoveredSlot.x + 12, topPos + hoveredSlot.y + 4);
-        } else {
-            renderTooltip(g, mouseX, mouseY);
+        if (debugHover != null) {
+            super.render(g, -1000, -1000, partialTick);
+            if (debugHover >= 0 && debugHover < menu.slots.size()) {
+                hoveredSlot = menu.slots.get(debugHover);
+                renderTooltip(g, leftPos + hoveredSlot.x + 12, topPos + hoveredSlot.y + 4);
+            }
+            return;
         }
+        super.render(g, mouseX, mouseY, partialTick);
+        renderTooltip(g, mouseX, mouseY);
     }
 
     @Override
@@ -365,8 +371,7 @@ public class ToolboxScreen extends AbstractContainerScreen<ToolboxMenu> {
             y += 9;
         }
         if (lines == 0) {
-            g.drawString(font, Component.translatable("slate_building.toolbox.screen.no_upgrades"), x0, ToolboxMenu.UPGRADE_Y + 1, look.dim(), false);
-            g.drawString(font, Component.translatable("slate_building.toolbox.screen.no_upgrades.hint"), x0, ToolboxMenu.UPGRADE_Y + 10, look.dim(), false);
+            g.drawString(font, Component.translatable("slate_building.toolbox.screen.no_upgrades"), x0, ToolboxMenu.UPGRADE_Y + 5, look.dim(), false);
         }
     }
 
@@ -407,8 +412,19 @@ public class ToolboxScreen extends AbstractContainerScreen<ToolboxMenu> {
         final Component heading = look.vanilla() ? Component.translatable("slate_building.toolbox.screen.unlocks")
             : Fonts.heading(Component.translatable("slate_building.toolbox.screen.unlocks"));
         g.drawString(font, heading, x + 2, topPos + 6, look.text(), false);
-        final Component tally = Component.literal(countUnlocked(caps) + "/" + countAll());
-        g.drawString(font, tally, sx + SIDE_W - SIDE_PAD - 2 - font.width(tally), topPos + 6, look.muted(), false);
+        if (creativeBypass()) {
+            // Creative players are not limited by any toolbox: say so where the tally would be.
+            final Component c = Component.translatable("slate_building.toolbox.screen.creative");
+            final int cw = font.width(c) + 8;
+            final int cxp = sx + SIDE_W - SIDE_PAD - cw, cyp = topPos + 4;
+            if (look.vanilla()) g.fill(cxp, cyp, cxp + cw, cyp + CHIP_H, 0xFF555555);
+            else SlateDraw.pixelRound(g, cxp, cyp, cw, CHIP_H, look.accent(), Math.min(2, Theme.current().radius()));
+            g.drawString(font, c, cxp + 4, cyp + 2, look.vanilla() ? 0xFFFFFFFF : Colors.readableOn(look.accent()), false);
+            hits.add(new Hit(cxp, cyp, cw, CHIP_H, List.of(c, Component.translatable("slate_building.toolbox.screen.creative.tip").withStyle(ChatFormatting.GRAY))));
+        } else {
+            final Component tally = Component.literal(countUnlocked(caps) + "/" + countAll());
+            g.drawString(font, tally, sx + SIDE_W - SIDE_PAD - 2 - font.width(tally), topPos + 6, look.muted(), false);
+        }
         hits.add(new Hit(x, topPos + 4, w, 12, List.of(Component.translatable("slate_building.toolbox.screen.unlocks.tip"))));
 
         followFocus(now, bottom - top, caps);
@@ -580,15 +596,6 @@ public class ToolboxScreen extends AbstractContainerScreen<ToolboxMenu> {
                 stat(g, look, x + STAT_COL, y0 + 20, "wear", Component.literal("½"), true, UpgradeType.EFFICIENCY, caps);
             }
         }
-        if (minecraft.player != null && minecraft.player.isCreative() && BuildingServerSettings.effective(minecraft.player).ops().creativeBypass) {
-            // Creative players are not limited by the toolbox at all; say so under the panel.
-            final Component c = Component.translatable("slate_building.toolbox.screen.creative");
-            final int cw = font.width(c) + 8;
-            final int cxp = sx + SIDE_W - cw, cyp = topPos + imageHeight + 4;
-            if (look.vanilla()) g.fill(cxp, cyp, cxp + cw, cyp + CHIP_H, 0xC0000000);
-            else SlateDraw.pixelRound(g, cxp, cyp, cw, CHIP_H, look.accent(), Math.min(2, Theme.current().radius()));
-            g.drawString(font, c, cxp + 4, cyp + 2, look.vanilla() ? 0xFFFFFFFF : Colors.readableOn(look.accent()), false);
-        }
     }
 
     private void stat(final GuiGraphics g, final Look look, final int x, final int y, final String id, final Component value, final boolean boosted,
@@ -728,6 +735,12 @@ public class ToolboxScreen extends AbstractContainerScreen<ToolboxMenu> {
         final List<ItemStack> items = new ArrayList<>(ToolboxContents.SIZE);
         for (int i = 0; i < ToolboxContents.SIZE; i++) items.add(menu.toolbox().getItem(i));
         return ToolboxAccess.Capabilities.of(items);
+    }
+
+    /** Creative players skip the toolbox entirely (server rule {@code ops.creativeBypass}). */
+    private boolean creativeBypass() {
+        return minecraft != null && minecraft.player != null && minecraft.player.isCreative()
+            && BuildingServerSettings.effective(minecraft.player).ops().creativeBypass;
     }
 
     private int pouchUsed() {
