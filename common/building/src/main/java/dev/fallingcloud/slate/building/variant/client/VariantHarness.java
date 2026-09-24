@@ -624,6 +624,11 @@ final class VariantHarness {
             rebuildTabs(mc);
             check("deleteNativeVariants: oak_stairs hidden from Building Blocks", !tabHas(CreativeModeTabs.BUILDING_BLOCKS, Items.OAK_STAIRS), "still listed");
             check("deleteNativeVariants: oak_stairs hidden from search", !searchHas(Items.OAK_STAIRS), "still searchable");
+            // The Slate Building tab's showcase keeps a stairs entry: our shape item in oak planks stands in for it.
+            final CreativeModeTab ours = dev.fallingcloud.slate.building.registry.BuildingTabs.BUILDING.get();
+            check("deleteNativeVariants: the Slate Building tab lists Oak Planks Stairs (ours) in place of oak_stairs",
+                ours.getDisplayItems().stream().anyMatch(st -> st.is(BuildingItems.forShape(Shape.STAIRS).get()) && ShapeBlockItem.material(st) == Blocks.OAK_PLANKS),
+                "no stand-in");
         } finally {
             rules.deleteNativeVariants = previous;
             rebuildTabs(mc);

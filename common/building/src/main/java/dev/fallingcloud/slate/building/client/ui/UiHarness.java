@@ -154,6 +154,7 @@ final class UiHarness {
             // Survival reach is 4.5 blocks: pick a stair right in front of the player. First person: a third-person or
             // Shoulder Surfing camera (the DF pack default) aims the crosshair from elsewhere.
             .run(UiHarness::firstPerson)
+            .command("fill -3 -60 1 3 -56 4 minecraft:air")      // an earlier scenario (selection) may have built here
             .command("setblock 0 -60 3 minecraft:stone_brick_stairs")
             .command("tp @s 0.5 -60 0.5 0 30")
             // The in-world reshape wheel needs the toolbox or a building tool in hand: an empty hand leaves Alt to
@@ -169,8 +170,15 @@ final class UiHarness {
             .command("item replace entity @s hotbar.3 with minecraft:air")
             .run(() -> Minecraft.getInstance().player.getInventory().selected = 0).wait(3)
             .command("gamemode survival").wait(10)
-            .run(() -> BuildInput.firePickBlock())
-            .run(() -> check("pick block selects the stone bricks slot", Minecraft.getInstance().player.getInventory().selected == 1))
+            .run(() -> {
+                final Minecraft mc = Minecraft.getInstance();
+                final boolean consumed = BuildInput.firePickBlock();
+                final boolean ok = mc.player.getInventory().selected == 1;
+                if (!ok) dev.fallingcloud.slate.building.SlateBuilding.LOGGER.warn("[BuildingHarness] pick block: consumed={} selected={} hit={} screen={} creative={} camera={}", consumed,
+                    mc.player.getInventory().selected, mc.hitResult instanceof net.minecraft.world.phys.BlockHitResult b ? b.getBlockPos() + " " + mc.level.getBlockState(b.getBlockPos()) : String.valueOf(mc.hitResult),
+                    mc.screen, mc.player.getAbilities().instabuild, mc.options.getCameraType());
+                check("pick block selects the stone bricks slot", ok);
+            })
             .command("gamemode creative")
             .command("setblock 0 -60 3 minecraft:air")
             .command("tp @s 0.5 -60 0.5 0 12");
