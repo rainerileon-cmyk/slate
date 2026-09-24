@@ -51,10 +51,6 @@ final class ModeRows implements SlateList.RowRenderer<BuildMode> {
         this.onClick = onClick;
     }
 
-    void replayEntrance() {
-        openedAt = Clock.nowMs();
-    }
-
     void skipEntrance() {
         openedAt = 0;
     }
@@ -202,6 +198,7 @@ final class ModeRows implements SlateList.RowRenderer<BuildMode> {
         }
         final Component lock = locks.get(m.id());
         if (lock != null) lines.add(lock.copy().withStyle(net.minecraft.ChatFormatting.GOLD));
+        else lines.add(Component.translatable("slate_building.ui.menu.row_hint").withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
         return lines;
     }
 }

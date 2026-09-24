@@ -7,6 +7,7 @@ import dev.fallingcloud.slate.building.client.menu.MenuKeys;
 import dev.fallingcloud.slate.building.client.menu.WheelEditorScreen;
 import dev.fallingcloud.slate.building.client.settings.BuildingSettingsScreen;
 import dev.fallingcloud.slate.building.client.wheel.PickBlockSwap;
+import dev.fallingcloud.slate.building.client.wheel.WheelConfig;
 import dev.fallingcloud.slate.building.client.wheel.WheelOverlay;
 import dev.fallingcloud.slate.core.client.CoreActions;
 import dev.fallingcloud.slate.core.platform.SlatePlatform;
@@ -29,6 +30,8 @@ public final class BuildingUi {
     public static synchronized void init() {
         if (initialised) return;
         initialised = true;
+        WheelConfig.init();
+        dev.fallingcloud.slate.building.client.settings.BuildingSettings.init();
         WheelOverlay.init();
         PickBlockSwap.init();
         ModeHud.init();

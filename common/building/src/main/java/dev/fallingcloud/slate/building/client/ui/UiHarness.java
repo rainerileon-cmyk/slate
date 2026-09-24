@@ -16,6 +16,8 @@ import dev.fallingcloud.slate.building.variant.Shape;
 import dev.fallingcloud.slate.building.variant.Variant;
 import java.util.List;
 import java.util.Optional;
+import com.mojang.blaze3d.platform.InputConstants;
+import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -32,7 +34,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import org.lwjgl.glfw.GLFW;
 
 /**
- * Dev-harness scenarios of the UI ({@code -PbuildingHarness=wheel,menu}): both skins of the swap wheel (every page,
+ * Dev-harness scenarios of the UI ({@code -PbuildingHarness=wheel,menu,input}): both skins of the swap wheel (every page,
  * hovered slices, the in-world reshape wheel) and of the build menu, the wheel editor, the standalone settings and
  * the mode HUD. Until every area is merged, a {@link WheelSources} layer answers what the variant registry and the
  * chisel index do not know yet (vanilla oak / stone-brick variants, a sample chisel group); the live registries
@@ -43,6 +45,7 @@ final class UiHarness {
     static void init() {
         BuildingHarness.register("wheel", UiHarness::wheel);
         BuildingHarness.register("menu", UiHarness::menu);
+        BuildingHarness.register("input", UiHarness::input);
     }
 
     // ------------------------------------------------------------------ scenes
@@ -95,10 +98,64 @@ final class UiHarness {
         s.skin("DARK").run(() -> WheelSources.layer(null));
     }
 
+    /**
+     * The real input path, end to end: Alt through {@code KeyMapping.set} (so {@code ExclusiveKeys} claims it), mouse
+     * movement and scrolling through {@code BuildInput}, the release applying a slice; the build-menu key through a
+     * key click and {@code MenuKeys}; survival pick-block on a variant. Each step logs what it saw.
+     */
+    private static void input(final BuildingHarness.Script s) {
+        final InputConstants.Key alt = InputConstants.getKey("key.keyboard.left.alt");
+        final InputConstants.Key r = InputConstants.getKey("key.keyboard.r");
+        scene(s);
+        s.run(() -> KeyMapping.set(alt, true)).wait(10)
+            .run(() -> check("alt opens the wheel", WheelOverlay.INSTANCE.isOpen()))
+            .run(() -> check("alt is claimed", dev.fallingcloud.slate.building.client.input.ExclusiveKeys.isHeldExclusively(
+                dev.fallingcloud.slate.building.client.input.BuildKeys.SWAP)))
+            .run(() -> dev.fallingcloud.slate.building.client.input.BuildInput.fireMouseLook(170, 10)).wait(12)
+            .screenshot("input-wheel-look")
+            .run(() -> dev.fallingcloud.slate.building.client.input.BuildInput.fireScroll(0, -1)).wait(12)
+            .screenshot("input-wheel-scroll")
+            .run(() -> check("scroll stays in the hotbar slot", Minecraft.getInstance().player.getInventory().selected == 0))
+            .run(() -> KeyMapping.set(alt, false)).wait(10)
+            .run(() -> check("release closes the wheel", !WheelOverlay.INSTANCE.isOpen()))
+            .wait(20)
+            .run(() -> KeyMapping.click(r)).wait(10)
+            .run(() -> check("R opens the build menu", Minecraft.getInstance().screen instanceof BuildMenuScreen)).wait(20)
+            .run(() -> {
+                final var screen = Minecraft.getInstance().screen;
+                if (screen != null) screen.keyPressed(GLFW.GLFW_KEY_R, GLFW.glfwGetKeyScancode(GLFW.GLFW_KEY_R), 0);
+            }).wait(3)
+            .run(() -> check("R closes the build menu", Minecraft.getInstance().screen == null))
+            // Survival reach is 4.5 blocks: pick a stair right in front of the player.
+            .command("setblock 0 -60 3 minecraft:stone_brick_stairs")
+            .command("tp @s 0.5 -60 0.5 0 30")
+            .command("gamemode survival").wait(10)
+            .run(() -> dev.fallingcloud.slate.building.client.input.BuildInput.firePickBlock())
+            .run(() -> check("pick block selects the stone bricks slot", Minecraft.getInstance().player.getInventory().selected == 1))
+            .command("gamemode creative")
+            .command("setblock 0 -60 3 minecraft:air")
+            .command("tp @s 0.5 -60 0.5 0 12")
+            .run(() -> WheelSources.layer(null));
+    }
+
+    private static void check(final String what, final boolean ok) {
+        dev.fallingcloud.slate.building.SlateBuilding.LOGGER.info("[BuildingHarness] {} {}", ok ? "PASS" : "FAIL", what);
+    }
+
     /** Moves the (free) mouse to the bottom-left corner so no hover state or tooltip lands in a shot. */
     private static void parkMouse() {
         final Minecraft mc = Minecraft.getInstance();
-        GLFW.glfwSetCursorPos(mc.getWindow().getWindow(), 3, mc.getWindow().getScreenHeight() - 3);
+        final long window = mc.getWindow().getWindow();
+        final double x = 3, y = mc.getWindow().getScreenHeight() - 3;
+        GLFW.glfwSetCursorPos(window, x, y);
+        // GLFW does not report programmatic moves; feed the handler directly (dev harness only, names are mojmap in dev).
+        try {
+            final java.lang.reflect.Method onMove = net.minecraft.client.MouseHandler.class.getDeclaredMethod("onMove", long.class, double.class, double.class);
+            onMove.setAccessible(true);
+            onMove.invoke(mc.mouseHandler, window, x, y);
+        } catch (final ReflectiveOperationException | RuntimeException e) {
+            dev.fallingcloud.slate.building.SlateBuilding.LOGGER.warn("[BuildingHarness] could not park the mouse: {}", e.toString());
+        }
     }
 
     /** Window size (pixels) and GUI scale (0 = auto) for layout checks. */
@@ -123,6 +180,11 @@ final class UiHarness {
                 .screenshot("menu-" + k)
                 .run(() -> { if (Minecraft.getInstance().screen instanceof BuildMenuScreen m) m.debugSelect("paste"); }).wait(25)
                 .screenshot("menu-" + k + "-options")
+                .run(() -> { if (Minecraft.getInstance().screen instanceof BuildMenuScreen m) m.debugSelect("stack"); }).wait(25)
+                .screenshot("menu-" + k + "-stack")
+                .run(() -> { if (Minecraft.getInstance().screen instanceof BuildMenuScreen m) m.debugSearch("slab"); }).wait(25)
+                .screenshot("menu-" + k + "-search")
+                .run(() -> { if (Minecraft.getInstance().screen instanceof BuildMenuScreen m) m.debugSearch(""); })
                 .run(() -> Minecraft.getInstance().setScreen(new WheelEditorScreen(Minecraft.getInstance().screen))).run(UiHarness::parkMouse).wait(40)
                 .screenshot("editor-" + k)
                 .run(() -> Minecraft.getInstance().setScreen(new BuildingSettingsScreen(null))).run(UiHarness::parkMouse).wait(40)
@@ -134,7 +196,7 @@ final class UiHarness {
                 .run(() -> Minecraft.getInstance().setScreen(null))
                 .command("gamemode creative").wait(10)
                 // A bigger GUI: both wheels stacked in the left column.
-                .run(() -> window(1280, 720, 2)).wait(10)
+                .run(() -> window(1600, 900, 2)).wait(10)
                 .run(() -> Minecraft.getInstance().setScreen(new BuildMenuScreen(null))).run(UiHarness::parkMouse).wait(45)
                 .screenshot("menu-" + k + "-large")
                 .run(() -> Minecraft.getInstance().setScreen(new WheelEditorScreen(null))).run(UiHarness::parkMouse).wait(40)

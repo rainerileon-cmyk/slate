@@ -69,9 +69,27 @@ public final class WheelConfig {
         return out;
     }
 
-    /** Saves {@code building.json} and tells listeners (open wheels rebuild their pages). */
+    private static volatile boolean dirty;
+    private static boolean initialised;
+
+    /** Saves pending edits once per client tick (sliders change values every frame while dragged). */
+    public static synchronized void init() {
+        if (initialised) return;
+        initialised = true;
+        dev.fallingcloud.slate.core.event.SlateEvents.CLIENT_TICK_END.register(() -> {
+            if (!dirty) return;
+            dirty = false;
+            SlateBuilding.configFile().save();
+        });
+    }
+
+    /** Marks {@code building.json} for saving (at the end of this tick) and tells listeners (open wheels rebuild). */
     public static void saveAndNotify() {
-        SlateBuilding.configFile().save();
+        dirty = true;
+        if (!initialised) {
+            dirty = false;
+            SlateBuilding.configFile().save();
+        }
         changed();
     }
 

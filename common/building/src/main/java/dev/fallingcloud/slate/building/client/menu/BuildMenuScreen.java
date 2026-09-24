@@ -1,7 +1,6 @@
 package dev.fallingcloud.slate.building.client.menu;
 
 import com.mojang.blaze3d.platform.InputConstants;
-import dev.fallingcloud.slate.building.client.BuildingClient;
 import dev.fallingcloud.slate.building.client.input.BuildKeys;
 import dev.fallingcloud.slate.building.client.mode.ClientModeState;
 import dev.fallingcloud.slate.building.client.wheel.WheelActions;
@@ -74,6 +73,7 @@ public final class BuildMenuScreen extends SlateScreen {
     private Rect shapesTitle = new Rect(0, 0, 0, 0), chiselTitle = new Rect(0, 0, 0, 0);
     private Rect header = new Rect(0, 0, 0, 0), optionsRect = new Rect(0, 0, 0, 0);
     private int headerTitleRight;
+    private int headerActionsRight;
     private boolean menuKeyArmed;
     private int undoShown = -1, redoShown = -1;
 
@@ -111,7 +111,8 @@ public final class BuildMenuScreen extends SlateScreen {
         final WheelPanel cp = chisel != null ? chisel : new WheelPanel(WheelPanel.Kind.CHISEL, lastChiselQuery, lastChiselPage);
         shapes = sp;
         chisel = cp;
-        final int sectionMin = SECTION_TITLE_H + WheelPanel.SEARCH_H + WheelPanel.GAP + 96 + WheelPanel.GAP + WheelPanel.PAGE_ROW_H;
+        // Stack both wheels only when each still gets a comfortable size; otherwise one wheel, two tabs.
+        final int sectionMin = SECTION_TITLE_H + WheelPanel.SEARCH_H + WheelPanel.GAP + 128 + WheelPanel.GAP + WheelPanel.PAGE_ROW_H;
         stacked = in.h() >= sectionMin * 2 + 10;
         tabs = null;
         if (stacked) {
@@ -162,26 +163,19 @@ public final class BuildMenuScreen extends SlateScreen {
         final SlateIconButton wheels = new SlateIconButton(x - 16, by, 16, Icon.SETTINGS, Component.translatable("slate_building.ui.menu.edit_wheels"),
             () -> minecraft.setScreen(new WheelEditorScreen(this)));
         add(wheels);
-        x -= 16 + 6;
+        headerActionsRight = x - 16 - 6;
         final SlateButton rb = new SlateButton(0, by, 30, SlateButton.HEIGHT_SMALL, Component.literal("0"), this::redo);
         rb.icon(Icon.REDO).iconSize(8);
         final SlateButton ub = new SlateButton(0, by, 30, SlateButton.HEIGHT_SMALL, Component.literal("0"), this::undo);
         ub.icon(Icon.UNDO).iconSize(8);
         redo = rb;
         undo = ub;
+        toolbox = new ToolboxChip(0, in.y() + (HEADER_H - ToolboxChip.H) / 2);
         undoShown = redoShown = -1;
         updateHistory();
-        rb.setX(x - rb.getWidth());
-        x -= rb.getWidth() + 2;
-        ub.setX(x - ub.getWidth());
-        x -= ub.getWidth() + 6;
+        add(toolbox);
         add(ub);
         add(rb);
-        final ToolboxChip tc = new ToolboxChip(0, in.y() + (HEADER_H - ToolboxChip.H) / 2);
-        tc.setX(x - tc.getWidth());
-        toolbox = tc;
-        add(tc);
-        headerTitleRight = tc.getX() - 6;
 
         // Options panel height: the tallest mode at this width, so the table never jumps while browsing.
         int optH = 0;
@@ -194,7 +188,7 @@ public final class BuildMenuScreen extends SlateScreen {
         final SlateList<BuildMode> list = new SlateList<>(in.x(), tableTop, in.w(), tableH, ModeRows.ROW_H, rows);
         list.plainRows().gap(1).items(BuildModes.all());
         list.onSelect(this::showOptions);
-        list.onActivate(m -> activate(m, false));
+        list.onActivate(this::activate);
         table = list;
         add(list);
         BuildMode sel = BuildModes.byId(lastSelected);
@@ -225,10 +219,10 @@ public final class BuildMenuScreen extends SlateScreen {
 
     private void rowClicked(final BuildMode m, final int button) {
         if (table != null) table.select(m);
-        activate(m, true);
+        activate(m);
     }
 
-    private void activate(final BuildMode m, final boolean mouse) {
+    private void activate(final BuildMode m) {
         if (rows.lock(m) != null) {
             rows.shake(m);
             WheelActions.deny();
@@ -273,15 +267,23 @@ public final class BuildMenuScreen extends SlateScreen {
             r.tip(List.of(Component.translatable("slate_building.ui.menu.redo"),
                 Component.translatable("slate_building.ui.menu.steps", rc).withStyle(ChatFormatting.DARK_GRAY)));
         }
-        final int uw = u.preferredWidth(), rw = r.preferredWidth();
-        if (u.getWidth() != uw || r.getWidth() != rw) {
-            final int rr = r.getX() + r.getWidth();
-            r.setWidth(rw);
-            r.setX(rr - rw);
-            final int ur = r.getX() - 2;
-            u.setWidth(uw);
-            u.setX(ur - uw);
-        }
+        layoutHeader();
+    }
+
+    /** Right-to-left: redo, undo, toolbox chip; the title gets what is left. Re-run when a width changes. */
+    private void layoutHeader() {
+        final SlateButton u = undo, r = redo;
+        final ToolboxChip tc = toolbox;
+        if (u == null || r == null || tc == null) return;
+        int x = headerActionsRight;
+        r.setWidth(r.preferredWidth());
+        r.setX(x - r.getWidth());
+        x -= r.getWidth() + 2;
+        u.setWidth(u.preferredWidth());
+        u.setX(x - u.getWidth());
+        x -= u.getWidth() + 6;
+        tc.setX(x - tc.getWidth());
+        headerTitleRight = tc.getX() - 6;
     }
 
     // ------------------------------------------------------------------ lifecycle
@@ -296,10 +298,7 @@ public final class BuildMenuScreen extends SlateScreen {
         if (toolbox != null) {
             final int before = toolbox.getWidth();
             toolbox.refresh();
-            if (toolbox.getWidth() != before) {
-                toolbox.setX(toolbox.getX() + before - toolbox.getWidth());
-                headerTitleRight = toolbox.getX() - 6;
-            }
+            if (toolbox.getWidth() != before) layoutHeader();
         }
     }
 
@@ -462,18 +461,16 @@ public final class BuildMenuScreen extends SlateScreen {
 
     // ------------------------------------------------------------------ dev harness
 
-    /** Dev harness: the shape wheel panel (null before init). */
-    @Nullable WheelPanel shapesPanel() { return shapes; }
-
     /** Dev harness: selects (options only) a mode in the table. */
     public void debugSelect(final String modeId) {
         final BuildMode m = BuildModes.byId(modeId);
         if (m != null && table != null) table.select(m);
     }
 
-    /** The id this screen is registered under. */
-    public static String id() {
-        return BuildingClient.BUILD_MENU_SCREEN;
+    /** Dev harness: types {@code text} into the visible shape (or chisel) search field. */
+    public void debugSearch(final String text) {
+        final WheelPanel p = shapes != null && shapes.isVisible() ? shapes : chisel;
+        if (p != null) p.search().setValue(text);
     }
 
     /** Whether the wheel settings changed while the menu was open (editor returned): rebuild the wheels. */

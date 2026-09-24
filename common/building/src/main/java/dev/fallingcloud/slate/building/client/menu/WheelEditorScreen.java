@@ -58,6 +58,7 @@ public final class WheelEditorScreen extends SlateScreen {
 
     public WheelEditorScreen(final @Nullable Screen parent) {
         super(Component.translatable("slate_building.ui.editor.title"), parent);
+        this.maxContentWidth = 620;
     }
 
     private static WheelSettings ws() {
@@ -80,7 +81,9 @@ public final class WheelEditorScreen extends SlateScreen {
 
     @Override
     protected void build() {
-        final Rect c = contentRect();
+        // Keep the editor compact on big screens: lists, buttons and the palette stay close together.
+        Rect c = contentRect();
+        if (c.h() > 330) c = c.withH(330);
         final int w1 = Math.max(110, Math.round((c.w() - COL_GAP * 2) * 0.30f));
         final int w2 = Math.max(110, Math.round((c.w() - COL_GAP * 2) * 0.30f));
         col1 = new Rect(c.x(), c.y(), w1, c.h());
@@ -161,8 +164,10 @@ public final class WheelEditorScreen extends SlateScreen {
         final List<Shape> all = new ArrayList<>();
         for (final Shape s : Shape.values()) if (s != Shape.FULL) all.add(s);
         final int size = 18, gap = 2;
-        final int perRow = Math.max(1, (r.w() + gap) / (size + gap));
-        final int rowsN = (all.size() + perRow - 1) / perRow;
+        // Balanced rows (7 + 6, not 12 + 1).
+        final int maxPerRow = Math.max(1, (r.w() + gap) / (size + gap));
+        final int rowsN = (all.size() + maxPerRow - 1) / maxPerRow;
+        final int perRow = (all.size() + rowsN - 1) / rowsN;
         final int gridH = rowsN * (size + gap) - gap;
         final int gridTop = r.bottom() - gridH;
         paletteTitle = new Rect(r.x(), gridTop - TITLE_H, r.w(), TITLE_H);
@@ -175,7 +180,7 @@ public final class WheelEditorScreen extends SlateScreen {
         }
         final int pTop = r.y() + TITLE_H;
         final int pH = paletteTitle.y() - 6 - pTop;
-        final int side = Math.max(48, Math.min(r.w(), pH));
+        final int side = Math.max(48, Math.min(Math.min(r.w(), pH), 200));
         previewRect = new Rect(r.x() + (r.w() - side) / 2, pTop + Math.max(0, (pH - side) / 2), side, side);
         final WheelWidget wp = new WheelWidget(previewRect.x(), previewRect.y(), side, side).interactive(false);
         wp.active = false;

@@ -158,10 +158,31 @@ public final class BuildingSettings {
         return filled(SlateBuilding.serverConfig());
     }
 
-    /** Saves {@code building-server.json}, rebuilds what depends on it and pushes it to LAN guests. */
+    private static volatile boolean serverDirty;
+    private static volatile boolean variantsDirty;
+    private static boolean initialised;
+
+    /** Flushes server-rule edits once per client tick (sliders change every frame while dragged). */
+    public static synchronized void init() {
+        if (initialised) return;
+        initialised = true;
+        dev.fallingcloud.slate.core.event.SlateEvents.CLIENT_TICK_END.register(BuildingSettings::flushServer);
+    }
+
+    /** Marks {@code building-server.json} for saving; {@code variants}: the variant registry must rebuild too. */
     private static void saveServer(final boolean variants) {
+        serverDirty = true;
+        variantsDirty |= variants;
+        if (!initialised) flushServer();
+    }
+
+    /** Saves {@code building-server.json}, rebuilds what depends on it and pushes it to LAN guests. */
+    private static void flushServer() {
+        if (!serverDirty) return;
+        serverDirty = false;
         SlateBuilding.serverConfigFile().save();
-        if (variants) VariantRegistry.invalidate();
+        if (variantsDirty) VariantRegistry.invalidate();
+        variantsDirty = false;
         final IntegratedServer server = Minecraft.getInstance().getSingleplayerServer();
         if (server != null) server.execute(() -> BuildingServerSettings.broadcast(server));
     }

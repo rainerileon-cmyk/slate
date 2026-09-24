@@ -116,7 +116,8 @@ final class WheelPanel {
         wheel.setY(wheelRect.y());
         wheel.setWidth(wheelRect.w());
         wheel.setHeight(wheelRect.h());
-        pageRow = new Rect(r.x(), r.bottom() - PAGE_ROW_H, r.w(), PAGE_ROW_H);
+        final int rowW = Math.min(r.w(), Math.max(side, 120));
+        pageRow = new Rect(r.x() + (r.w() - rowW) / 2, r.bottom() - PAGE_ROW_H, rowW, PAGE_ROW_H);
         prev.setX(pageRow.x());
         prev.setY(pageRow.y() + 1);
         next.setX(pageRow.right() - 14);
@@ -307,10 +308,5 @@ final class WheelPanel {
                 y += 10;
             }
         }
-    }
-
-    /** Dev harness: hover a slice as if the mouse were on it. */
-    int[] slicePos(final int index) {
-        return wheel.wheel().itemPos(index);
     }
 }

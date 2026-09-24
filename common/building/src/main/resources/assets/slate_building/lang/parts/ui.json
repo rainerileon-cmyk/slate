@@ -70,6 +70,7 @@
   "slate_building.ui.menu.how.toggle": "Stays on while you build normally",
   "slate_building.ui.menu.how.measure": "Right-click two points; nothing is changed",
   "slate_building.ui.menu.no_options": "Nothing to set for this mode",
+  "slate_building.ui.menu.row_hint": "Click: use · Shift+click: keep the menu open · Right-click: options",
   "slate_building.ui.menu.toolbox": "Builder's Toolbox",
   "slate_building.ui.menu.toolbox_creative": "Creative: every tool at its best tier",
   "slate_building.ui.menu.toolbox_none": "No building tools yet",
