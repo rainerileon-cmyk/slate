@@ -26,7 +26,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Dev harness scenarios for the building-mode client (run with {@code -PbuildingHarness=selection,mirror,paste}).
+ * Dev harness scenarios for the building-mode client (run with {@code -PbuildingHarness=selection,mirror,paste}; {@code dimension} separately).
  * Each one drives the real state machine (clicks go through {@link ModeController}, left-click through
  * {@link BuildInput}), logs {@code [BuildingHarness] CHECK ok|FAILED ...} lines for the state it expects, and takes
  * screenshots of the preview in both skins. Without the ops server's planners the plans are errors ("not available
@@ -41,6 +41,7 @@ final class ModeHarness {
         BuildingHarness.register("selection", ModeHarness::selection);
         BuildingHarness.register("mirror", ModeHarness::mirror);
         BuildingHarness.register("paste", ModeHarness::paste);
+        BuildingHarness.register("dimension", ModeHarness::dimension);
     }
 
     /** Fill: corner A, box following the crosshair, corner B, preview, resize, apply; then cancel, walls, measure. */
@@ -121,7 +122,7 @@ final class ModeHarness {
             .run(() -> check(ClientModeState.hints().isEmpty(), "no hints without a mode"));
     }
 
-    /** Mirror (plane through the targeted block, axis change, a mirrored placement), radial, dimension change. */
+    /** Mirror (plane through the targeted block, axis change, a mirrored placement) and radial. */
     private static void mirror(final BuildingHarness.Script s) {
         stage(s);
         final BlockPos centre = new BlockPos(0, -61, 4);
@@ -154,14 +155,29 @@ final class ModeHarness {
             .wait(30)
             .screenshot("mirror-radial")
             .skin("VANILLA").wait(15).screenshot("mirror-radial-vanilla").skin("DARK")
-            .log("mirror: a dimension change ends the mode")
-            .command("execute in minecraft:the_nether run tp @s 0 100 0")
-            .waitUntil(() -> dimension() == Level.NETHER, 600)
+            .run(ClientModeState::deactivate)
+            .run(() -> check(!ClientModeState.isActive() && ClientModeState.anchors().isEmpty(), "radial turns off"));
+    }
+
+    /**
+     * A dimension change ends the active mode. Separate from {@link #mirror} because a quick nether round trip can
+     * leave nether chunks generating when the harness quits, and vanilla's shutdown then waits for them (seen as a
+     * long "Saving worlds"); the generous waits here let them settle first.
+     */
+    private static void dimension(final BuildingHarness.Script s) {
+        stage(s);
+        s.log("dimension: a dimension change ends the mode")
+            .run(() -> check(ClientModeState.activate(BuildModes.RADIAL), "radial activates"))
+            .command("execute in minecraft:the_nether run tp @s 0.5 110 0.5")
+            .waitUntil(() -> dimension() == Level.NETHER && Minecraft.getInstance().levelRenderer.hasRenderedAllSections(), 900)
             .wait(40)
             .run(() -> check(!ClientModeState.isActive(), "leaving the dimension turns the mode off"))
-            .command("execute in minecraft:overworld run tp @s 0.5 -60 -5.5 0 25")
-            .waitUntil(() -> dimension() == Level.OVERWORLD, 600)
-            .wait(20);
+            .run(() -> check(ClientModeState.notice() != null && ClientModeState.notice().text().getContents() instanceof net.minecraft.network.chat.contents.TranslatableContents tc
+                && "slate_building.notice.left_dimension".equals(tc.getKey()), "the player is told why"))
+            .wait(160)
+            .command("execute in minecraft:overworld run tp @s 0.5 -57 -5.5 0 30")
+            .waitUntil(() -> dimension() == Level.OVERWORLD && Minecraft.getInstance().levelRenderer.hasRenderedAllSections(), 900)
+            .wait(200);
     }
 
     /** Paste with a synthetic clipboard (structure-template format): hover footprint, fixed preview, rotation. */
