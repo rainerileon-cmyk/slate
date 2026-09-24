@@ -1,0 +1,13 @@
+{
+  "slate_building.variant_name": "%1$s %2$s",
+  "slate_building.variant.no_material": "No material: swap a block into this shape to use it",
+  "slate_building.variant.unknown_material": "Unknown material (%s)",
+  "slate_building.variant.not_a_variant": "This item has no other shapes",
+  "slate_building.variant.unavailable": "%1$s has no %2$s shape",
+  "slate_building.variant.needs_hammer": "Needs a Hammer in your toolbox",
+  "slate_building.variant.missing_material": "Needs %1$s more %2$s",
+  "slate_building.variant.protected": "You can't change blocks here",
+  "slate_building.variant.does_not_fit": "That shape doesn't fit here",
+  "slate_building.variant.drops_differ": "%s doesn't drop itself, so it can't be reshaped in place",
+  "slate_building.variant.not_material": "%s can't be used as a material here"
+}

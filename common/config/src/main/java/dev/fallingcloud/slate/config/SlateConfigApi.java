@@ -8,10 +8,14 @@ import net.minecraft.client.gui.screens.Screen;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * What other modules call. {@link #openHub} opens the unified settings screen (optionally on a page:
- * {@code video, audio, controls, chat, interface, multiplayer, accessibility, language, packs, mods,
- * favourites, presets} or a curated page id). Slate modules whose JSON config is edited from the hub
- * register a reload hook so their changes apply live instead of showing a restart badge.
+ * What other modules call. {@link #openHub} opens the unified settings screen, optionally on a page given
+ * as a path: a sidebar id ({@code video, audio, controls, gameplay, interface, multiplayer, customization,
+ * language_accessibility, favourites, presets}, or a curated page id), {@code category/tab} for a tab of a
+ * category ({@code multiplayer/chat}, {@code customization/shaders}, {@code gameplay/building}...), or
+ * {@code page/tab} for a top tab of a page ({@code controls/keys}). The ids from before the categories
+ * ({@code chat, online, packs, mods, shaders, language, accessibility}) still work as aliases. Modules add
+ * tabs through {@link dev.fallingcloud.slate.config.api.SettingsTabs}. Slate modules whose JSON config is
+ * edited from the hub register a reload hook so their changes apply live instead of showing a restart badge.
  */
 public final class SlateConfigApi {
 

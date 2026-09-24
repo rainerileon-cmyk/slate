@@ -1,0 +1,42 @@
+base { archivesName = 'slate-building-fabric-1.21.1' }
+
+loom {
+    mods { slate_building { sourceSet sourceSets.main } }
+}
+
+dependencies {
+    implementation project(path: ':core', configuration: 'namedElements')
+    // Slate Config is a SOFT dependency (the "Building" settings tab): compileOnly, and every use sits in a class
+    // that is only loaded after SlatePlatform.isModLoaded("slate_config").
+    compileOnly project(path: ':config', configuration: 'namedElements')
+    // JEI is optional (hide deleted native variants). The common API jar is in official (Mojang) names, which is
+    // what this build compiles against, so it needs no remapping.
+    compileOnly "mezz.jei:jei-1.21.1-common-api:19.44.0.403"
+}
+
+// Translations are written by several agents into assets/slate_building/lang/parts/<agent>.json (so they never edit
+// the same file). They are merged here into the one en_us.json Minecraft reads: files in name order, later keys
+// win, UTF-8 in and out. The parts folder itself stays out of the jar. Keep in sync with ../neoforge/building.
+def langParts = file("${rootDir}/../common/building/src/main/resources/assets/slate_building/lang/parts")
+def mergedLang = layout.buildDirectory.dir('generated/slate_building_lang')
+def mergeLangParts = tasks.register('mergeLangParts') {
+    inputs.files(fileTree(langParts) { include '*.json' }).withPropertyName('langParts')
+    outputs.dir(mergedLang).withPropertyName('mergedLang')
+    def partsDir = langParts
+    def outDir = mergedLang
+    doLast {
+        def merged = new LinkedHashMap<String, Object>()
+        def parts = (partsDir.listFiles() ?: new File[0]).findAll { it.isFile() && it.name.endsWith('.json') }.sort { it.name }
+        parts.each { f -> merged.putAll(new groovy.json.JsonSlurper().parse(f, 'UTF-8') as Map) }
+        def gen = new groovy.json.JsonGenerator.Options().disableUnicodeEscaping().build()
+        def body = merged.collect { k, v -> "  ${gen.toJson(k)}: ${gen.toJson(v)}" }.join(',\n')
+        def out = outDir.get().file('en_us.json').asFile
+        out.parentFile.mkdirs()
+        out.setText("{\n${body}\n}\n", 'UTF-8')
+    }
+}
+
+processResources {
+    exclude 'assets/slate_building/lang/parts/**'
+    from(mergeLangParts) { into 'assets/slate_building/lang' }
+}

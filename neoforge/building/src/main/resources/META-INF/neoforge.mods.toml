@@ -1,0 +1,77 @@
+modLoader = "javafml"
+loaderVersion = "[1,)"
+license = "MIT"
+
+[[mods]]
+modId = "slate_building"
+version = "${version}"
+displayName = "Slate Building"
+authors = "falling_colud"
+logoFile = "assets/slate_building/icon.png"
+# Unlike the other Slate modules this one registers blocks and items, so client and server must both have it
+# (same version): a mismatch would desync the registries anyway.
+displayTest = "MATCH_VERSION"
+description = '''A polished, survival-friendly building toolkit on Slate: every block in every shape (stairs, slabs, vertical slabs, walls, steps, panels and more) with a quick-swap wheel, a placement ghost, a build menu with area modes (fill, walls, copy/paste, mirror, ...) and undo, and a toolbox whose tools unlock them.'''
+
+[[mixins]]
+config = "slate_building.mixins.json"
+
+[[mixins]]
+config = "slate_building.variant.mixins.json"
+
+[[mixins]]
+config = "slate_building.render.mixins.json"
+
+[[mixins]]
+config = "slate_building.ops.mixins.json"
+
+[[mixins]]
+config = "slate_building.ui.mixins.json"
+
+[[mixins]]
+config = "slate_building.toolbox.mixins.json"
+
+[[mixins]]
+config = "slate_building.chisel.mixins.json"
+
+[[dependencies.slate_building]]
+modId = "slate"
+type = "required"
+versionRange = "[1.0,)"
+ordering = "AFTER"
+side = "BOTH"
+
+[[dependencies.slate_building]]
+modId = "slate_config"
+type = "optional"
+versionRange = "[1.0,)"
+ordering = "AFTER"
+side = "CLIENT"
+
+[[dependencies.slate_building]]
+modId = "neoforge"
+type = "required"
+versionRange = "[21.1,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.slate_building]]
+modId = "minecraft"
+type = "required"
+versionRange = "[1.21.1,1.22)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.slate_building]]
+modId = "jei"
+type = "optional"
+versionRange = "[19,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.slate_building]]
+modId = "betterinventory"
+type = "optional"
+versionRange = "[1,)"
+ordering = "NONE"
+side = "BOTH"

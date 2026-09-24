@@ -1,0 +1,17 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "dev.fallingcloud.slate.building.mixin.core",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [],
+  "client": [
+    "BuildKeyboardHandlerMixin",
+    "BuildMinecraftMixin",
+    "BuildMouseHandlerMixin",
+    "KeyMappingAccessor",
+    "KeyMappingMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

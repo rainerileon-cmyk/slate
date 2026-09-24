@@ -1,0 +1,10 @@
+{
+  "type": "minecraft:smithing_transform",
+  "addition": { "tag": "c:ingots/netherite" },
+  "base": { "item": "slate_building:diamond_blueprint" },
+  "result": {
+    "count": 1,
+    "id": "slate_building:netherite_blueprint"
+  },
+  "template": { "item": "minecraft:netherite_upgrade_smithing_template" }
+}

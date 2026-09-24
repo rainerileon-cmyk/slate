@@ -1,0 +1,25 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "dev.fallingcloud.slate.building.mixin.variant",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "BlockItemInvoker",
+    "BlockPropertiesAccessor",
+    "BlockStateBaseMixin",
+    "CreativeModeTabMixin",
+    "CreativeModeTabsAccessor",
+    "EntityStepSoundMixin",
+    "ExplosionDamageCalculatorMixin",
+    "FenceBlockMixin",
+    "LivingEntityFrictionMixin",
+    "RecipeManagerMixin",
+    "StairBlockAccessor"
+  ],
+  "client": [
+    "MultiPlayerGameModeHitSoundMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

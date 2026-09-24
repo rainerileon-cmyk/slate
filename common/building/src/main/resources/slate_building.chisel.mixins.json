@@ -1,0 +1,13 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "dev.fallingcloud.slate.building.mixin.chisel",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "PlayerListReloadMixin"
+  ],
+  "client": [],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

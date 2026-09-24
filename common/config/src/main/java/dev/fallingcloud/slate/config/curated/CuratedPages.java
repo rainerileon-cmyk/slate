@@ -5,6 +5,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.stream.JsonReader;
+import dev.fallingcloud.slate.config.ConfigSettings;
 import dev.fallingcloud.slate.config.SlateConfig;
 import dev.fallingcloud.slate.config.file.TextFile;
 import dev.fallingcloud.slate.config.option.Binding;
@@ -14,11 +15,10 @@ import dev.fallingcloud.slate.config.option.OptionBinding;
 import dev.fallingcloud.slate.core.config.JsonConfig;
 import dev.fallingcloud.slate.core.gfx.Icon;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.StringReader;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -27,12 +27,13 @@ import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Curated pages from {@code config/slate/config/pages/*.json}:
- * <pre>{ "id": "df", "title": "DF pack", "icon": "SPARKLE", "sections": [ { "title": "Visuals", "description": "...",
+ * Curated pages from {@code config/slate/config/pages/*.json}, shown as extra sidebar entries after Presets
+ * (a modpack author ships a file per page):
+ * <pre>{ "id": "mypack", "title": "My pack", "icon": "SPARKLE", "sections": [ { "title": "Visuals", "description": "...",
  *   "options": [ { "path": "optionsTxt:renderDistance", "label": "...", "tooltip": "...", "min": 2, "max": 32, "step": 1,
  *                  "choices": ["A","B"], "restart": false } ] } ] }</pre>
  * Every {@code path} resolves through the option resolvers; label/tooltip/range/choices override what
- * the source provides. The shipped {@code df.json} is copied into the folder on first run.
+ * the source provides. Each section is a top tab of the page. Nothing ships in the folder.
  */
 public final class CuratedPages {
 
@@ -53,18 +54,39 @@ public final class CuratedPages {
         return JsonConfig.dir().resolve("config").resolve("pages");
     }
 
-    /** Create the folder and drop the shipped example in when it is missing. */
+    /**
+     * Create the folder for modpack authors' pages. Once per install, move aside the "DF pack" page earlier
+     * versions copied in ({@code df.json} with id {@code df}; renamed to {@code df.json.retired}, which the
+     * loader ignores), so the retired tab disappears without touching pages a pack author wrote.
+     */
     public static void bootstrap() {
         try {
             Files.createDirectories(dir());
-            final Path df = dir().resolve("df.json");
-            if (!Files.exists(df)) {
-                try (InputStream in = CuratedPages.class.getResourceAsStream("/slate_config/df.json")) {
-                    if (in != null) TextFile.writeAtomic(df, new String(in.readAllBytes(), StandardCharsets.UTF_8));
-                }
-            }
         } catch (final IOException e) {
             SlateConfig.LOGGER.warn("[Slate Config] cannot prepare the curated pages folder: {}", e.toString());
+        }
+        if (ConfigSettings.get().dfPageRetired) return;
+        final Path df = dir().resolve("df.json");
+        try {
+            if (Files.exists(df) && "df".equals(idOf(df))) {
+                Files.move(df, dir().resolve("df.json.retired"), StandardCopyOption.REPLACE_EXISTING);
+                SlateConfig.LOGGER.info("[Slate Config] retired the old DF pack settings page (pages/df.json -> df.json.retired)");
+            }
+        } catch (final IOException e) {
+            SlateConfig.LOGGER.warn("[Slate Config] cannot retire pages/df.json: {}", e.toString());
+        }
+        ConfigSettings.file().update(c -> c.dfPageRetired = true);
+    }
+
+    @Nullable
+    private static String idOf(final Path file) {
+        try {
+            final JsonReader r = new JsonReader(new StringReader(TextFile.read(file)));
+            r.setLenient(true);
+            final JsonElement root = JsonParser.parseReader(r);
+            return root != null && root.isJsonObject() ? str(root.getAsJsonObject(), "id", null) : null;
+        } catch (final Exception e) {
+            return null;
         }
     }
 

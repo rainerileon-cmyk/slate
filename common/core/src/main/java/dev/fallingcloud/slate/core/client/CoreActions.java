@@ -31,8 +31,12 @@ import net.minecraft.network.chat.Component;
  */
 public final class CoreActions {
 
-    /** screen id -> factory(parent). Modules register theirs; the editor lists the keys. */
-    public static final Map<String, Function<Screen, Screen>> SCREEN_FACTORIES = new java.util.LinkedHashMap<>();
+    /**
+     * screen id -> factory(parent). Modules register theirs; the editor lists the keys. Synchronized: NeoForge constructs
+     * mods in parallel and several Slate modules register from their constructors. Iterate inside
+     * {@code synchronized (SCREEN_FACTORIES)}.
+     */
+    public static final Map<String, Function<Screen, Screen>> SCREEN_FACTORIES = java.util.Collections.synchronizedMap(new java.util.LinkedHashMap<>());
 
     static {
         SCREEN_FACTORIES.put("minecraft:title", p -> new TitleScreen());

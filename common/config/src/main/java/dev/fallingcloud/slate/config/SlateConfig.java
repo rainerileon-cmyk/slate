@@ -38,8 +38,11 @@ public final class SlateConfig implements SlateModule {
     public static final Logger LOGGER = LoggerFactory.getLogger("Slate Config");
     public static final SlateConfig MODULE = new SlateConfig();
 
-    private static final List<String> PAGE_IDS = List.of("video", "audio", "controls", "chat", "interface", "multiplayer", "accessibility",
-        "language", "packs", "mods", "favourites", "presets");
+    /** Choices of the dev action: sidebar pages and the category tabs (any path {@link ConfigHubScreen#open} takes works). */
+    private static final List<String> PAGE_IDS = List.of("video", "audio", "controls", "controls/keys", "gameplay", "interface",
+        "multiplayer", "multiplayer/online", "multiplayer/chat", "customization", "customization/mods", "customization/packs",
+        "customization/shaders", "customization/skin", "language_accessibility", "language_accessibility/language",
+        "language_accessibility/accessibility", "favourites", "presets");
 
     private SlateConfig() {}
 
@@ -70,20 +73,20 @@ public final class SlateConfig implements SlateModule {
         SlateEvents.CLIENT_TICK_END.register(ApplyQueue::tick);
         installSwaps();
         LOGGER.info("[Slate Config] client init ({} curated page(s))", CuratedPages.load().size());
-        if (System.getenv("SLATE_CONFIG_SMOKE") != null) SmokeTest.install();
+        if (System.getenv("SLATE_CONFIG_SMOKE") != null || String.valueOf(System.getProperty("slate.autoScreens")).contains("slate_config:smoke")) SmokeTest.install();
     }
 
-    /** Vanilla option sub-screens open the matching hub page; Sodium's screen too. Switched off by config.json. */
+    /** Vanilla option sub-screens open the matching hub page and tab; Sodium's screen too. Switched off by config.json. */
     private static void installSwaps() {
         if (!ConfigSettings.get().swapVanillaScreens) return;
         swap(VideoSettingsScreen.class, "video");
         swap(SoundOptionsScreen.class, "audio");
         swap(ControlsScreen.class, "controls");
-        swap(KeyBindsScreen.class, "controls");
-        swap(ChatOptionsScreen.class, "chat");
-        swap(LanguageSelectScreen.class, "language");
-        swap(AccessibilityOptionsScreen.class, "accessibility");
-        swap(OnlineOptionsScreen.class, "multiplayer");
+        swap(KeyBindsScreen.class, "controls/keys");
+        swap(ChatOptionsScreen.class, "multiplayer/chat");
+        swap(LanguageSelectScreen.class, "language_accessibility/language");
+        swap(AccessibilityOptionsScreen.class, "language_accessibility/accessibility");
+        swap(OnlineOptionsScreen.class, "multiplayer/online");
         if (SlatePlatform.get().isModLoaded("sodium")) SodiumBridge.installScreenSwap((parent, page) -> new ConfigHubScreen(parent, page));
     }
 

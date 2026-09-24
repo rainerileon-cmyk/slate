@@ -8,4 +8,4 @@ pluginManagement {
 rootProject.name = 'slate-neoforge'
 
 // Order matters only for readability; inter-module dependencies are declared per project.
-include 'core', 'menu', 'multiplayer', 'chat', 'config', 'dev'
+include 'core', 'menu', 'multiplayer', 'chat', 'config', 'building', 'dev'

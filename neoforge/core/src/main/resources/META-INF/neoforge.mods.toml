@@ -16,6 +16,10 @@ description = '''The core of the Slate UI suite: the dark modern (and polished v
 [[mixins]]
 config = "slate.mixins.json"
 
+# NeoForge-only injections (vanilla overloads NeoForge adds; Fabric has no such methods).
+[[mixins]]
+config = "slate.neoforge.mixins.json"
+
 [[dependencies.slate]]
 modId = "neoforge"
 type = "required"

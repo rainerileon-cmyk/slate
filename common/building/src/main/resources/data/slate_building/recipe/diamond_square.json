@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "group": "slate_building:square",
+  "key": {
+    "m": { "tag": "c:gems/diamond" },
+    "p": { "tag": "minecraft:planks" }
+  },
+  "pattern": [
+    "mmm",
+    "p  ",
+    "p  "
+  ],
+  "result": {
+    "count": 1,
+    "id": "slate_building:diamond_square"
+  }
+}
