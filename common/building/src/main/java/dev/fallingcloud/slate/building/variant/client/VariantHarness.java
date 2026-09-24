@@ -34,6 +34,8 @@ import net.minecraft.client.server.IntegratedServer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtUtils;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -106,6 +108,7 @@ final class VariantHarness {
         onServer(s, VariantHarness::dropChecks);
         onServer(s, VariantHarness::actionChecks);
         onServer(s, VariantHarness::geometryChecks);
+        onServer(s, VariantHarness::regressionChecks);
         s.run(VariantHarness::deleteNativesChecks)
             .run(VariantHarness::summary)
             .command("gamemode creative")
@@ -177,7 +180,11 @@ final class VariantHarness {
 
     /** Places ({@code material}, {@code shape}) at {@code pos} through the item, as clicking the floor below would. */
     private static @Nullable BlockPos place(final Ctx c, final Block material, final Shape shape, final BlockPos pos) {
-        final ItemStack stack = VariantRegistry.get().stackFor(material, shape, 1);
+        return place(c, VariantRegistry.get().stackFor(material, shape, 1), pos);
+    }
+
+    /** Places {@code stack} at {@code pos} through its item, as clicking the floor below would. */
+    private static @Nullable BlockPos place(final Ctx c, final ItemStack stack, final BlockPos pos) {
         if (!(stack.getItem() instanceof BlockItem item)) return null;
         final BlockPos below = pos.below();
         final BlockHitResult hit = new BlockHitResult(Vec3.atCenterOf(below).add(0, 0.5, 0), Direction.UP, below, false);
@@ -185,7 +192,7 @@ final class VariantHarness {
         try {
             return item.place(ctx).consumesAction() ? ctx.getClickedPos() : null;
         } catch (final RuntimeException e) {
-            SlateBuilding.LOGGER.error("[BuildingHarness] variants: placing {} {} threw", name(material), shape.id(), e);
+            SlateBuilding.LOGGER.error("[BuildingHarness] variants: placing {} threw", stack, e);
             return null;
         }
     }
@@ -452,6 +459,132 @@ final class VariantHarness {
         return (n != none && n == s && e == none && w == none) || (e != none && e == w && n == none && s == none);
     }
 
+    // ------------------------------------------------------------------------------------------------ review regressions
+
+    /** Row of the regression demos, in reach of the harness player (standing at 0.5, -60, -8.5). */
+    private static final int REG_Z = -10;
+
+    private static void regressionChecks(final Ctx c) {
+        shapeMaterialChecks(c);
+        reshapeLootChecks(c);
+        legacySlabMergeChecks(c);
+        rulesFingerprintChecks();
+    }
+
+    /** A shape can never hold another shape as its material (it would delegate to itself until the stack overflows). */
+    private static void shapeMaterialChecks(final Ctx c) {
+        final ServerLevel level = c.level();
+        final Block stairsBlock = BuildingBlocks.forShape(Shape.STAIRS).get();
+        final Block slabBlock = BuildingBlocks.forShape(Shape.SLAB).get();
+
+        final ItemStack bad = ShapeBlockItem.withMaterial(new ItemStack(BuildingItems.forShape(Shape.SLAB).get()), stairsBlock);
+        check("shape item with a shape material has no material", ShapeBlockItem.material(bad) == null, ShapeBlockItem.material(bad));
+        final BlockPos itemPos = new BlockPos(-4, Y, REG_Z);
+        check("shape item with a shape material places nothing", place(c, bad, itemPos) == null && level.getBlockState(itemPos).isAir(), level.getBlockState(itemPos));
+
+        final BlockPos pos = new BlockPos(-2, Y, REG_Z);
+        level.setBlock(pos, slabBlock.defaultBlockState(), Block.UPDATE_ALL);
+        if (!(level.getBlockEntity(pos) instanceof ShapeBlockEntity be)) {
+            check("shape slab has its block entity", false, level.getBlockEntity(pos));
+            return;
+        }
+        be.setMaterial(Blocks.DIRT.defaultBlockState());
+        be.setMaterial(stairsBlock.defaultBlockState());
+        check("setMaterial refuses a shape block", be.material() == null, be.material());
+        be.setMaterial(Blocks.DIRT.defaultBlockState());
+        // A corrupt save / schematic / data packet: the same through load.
+        final CompoundTag tag = be.saveWithoutMetadata(level.registryAccess());
+        tag.put("material", NbtUtils.writeBlockState(stairsBlock.defaultBlockState()));
+        be.loadWithComponents(tag, level.registryAccess());
+        check("loading a shape material leaves the shape unset", be.material() == null, be.material());
+        String thrown = null;
+        try {
+            final BlockState state = level.getBlockState(pos);
+            state.getDestroyProgress(c.player(), level, pos);
+            state.getMapColor(level, pos);
+        } catch (final StackOverflowError | RuntimeException e) {
+            thrown = e.toString();
+        }
+        check("mining / map colour of that shape do not recurse", thrown == null, thrown);
+        level.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
+    }
+
+    /** Survival hammer reshape obeys the chisel's loot guard: no free silk touch on natural blocks. */
+    private static void reshapeLootChecks(final Ctx c) {
+        final ServerLevel level = c.level();
+        final ServerPlayer player = c.player();
+        final var ops = dev.fallingcloud.slate.building.config.BuildingServerSettings.local().ops();
+        final boolean requireToolbox = ops.requireToolbox;
+        final BlockPos stone = new BlockPos(0, Y, REG_Z);
+        final BlockPos glass = new BlockPos(1, Y, REG_Z - 1);
+        final BlockPos bricks = new BlockPos(2, Y, REG_Z);
+        level.setBlock(stone, Blocks.STONE.defaultBlockState(), Block.UPDATE_ALL);
+        level.setBlock(glass, Blocks.GLASS.defaultBlockState(), Block.UPDATE_ALL);
+        level.setBlock(bricks, Blocks.STONE_BRICKS.defaultBlockState(), Block.UPDATE_ALL);
+        ops.requireToolbox = false;   // every tool at full tier, still survival (no creative bypass)
+        player.setGameMode(GameType.SURVIVAL);
+        try {
+            VariantActions.reshapeTarget(new ReshapeTarget(stone, "stairs"), player);
+            check("survival reshape of natural stone (drops cobblestone) is refused", level.getBlockState(stone).is(Blocks.STONE), level.getBlockState(stone));
+            VariantActions.reshapeTarget(new ReshapeTarget(glass, "slab"), player);
+            check("survival reshape of glass (drops nothing) is refused", level.getBlockState(glass).is(Blocks.GLASS), level.getBlockState(glass));
+            VariantActions.reshapeTarget(new ReshapeTarget(bricks, "stairs"), player);
+            check("survival reshape of stone bricks (drop themselves) works", level.getBlockState(bricks).is(Blocks.STONE_BRICK_STAIRS), level.getBlockState(bricks));
+        } finally {
+            ops.requireToolbox = requireToolbox;
+            player.setGameMode(GameType.CREATIVE);
+        }
+        final boolean nativeStairs = dev.fallingcloud.slate.building.variant.VariantDrops.dropsOwnWorth(level, bricks, level.getBlockState(bricks), null, Blocks.STONE_BRICKS, 1);
+        check("a native stair drops its own worth (unified to the material)", nativeStairs, level.getBlockState(bricks));
+    }
+
+    /** A leftover shape item of a material with a native slab merges into native half slabs (and still into its own). */
+    private static void legacySlabMergeChecks(final Ctx c) {
+        final ServerLevel level = c.level();
+        final Item ourSlab = BuildingItems.forShape(Shape.SLAB).get();
+
+        final BlockPos nativeHalf = new BlockPos(4, Y, REG_Z);
+        level.setBlock(nativeHalf, Blocks.OAK_SLAB.defaultBlockState(), Block.UPDATE_ALL);
+        final ItemStack legacy = ShapeBlockItem.withMaterial(new ItemStack(ourSlab, 2), Blocks.OAK_PLANKS);
+        clickTop(c, legacy, nativeHalf);
+        final BlockState merged = level.getBlockState(nativeHalf);
+        check("our oak slab item completes a native oak half slab",
+            merged.is(Blocks.OAK_SLAB) && merged.getValue(SlabBlock.TYPE) == SlabType.DOUBLE && level.getBlockState(nativeHalf.above()).isAir(), merged);
+        check("that placement used one item", legacy.getCount() == 1, legacy.getCount());
+
+        final BlockPos ourHalf = new BlockPos(6, Y, REG_Z);
+        level.setBlock(ourHalf, ourSlabState(), Block.UPDATE_ALL);
+        if (level.getBlockEntity(ourHalf) instanceof ShapeBlockEntity be) be.setMaterial(Blocks.OAK_PLANKS.defaultBlockState());
+        clickTop(c, ShapeBlockItem.withMaterial(new ItemStack(ourSlab), Blocks.OAK_PLANKS), ourHalf);
+        final BlockState ours = level.getBlockState(ourHalf);
+        check("our oak slab item still completes our own oak half slab",
+            ours.getBlock() == BuildingBlocks.forShape(Shape.SLAB).get() && ours.getValue(SlabBlock.TYPE) == SlabType.DOUBLE
+                && ShapeBlock.material(level, ourHalf) != null && ShapeBlock.material(level, ourHalf).is(Blocks.OAK_PLANKS), ours);
+    }
+
+    private static BlockState ourSlabState() {
+        return BuildingBlocks.forShape(Shape.SLAB).get().defaultBlockState();
+    }
+
+    /** Clicks the top face of the bottom half slab at {@code pos} with {@code stack}. */
+    private static void clickTop(final Ctx c, final ItemStack stack, final BlockPos pos) {
+        final BlockHitResult hit = new BlockHitResult(Vec3.atBottomCenterOf(pos).add(0, 0.5, 0), Direction.UP, pos, false);
+        ((BlockItem) stack.getItem()).place(new BlockPlaceContext(c.level(), null, InteractionHand.MAIN_HAND, stack, hit));
+    }
+
+    /** The index follows a rule list replaced wholesale (the fingerprint memo is keyed by the list's identity). */
+    private static void rulesFingerprintChecks() {
+        final var rules = SlateBuilding.serverConfig().variants;
+        final List<String> previous = rules.materialDenylist;
+        try {
+            rules.materialDenylist = new ArrayList<>(List.of("minecraft:dirt"));
+            check("a replaced denylist applies at once", !VariantRegistry.get().isMaterial(Blocks.DIRT), "dirt still a material");
+        } finally {
+            rules.materialDenylist = previous;
+        }
+        check("restoring the denylist brings dirt back", VariantRegistry.get().isMaterial(Blocks.DIRT), "dirt not a material");
+    }
+
     // ------------------------------------------------------------------------------------------------ delete natives (client)
 
     private static void deleteNativesChecks() {
@@ -461,8 +594,15 @@ final class VariantHarness {
         final boolean previous = rules.deleteNativeVariants;
         try {
             rules.deleteNativeVariants = true;
+            check("deleteNativeVariants applies at once", VariantRegistry.get().deletesNatives(), "index not rebuilt");
+            // Deleting hides natives and removes the recipes that MAKE them; the wheel still hands them out, so every
+            // recipe that USES them (#wooden_slabs in a barrel, a stone slab in a grindstone) keeps working.
             final ItemStack stairs = VariantRegistry.get().stackFor(Blocks.OAK_PLANKS, Shape.STAIRS, 1);
-            check("deleteNativeVariants: oak stairs come from our shape", stairs.is(BuildingItems.forShape(Shape.STAIRS).get()), stairs);
+            check("deleteNativeVariants: oak stairs still hand out minecraft:oak_stairs", stairs.is(Items.OAK_STAIRS), stairs);
+            final ItemStack slab = VariantRegistry.get().stackFor(Blocks.OAK_PLANKS, Shape.SLAB, 1);
+            check("deleteNativeVariants: oak slab still minecraft:oak_slab (#wooden_slabs recipes)", slab.is(Items.OAK_SLAB), slab);
+            final ItemStack dirtStairs = VariantRegistry.get().stackFor(Blocks.DIRT, Shape.STAIRS, 1);
+            check("deleteNativeVariants: dirt stairs (no native) are ours", dirtStairs.is(BuildingItems.forShape(Shape.STAIRS).get()), dirtStairs);
             rebuildTabs(mc);
             check("deleteNativeVariants: oak_stairs hidden from Building Blocks", !tabHas(CreativeModeTabs.BUILDING_BLOCKS, Items.OAK_STAIRS), "still listed");
             check("deleteNativeVariants: oak_stairs hidden from search", !searchHas(Items.OAK_STAIRS), "still searchable");

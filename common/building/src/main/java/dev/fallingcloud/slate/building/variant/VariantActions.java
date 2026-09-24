@@ -107,6 +107,20 @@ public final class VariantActions {
             fail(player, Component.translatable("slate_building.variant.does_not_fit"));
             return;
         }
+        if (!creative && !(old.getBlock() instanceof ShapeBlock)) {
+            // Reshaping is a break and a place in one: what cannot be broken cannot be reshaped, and the block must drop
+            // exactly its own worth with no tool (the chisel's loot guard, design §9). Otherwise natural stone, glass,
+            // ice, ores or grass would come back as themselves from the new shape: a free silk touch. Our own shapes
+            // already drop their stored material, so they are always fine.
+            if (old.getDestroySpeed(level, pos) < 0) {
+                fail(player, Component.translatable("slate_building.variant.protected"));
+                return;
+            }
+            if (!VariantDrops.dropsOwnWorth(level, pos, old, oldEntity, material, registry.units(old, oldEntity))) {
+                fail(player, Component.translatable("slate_building.variant.drops_differ", old.getBlock().getName()));
+                return;
+            }
+        }
         if (!BuildingPlatform.get().canBreak(player, level, pos, old)) {
             fail(player, Component.translatable("slate_building.variant.protected"));
             return;

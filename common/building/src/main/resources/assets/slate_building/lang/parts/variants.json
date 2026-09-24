@@ -7,5 +7,7 @@
   "slate_building.variant.needs_hammer": "Needs a Hammer in your toolbox",
   "slate_building.variant.missing_material": "Needs %1$s more %2$s",
   "slate_building.variant.protected": "You can't change blocks here",
-  "slate_building.variant.does_not_fit": "That shape doesn't fit here"
+  "slate_building.variant.does_not_fit": "That shape doesn't fit here",
+  "slate_building.variant.drops_differ": "%s doesn't drop itself, so it can't be reshaped in place",
+  "slate_building.variant.not_material": "%s can't be used as a material here"
 }

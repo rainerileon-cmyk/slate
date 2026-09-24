@@ -422,10 +422,36 @@ final class VariantIndex {
         return b == Blocks.AIR ? null : b;
     }
 
-    /** A cheap hash of everything in the rules that changes the index. */
+    /** The last {@link #fingerprint} computed, keyed by the identity of the four rule collections it hashed. */
+    private record CollectionsHash(Object deny, Object allow, Object overrides, Object ignored, int hash) {
+        boolean covers(final ServerVariants rules) {
+            return deny == rules.materialDenylist && allow == rules.materialAllowlist
+                && overrides == rules.variantOverrides && ignored == rules.ignoredVariants;
+        }
+    }
+
+    private static volatile @Nullable CollectionsHash lastCollections;
+
+    /**
+     * Hash of the rule COLLECTIONS (deny/allow lists, overrides, ignored variants). Content-based, so a re-synced but
+     * identical config reuses the index; memoised by identity, because these collections are only ever replaced
+     * wholesale (a file load, a server sync), never edited in place, so an unchanged object has an unchanged hash. The
+     * three booleans are NOT in here: the settings screen flips them in place, so {@link #matches} compares them on
+     * every call.
+     */
     static int fingerprint(final ServerVariants rules) {
-        return java.util.Objects.hash(rules.unify, rules.customShapes, rules.deleteNativeVariants, rules.materialDenylist,
-            rules.materialAllowlist, rules.variantOverrides, rules.ignoredVariants);
+        CollectionsHash h = lastCollections;
+        if (h == null || !h.covers(rules)) {
+            lastCollections = h = new CollectionsHash(rules.materialDenylist, rules.materialAllowlist, rules.variantOverrides,
+                rules.ignoredVariants, java.util.Objects.hash(rules.materialDenylist, rules.materialAllowlist, rules.variantOverrides, rules.ignoredVariants));
+        }
+        return h.hash();
+    }
+
+    /** Whether this snapshot is still the answer for {@code rules} at registry/tag {@code generation}. */
+    boolean matches(final ServerVariants rules, final int generation) {
+        return this.generation == generation && unify == rules.unify && customShapes == rules.customShapes
+            && deleteNatives == rules.deleteNativeVariants && fingerprint == fingerprint(rules);
     }
 
     /** Debug helper: every identified native, for logs. */

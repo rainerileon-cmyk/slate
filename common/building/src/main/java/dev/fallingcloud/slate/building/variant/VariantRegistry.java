@@ -134,9 +134,13 @@ public final class VariantRegistry {
     }
 
     /**
-     * The stack for ({@code material}, {@code shape}): the material's own item for FULL; the native item when one
-     * exists (unless natives are deleted and our shapes can stand in); else Slate Building's shape item carrying the
-     * material. Empty when that variant is not available.
+     * The stack for ({@code material}, {@code shape}): the material's own item for FULL; the native item whenever one
+     * exists; else Slate Building's shape item carrying the material. Empty when that variant is not available.
+     *
+     * <p>Natives win even with {@code deleteNativeVariants}: deleting only hides them (creative tabs, search, JEI) and
+     * removes the recipes that MAKE them. Every recipe that CONSUMES them ({@code #wooden_slabs} in a barrel, a stone
+     * slab in a grindstone, Create's seats ...) keeps working because the swap wheel, build menu, chisel and pick-block
+     * still hand out the native item. Our shape items only stand in for (material, shape) pairs with no native.
      */
     public ItemStack stackFor(final Block material, final Shape shape, final int count) {
         if (count <= 0) return ItemStack.EMPTY;
@@ -144,12 +148,9 @@ public final class VariantRegistry {
         if (!isAvailable(idx, material, shape)) return ItemStack.EMPTY;
         if (shape == Shape.FULL) return new ItemStack(material, count);
         final Block nativeBlock = idx.realisation(material, shape);
-        final boolean useNative = nativeBlock != null && (!idx.deleteNatives || !idx.customShapes);
-        if (useNative) return new ItemStack(nativeBlock.asItem(), count);
+        if (nativeBlock != null) return new ItemStack(nativeBlock.asItem(), count);
         final RegistryRef<ShapeBlockItem> item = BuildingItems.forShape(shape);
-        if (item == null || !idx.customShapes || !idx.isMaterial(material)) {
-            return nativeBlock != null ? new ItemStack(nativeBlock.asItem(), count) : ItemStack.EMPTY;
-        }
+        if (item == null || !idx.customShapes || !idx.isMaterial(material)) return ItemStack.EMPTY;
         return ShapeBlockItem.withMaterial(new ItemStack(item.get(), count), material);
     }
 
@@ -246,16 +247,20 @@ public final class VariantRegistry {
 
     // ------------------------------------------------------------------------------------------------ snapshot
 
+    /**
+     * The current snapshot. Hot path (every identify: the drops mixin, the economy per slot, planners per position), so
+     * the staleness check is three boolean compares plus an identity-memoised hash of the rule lists
+     * ({@link VariantIndex#matches}), never a walk over the config.
+     */
     private VariantIndex index() {
         final ServerVariants rules = rules();
-        final int fingerprint = VariantIndex.fingerprint(rules);
         final int generation = GENERATION.get();
         VariantIndex idx = index;
-        if (idx != null && idx.generation == generation && idx.fingerprint == fingerprint) return idx;
+        if (idx != null && idx.matches(rules, generation)) return idx;
         synchronized (this) {
             idx = index;
-            if (idx != null && idx.generation == generation && idx.fingerprint == fingerprint) return idx;
-            idx = VariantIndex.build(rules, generation, fingerprint);
+            if (idx != null && idx.matches(rules, generation)) return idx;
+            idx = VariantIndex.build(rules, generation, VariantIndex.fingerprint(rules));
             index = idx;
             return idx;
         }

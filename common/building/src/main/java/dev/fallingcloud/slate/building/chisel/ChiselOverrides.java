@@ -14,11 +14,15 @@ import org.jetbrains.annotations.Nullable;
 
 /**
  * {@code config/slate/building-chisel.json}: the server's own chisel groups, the first page source of the chisel wheel
- * (design §9). The mod ships a set of defaults for the vanilla gaps the recipe-based sources cannot see (smooth
- * stone, mossy and cracked variants, cobblestone ↔ stone, the deepslate chain, per-state copper) in
- * {@code default-groups.json} next to this class; {@link #includeDefaults} keeps them on without copying them into the
- * file, so later versions can extend them. Every group still goes through the safety rules of {@link ChiselRules}.
- * Edits apply on {@code /reload}.
+ * (design §9). The mod ships a set of defaults for the vanilla gaps the recipe-based sources cannot see (cracked
+ * variants, the deepslate chain, quartz bricks, per-state copper) in {@code default-groups.json} next to this class;
+ * {@link #includeDefaults} keeps them on without copying them into the file, so later versions can extend them.
+ *
+ * <p>The defaults only link blocks that vanilla turns into each other one for one with nothing added and nothing
+ * smelted (the block families' cracked variants aside, which design §9 accepts): no cobblestone ↔ stone or deepslate
+ * ↔ cobbled deepslate (free smelting), no smooth stone, sandstone, quartz or basalt (smelted), no mossy blocks (moss
+ * or vines added). Every group still goes through the safety rules of {@link ChiselRules}. Edits apply on
+ * {@code /reload}.
  */
 public final class ChiselOverrides {
 
@@ -28,8 +32,9 @@ public final class ChiselOverrides {
     private static final List<String> README = List.of(
         "Chisel groups for Slate Building. Every group is one page of the chisel wheel; the blocks in a group can be",
         "chiseled into each other one for one. Edit this file, then run /reload (or restart the server).",
-        "includeDefaults: also use the groups that ship with the mod (smooth stone, mossy and cracked variants,",
-        "  cobblestone and stone, the deepslate family, copper per oxidation state, ...).",
+        "includeDefaults: also use the groups that ship with the mod (stone and stone bricks, the deepslate family,",
+        "  cracked variants, copper per oxidation state, ...). They never link blocks vanilla only converts by smelting",
+        "  or by adding an ingredient (cobblestone and stone, smooth or mossy blocks stay apart).",
         "groups: your own pages, e.g. {\"name\": \"Marble\", \"members\": [\"somemod:marble\", \"somemod:marble_bricks\"]}.",
         "  \"key\" may name a translation key for the page title instead of (or as well as) \"name\".",
         "exclude: blocks that never appear in ANY chisel group, whichever mod or recipe suggested them.",
