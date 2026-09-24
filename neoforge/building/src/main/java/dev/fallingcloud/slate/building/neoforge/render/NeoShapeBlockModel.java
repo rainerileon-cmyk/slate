@@ -33,6 +33,8 @@ final class NeoShapeBlockModel extends BakedModelWrapper<BakedModel> {
     static final ModelProperty<BlockState> MATERIAL = new ModelProperty<>();
     static final ModelProperty<ModelData> MATERIAL_DATA = new ModelProperty<>();
     static final ModelProperty<Long> SEED = new ModelProperty<>();
+    /** Sides whose boundary faces a neighbour hides ({@code ShapeModels.hiddenSides}). */
+    static final ModelProperty<Integer> HIDDEN = new ModelProperty<>();
 
     NeoShapeBlockModel(final BakedModel placeholder) {
         super(placeholder);
@@ -41,20 +43,24 @@ final class NeoShapeBlockModel extends BakedModelWrapper<BakedModel> {
     @Override
     public ModelData getModelData(final BlockAndTintGetter level, final BlockPos pos, final BlockState state, final ModelData data) {
         final BlockState material = ShapeModels.materialAt(level, pos);
-        if (material == null) return ModelData.builder().with(SEED, state.getSeed(pos)).build();
+        final int hidden = ShapeModels.hiddenSides(level, pos, material);
+        if (material == null) return ModelData.builder().with(SEED, state.getSeed(pos)).with(HIDDEN, hidden).build();
         ModelData materialData = ModelData.EMPTY;
         try {
             materialData = ShapeModels.modelOf(material).getModelData(level, pos, material, ModelData.EMPTY);
         } catch (final RuntimeException ignored) {
             // A material model that cannot compute its data away from its own block renders with none.
         }
-        return ModelData.builder().with(MATERIAL, material).with(MATERIAL_DATA, materialData).with(SEED, material.getSeed(pos)).build();
+        return ModelData.builder().with(MATERIAL, material).with(MATERIAL_DATA, materialData).with(SEED, material.getSeed(pos))
+            .with(HIDDEN, hidden).build();
     }
 
     @Override
     public List<BakedQuad> getQuads(final @Nullable BlockState state, final @Nullable Direction side, final RandomSource rand,
                                     final ModelData data, final @Nullable RenderType renderType) {
         if (state == null) return super.getQuads(null, side, rand, data, renderType);
+        final Integer hidden = data.get(HIDDEN);
+        if (hidden != null && ShapeModels.hidden(hidden, side)) return List.of();
         final Long seedBox = data.get(SEED);
         final long seed = seedBox != null ? seedBox : 42L;
         final BlockState material = data.get(MATERIAL);

@@ -9,8 +9,11 @@ import dev.fallingcloud.slate.building.config.PreviewSettings;
 import dev.fallingcloud.slate.building.ops.BuildModes;
 import dev.fallingcloud.slate.building.ops.ModeParams;
 import dev.fallingcloud.slate.building.registry.BuildingBlocks;
+import dev.fallingcloud.slate.building.registry.BuildingComponents;
+import dev.fallingcloud.slate.building.registry.BuildingItems;
 import dev.fallingcloud.slate.building.registry.RegistryRef;
 import dev.fallingcloud.slate.building.variant.Shape;
+import dev.fallingcloud.slate.core.event.SlateEvents;
 import dev.fallingcloud.slate.core.theme.Colors;
 import java.util.ArrayList;
 import java.util.List;
@@ -22,8 +25,10 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.server.IntegratedServer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -34,9 +39,12 @@ import net.minecraft.world.phys.Vec3;
  * Dev harness scenario {@code render} ({@code -PbuildingHarness=render}): builds a showcase of every shape in seven
  * materials that stress the renderer (stone, oak planks, tinted grass, translucent glass, an axis-dependent log,
  * light-emitting glowstone, wool) directly on the server (block states + block-entity materials, no placement code
- * involved), then screenshots it from three sides; then the placement ghost (with a mirror symmetry active), an
- * overlay set (animated box, label, marker, line, mirror plane), planned-result ghosts in every style, the hull mode
- * above {@code maxBlocks}, a ghost inside a grass tuft (the z-fighting case) and the vanilla skin.
+ * involved) plus an adjacency row (face culling between neighbours), and screenshots ({@code building-render-*.png}):
+ * the showcase from five angles, breaking particles, every shape item in five materials and unset, the placement
+ * ghost (with a mirror symmetry active; oak stairs and our stone stairs; both skins), the overlays (animated box,
+ * label, marker, line, mirror plane), planned-result ghosts in every style (shaded and through the shader-pack
+ * fallback), the hull mode above {@code maxBlocks} and a ghost inside a grass tuft (the z-fighting case). The
+ * player stands on invisible barriers placed under each camera position.
  *
  * <p>While the shape blocks are the skeleton placeholders the stand-in geometry is switched on for the run (see
  * {@link ShapeGeometry#useStandIns}); with the real blocks it has no effect.
@@ -88,8 +96,12 @@ final class RenderHarness {
         camera(s, 0.5, -53, 26.5, new Vec3(0.5, Y, 10)).wait(40).screenshot("render-overview");
         camera(s, 17.5, -55, -2.5, new Vec3(0.5, Y, 10)).wait(40).screenshot("render-back");
         camera(s, -7.5, -54, 19.5, new Vec3(-7.5, Y, 10)).wait(40).screenshot("render-closeup-left");
+        s.run(RenderHarness::breakParticles).wait(4).screenshot("render-particles").wait(40);
+        camera(s, -10.5, -57, 21.5, new Vec3(-10.5, Y + 0.5, 18.5)).wait(30).screenshot("render-adjacent");
         camera(s, 6.5, -54, 19.5, new Vec3(6.5, Y, 10)).wait(40).screenshot("render-closeup-right");
         camera(s, -3.5, -57, 1.5, new Vec3(-3.5, Y, 8)).wait(40).screenshot("render-closeup-front");
+        s.run(() -> SlateEvents.HUD_RENDER.register(ITEMS_SHEET)).wait(10).screenshot("render-items")
+            .run(() -> SlateEvents.HUD_RENDER.unregister(ITEMS_SHEET));
 
         s.log("render: ghosts and overlays")
             .run(() -> {
@@ -100,7 +112,7 @@ final class RenderHarness {
                     ModeParams.defaults(BuildModes.MIRROR_MODE).set("axis", "X"), new BlockPos(0, Y, -9)));
                 BuildingRender.FRAME.register(demo);
             });
-        camera(s, 0.5, -58, -2.5, new Vec3(2.5, Y, -7.5)).wait(30).screenshot("render-ghost");
+        camera(s, 1.5, -59, -4.5, new Vec3(2.5, Y, -7.5)).wait(30).screenshot("render-ghost");
         s.run(() -> {
             final Minecraft mc = Minecraft.getInstance();
             if (mc.player != null) mc.player.getInventory().selected = 1;
@@ -111,7 +123,9 @@ final class RenderHarness {
                 PreviewSettings.current().enabled = false;
                 plan = true;
             });
-        camera(s, 7.5, -57, -3.5, new Vec3(7.0, -59.5, -10.0)).wait(30).screenshot("render-plan");
+        camera(s, 7.5, -57, -4.5, new Vec3(7.0, -59.5, -10.0)).wait(30).screenshot("render-plan");
+        s.run(() -> GhostRenderer.forceVanillaPath = true).wait(5).screenshot("render-plan-fallback")
+            .run(() -> GhostRenderer.forceVanillaPath = false);
         s.run(() -> PreviewSettings.current().maxBlocks = 10).wait(10).screenshot("render-hull")
             .run(() -> {
                 PreviewSettings.current().maxBlocks = new PreviewSettings().maxBlocks;
@@ -140,9 +154,36 @@ final class RenderHarness {
                 }
                 final RegistryRef<? extends Block> ref = BuildingBlocks.forShape(shapes[c]);
                 if (ref == null || !ref.isBound()) continue;
-                level.setBlock(pos, showcaseState(ref.get(), shapes[c]), Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE);
-                if (level.getBlockEntity(pos) instanceof ShapeBlockEntity be) be.setMaterial(material);
+                placeShape(level, pos, showcaseState(ref.get(), shapes[c]), material);
             }
+        }
+        // Adjacency (face culling between neighbours): glass | glass stairs | glass slab | glass, and stone stairs on stone.
+        final BlockState glass = Blocks.GLASS.defaultBlockState();
+        final RegistryRef<? extends Block> stairs = BuildingBlocks.forShape(Shape.STAIRS);
+        final RegistryRef<? extends Block> slab = BuildingBlocks.forShape(Shape.SLAB);
+        if (stairs != null && stairs.isBound() && slab != null && slab.isBound()) {
+            level.setBlock(new BlockPos(-13, Y, 18), glass, Block.UPDATE_CLIENTS);
+            placeShape(level, new BlockPos(-12, Y, 18), with(stairs.get().defaultBlockState(), "facing", "west"), glass);
+            placeShape(level, new BlockPos(-11, Y, 18), with(slab.get().defaultBlockState(), "type", "bottom"), glass);
+            level.setBlock(new BlockPos(-10, Y, 18), glass, Block.UPDATE_CLIENTS);
+            level.setBlock(new BlockPos(-8, Y, 18), Blocks.STONE.defaultBlockState(), Block.UPDATE_CLIENTS);
+            placeShape(level, new BlockPos(-8, Y + 1, 18), with(stairs.get().defaultBlockState(), "facing", "north"), Blocks.STONE.defaultBlockState());
+            placeShape(level, new BlockPos(-7, Y, 18), with(slab.get().defaultBlockState(), "type", "top"), Blocks.STONE.defaultBlockState());
+        }
+    }
+
+    /** Sets a shape block exactly as given (no neighbour updates reshaping it) and gives it its material. */
+    private static void placeShape(final ServerLevel level, final BlockPos pos, final BlockState shape, final BlockState material) {
+        level.setBlock(pos, shape, Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE);
+        if (level.getBlockEntity(pos) instanceof ShapeBlockEntity be) be.setMaterial(material);
+    }
+
+    /** Breaking particles of a few shapes (grass stairs, glowstone slab, log vertical slab): they must show the material. */
+    private static void breakParticles() {
+        final Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null) return;
+        for (final BlockPos pos : List.of(new BlockPos(-11, Y, 8), new BlockPos(-9, Y, 14), new BlockPos(-7, Y, 12), new BlockPos(-11, Y, 16))) {
+            mc.particleEngine.destroy(pos, mc.level.getBlockState(pos));
         }
     }
 
@@ -218,6 +259,28 @@ final class RenderHarness {
         }
         return out;
     }
+
+    // ---- item sheet (HUD) ----
+
+    private static final Block[] SHEET_MATERIALS = {Blocks.STONE, Blocks.OAK_PLANKS, Blocks.GRASS_BLOCK, Blocks.GLASS, Blocks.OAK_LOG};
+
+    /** Every shape item in a few materials (and without one), drawn large on the HUD, for the item-model check. */
+    private static final SlateEvents.HudRender ITEMS_SHEET = (g, partialTick) -> {
+        final Shape[] shapes = Shape.values();
+        for (int row = 0; row <= SHEET_MATERIALS.length; row++) {
+            for (int c = 1; c < shapes.length; c++) {
+                final var ref = BuildingItems.forShape(shapes[c]);
+                if (ref == null || !ref.isBound()) continue;
+                final ItemStack stack = new ItemStack(ref.get());
+                if (row < SHEET_MATERIALS.length) stack.set(BuildingComponents.MATERIAL.get(), BuiltInRegistries.BLOCK.getKey(SHEET_MATERIALS[row]));
+                g.pose().pushPose();
+                g.pose().translate(8 + (c - 1) * 36, 8 + row * 36, 0);
+                g.pose().scale(2F, 2F, 2F);
+                g.renderItem(stack, 0, 0);
+                g.pose().popPose();
+            }
+        }
+    };
 
     // ---- helpers ----
 

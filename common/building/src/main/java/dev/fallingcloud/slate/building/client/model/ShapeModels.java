@@ -11,6 +11,7 @@ import net.minecraft.client.renderer.ItemBlockRenderTypes;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.RandomSource;
@@ -79,6 +80,44 @@ public final class ShapeModels {
 
     private static boolean usable(final @Nullable BlockState material) {
         return material != null && !material.isAir() && !(material.getBlock() instanceof ShapeBlock);
+    }
+
+    /**
+     * The sides of the shape block at {@code pos} whose boundary faces a neighbour hides, as a bit mask (bit
+     * {@code direction.ordinal()}): a full opaque neighbour, or one the material itself hides against (glass stairs
+     * next to glass, like glass next to glass). The shape blocks do not occlude (their shape depends on the material
+     * per position), so vanilla's own face culling keeps every face; this restores the culling for the faces that are
+     * certainly hidden. Chunk meshing only (the neighbours are read from the render region).
+     */
+    public static int hiddenSides(final BlockGetter level, final BlockPos pos, final @Nullable BlockState material) {
+        int mask = 0;
+        final BlockPos.MutableBlockPos n = new BlockPos.MutableBlockPos();
+        for (final Direction d : Direction.values()) {
+            n.setWithOffset(pos, d);
+            final BlockState neighbour = level.getBlockState(n);
+            if (neighbour.isAir()) continue;
+            if (neighbour.isSolidRender(level, n) || material != null && material.skipRendering(neighbour, d)
+                || shapeHides(level, n, neighbour, d.getOpposite(), material)) mask |= 1 << d.ordinal();
+        }
+        return mask;
+    }
+
+    /**
+     * Whether a neighbouring SHAPE block hides our face: it covers its whole face toward us, and its material is
+     * opaque, or the same see-through material as ours (two glass shapes merge like two glass blocks).
+     */
+    private static boolean shapeHides(final BlockGetter level, final BlockPos n, final BlockState neighbour, final Direction towardUs,
+                                      final @Nullable BlockState material) {
+        if (!(neighbour.getBlock() instanceof ShapeBlock) || !ShapeQuadBaker.coversFace(neighbour, towardUs)) return false;
+        final BlockState other = materialAt(level, n);
+        if (other == null) return true;   // the opaque placeholder
+        if (other.canOcclude() && !translucent(other)) return true;
+        return material != null && other.getBlock() == material.getBlock();
+    }
+
+    /** Whether {@code side} is set in a {@link #hiddenSides} mask. */
+    public static boolean hidden(final int mask, final @Nullable Direction side) {
+        return side != null && (mask >> side.ordinal() & 1) != 0;
     }
 
     /** The baked model of a (material) block state. */

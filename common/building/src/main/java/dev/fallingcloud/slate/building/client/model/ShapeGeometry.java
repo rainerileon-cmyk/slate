@@ -3,6 +3,8 @@ package dev.fallingcloud.slate.building.client.model;
 import dev.fallingcloud.slate.building.variant.ShapeBlock;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.EmptyBlockGetter;
@@ -11,6 +13,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.Nullable;
 
@@ -28,6 +31,7 @@ import org.jetbrains.annotations.Nullable;
 public final class ShapeGeometry {
 
     private static volatile boolean standIns;
+    private static final Map<BlockState, VoxelShape> SHAPES = new ConcurrentHashMap<>();
 
     /** The render boxes of {@code state} in block pixels; a full cube for anything that is not a shape block. */
     public static List<AABB> boxes(final BlockState state) {
@@ -40,11 +44,19 @@ public final class ShapeGeometry {
         return boxes == null || boxes.isEmpty() ? ShapeBlock.FULL_CUBE : boxes;
     }
 
-    /** The union of {@link #boxes} as a voxel shape in block units (for outlines). */
+    /** The union of {@link #boxes} as a voxel shape in block units (for outlines), cached per state. */
     public static VoxelShape shape(final BlockState state) {
-        VoxelShape out = net.minecraft.world.phys.shapes.Shapes.empty();
+        final VoxelShape hit = SHAPES.get(state);
+        if (hit != null) return hit;
+        final VoxelShape built = union(state);
+        SHAPES.put(state, built);
+        return built;
+    }
+
+    private static VoxelShape union(final BlockState state) {
+        VoxelShape out = Shapes.empty();
         for (final AABB b : boxes(state)) {
-            out = net.minecraft.world.phys.shapes.Shapes.or(out, net.minecraft.world.phys.shapes.Shapes.box(
+            out = Shapes.or(out, Shapes.box(
                 b.minX / 16.0, b.minY / 16.0, b.minZ / 16.0, b.maxX / 16.0, b.maxY / 16.0, b.maxZ / 16.0));
         }
         return out.optimize();
@@ -58,10 +70,16 @@ public final class ShapeGeometry {
         ShapeItemModels.clear();
     }
 
+    /** Drops cached outline shapes (called with the quad caches). */
+    static void clear() {
+        SHAPES.clear();
+    }
+
     // ---- stand-ins (design §2 geometry; vanilla-derived shapes use the vanilla block's own shape) ----
 
     private static @Nullable List<AABB> standIn(final BlockState state) {
         final ShapeBlock block = (ShapeBlock) state.getBlock();
+        if ("double".equals(valueName(state, "type"))) return null;   // a double (vertical) slab is a full cube anyway
         return switch (block.shape()) {
             case STAIRS, SLAB, WALL, PANE -> fromShape(state.getShape(EmptyBlockGetter.INSTANCE, BlockPos.ZERO));
             case FENCE -> fence(state);
@@ -77,7 +95,10 @@ public final class ShapeGeometry {
             case PANEL -> List.of(box(0, 0, 0, 16, 3, 16));
             case VERTICAL_STEP -> List.of(box(8, 0, 0, 16, 16, 8));
             case POST -> List.of(box(4, 0, 4, 12, 16, 12));
-            case LAYER -> List.of(box(0, 0, 0, 16, 6, 16));
+            case LAYER -> {
+                final String layers = valueName(state, "layers");
+                yield List.of(box(0, 0, 0, 16, 2 * (layers == null ? 3 : Integer.parseInt(layers)), 16));
+            }
             case FULL -> null;
         };
     }
@@ -106,6 +127,16 @@ public final class ShapeGeometry {
             box(2, 6 - drop, 7, 6, 9 - drop, 9), box(2, 12 - drop, 7, 6, 15 - drop, 9),
             box(10, 6 - drop, 7, 14, 9 - drop, 9), box(10, 12 - drop, 7, 14, 15 - drop, 9));
         return rotate(south, facing(state, Direction.SOUTH).getOpposite());
+    }
+
+    /** The serialized value of the property called {@code name}, or null when the state has none. */
+    private static @Nullable String valueName(final BlockState state, final String name) {
+        final Property<?> p = state.getBlock().getStateDefinition().getProperty(name);
+        return p == null ? null : nameOf(state, p);
+    }
+
+    private static <T extends Comparable<T>> String nameOf(final BlockState state, final Property<T> p) {
+        return p.getName(state.getValue(p));
     }
 
     private static Direction facing(final BlockState state, final Direction fallback) {

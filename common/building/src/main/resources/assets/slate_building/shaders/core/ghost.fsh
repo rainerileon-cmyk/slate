@@ -34,8 +34,6 @@ void main() {
     vec3 rgb = tex.rgb * vertexColor.rgb * lightColor.rgb;
     float luma = dot(rgb, vec3(0.2126, 0.7152, 0.0722));
     rgb = mix(vec3(luma), rgb, GhostParams.y);
-    // A slight lift toward white: ghosts read as light, not as a darkened copy of the block.
-    rgb = mix(rgb, vec3(1.0), 0.1);
 
     vec3 tint = GhostAccent.rgb;
     float tintMix = 0.0;

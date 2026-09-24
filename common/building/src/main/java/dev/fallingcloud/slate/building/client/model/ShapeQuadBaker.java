@@ -99,6 +99,7 @@ public final class ShapeQuadBaker {
     /** Drops every cached region and quad. Call on resource reload and when render boxes change (dev stand-ins). */
     public static void clearCaches() {
         FACES.clear();
+        ShapeGeometry.clear();
         synchronized (QUADS) {
             QUADS.clear();
         }

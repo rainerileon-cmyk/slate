@@ -57,9 +57,10 @@ final class FabricShapeBlockModel extends ForwardingBakedModel {
         final Object key = material != null ? material : ShapeModels.UNSET;
         final ShapeQuadBaker.QuadSource quads = d -> source.getQuads(sourceState, d, ShapeModels.random(seed));
         final QuadEmitter emitter = context.getEmitter();
+        final int hidden = ShapeModels.hiddenSides(view, pos, material);
         for (int bucket = 0; bucket < 7; bucket++) {
             final Direction side = bucket < 6 ? DIRECTIONS[bucket] : null;
-            if (side != null && context.isFaceCulled(side)) continue;
+            if (side != null && (ShapeModels.hidden(hidden, side) || context.isFaceCulled(side))) continue;
             for (final BakedQuad q : ShapeQuadBaker.quads(state, side, key, blend, quads)) {
                 emitter.fromVanilla(q, renderMaterial, side);
                 emitter.emit();

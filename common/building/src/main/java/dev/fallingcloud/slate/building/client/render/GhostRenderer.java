@@ -102,6 +102,8 @@ public final class GhostRenderer {
     private static final RenderKit.DynamicBuffer IMMEDIATE_LINES = new RenderKit.DynamicBuffer();
     private static final RenderKit.DynamicBuffer IMMEDIATE_HULL = new RenderKit.DynamicBuffer();
     private static @Nullable ByteBufferBuilder bytes;
+    /** Dev harness only: draw with the shader-pack fallback path, to check it without Iris installed. */
+    static boolean forceVanillaPath;
 
     // ======================================================================== API
 
@@ -193,9 +195,9 @@ public final class GhostRenderer {
         final Matrix4f modelView = new Matrix4f(RenderSystem.getModelViewMatrix());
         final Matrix4f projection = new Matrix4f(RenderSystem.getProjectionMatrix());
         final float time = RenderKit.seconds();
-        final float pulse = settings.pulse && RenderKit.animated() ? 0.86F + 0.14F * (float) Math.sin(time * Math.PI * 2 / 1.8) : 1F;
+        final float pulse = settings.pulse && RenderKit.animated() ? 0.9F + 0.1F * (float) Math.sin(time * Math.PI * 2 / 2.2) : 1F;
         final ShaderInstance shader = GhostShader.get();
-        final boolean vanillaPath = shader == null || RenderCompat.shaderPackInUse();
+        final boolean vanillaPath = forceVanillaPath || shader == null || RenderCompat.shaderPackInUse();
 
         final List<Ghost> ghosts = new ArrayList<>(immediate.size());
         final float[] alphas = new float[immediate.size()];
@@ -279,6 +281,9 @@ public final class GhostRenderer {
         final RenderType type = Sheets.translucentCullBlockSheet();
         final VertexConsumer consumer = source.getBuffer(type);
         final float opacity = settings.opacity() * pulse;
+        // Positions come relative to the camera block (float precision far from the world origin), then camera-relative.
+        final BlockPos origin = BlockPos.containing(cam);
+        final float ox = (float) (origin.getX() - cam.x), oy = (float) (origin.getY() - cam.y), oz = (float) (origin.getZ() - cam.z);
         final Palette pal = Theme.current().palette();
         final GhostMesher.Sink sink = (x, y, z, r, g, b, a, u, v, bl, sl, style, nx, ny, nz) -> {
             final int tint = style == 1 ? GhostMesher.REPLACE_AMBER : style == 2 ? pal.danger() : 0;
@@ -288,19 +293,19 @@ public final class GhostRenderer {
                 gg = g * 0.55F + ((tint >> 8) & 0xFF) / 255F * 0.45F;
                 bb = b * 0.55F + (tint & 0xFF) / 255F * 0.45F;
             }
-            consumer.addVertex((float) (x - cam.x), (float) (y - cam.y), (float) (z - cam.z),
+            consumer.addVertex(x + ox, y + oy, z + oz,
                 Colors.argb(Math.round(Math.min(1F, a * opacity) * 255), Math.round(Math.min(1F, rr) * 255),
                     Math.round(Math.min(1F, gg) * 255), Math.round(Math.min(1F, bb) * 255)),
                 u, v, OverlayTexture.NO_OVERLAY, bl | (sl << 16), nx, ny, nz);
         };
         int budget = settings.maxBlocks();
         if (!ghosts.isEmpty() && !immediateHull) {
-            GhostMesher.quads(sink, ghosts, alphas, BlockPos.ZERO, level);
+            GhostMesher.quads(sink, ghosts, alphas, origin, level);
             budget -= ghosts.size();
         }
         for (final CachedPlan p : plans) {
             if (p.ghosts.size() > budget) continue;
-            GhostMesher.quads(sink, p.ghosts, null, BlockPos.ZERO, level);
+            GhostMesher.quads(sink, p.ghosts, null, origin, level);
             budget -= p.ghosts.size();
         }
         source.endBatch(type);
