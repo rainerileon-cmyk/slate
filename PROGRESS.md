@@ -35,3 +35,35 @@ and config (8c5166d + edits) have commits, core-polish/editor/multiplayer only u
 - Boot test in the DF pack via the CmlLib harness, then install jars into `packs/df/game/mods/`
   (disable `chatterbox-neoforge-1.21.1.jar` — superseded by Slate Chat).
 - Docs + memory + morning report.
+
+# Slate Building — overnight build, 2026-09-24
+
+New module `slate_building` (user guide `docs/building.md`, contract `docs/building-design.md`). Branch
+`building`, one worktree per agent under `C:/Users/leonr/sbwt/<name>` on `agent/b-<name>`; builds through the shared
+3-slot semaphore, one dev client at a time. Master was left alone all night (the user has uncommitted work there).
+
+| stage | agent / branch | what | state |
+|---|---|---|---|
+| 0 | lead | design contract, agent brief, scout maps (`docs/building-maps/`), `SettingsTabs` API | DONE (7ead097) |
+| 1 | S skeleton | Gradle wiring both loaders, registries, platform + loader impls, network, config shells, enums, input router, exclusive keys, `BuildingHarness`, Core `SlateRenderEvents` | DONE (b897ba7, ed50180) |
+| 1 | F config-tabs | Slate Config top tabs, Gameplay/Customization categories, merged Multiplayer and Language/Accessibility pages, shader packs, DF page retired (`SlateTabStrip` in Core) | DONE, merged (86f70f2) |
+| 1 | G betterinventory | BetterInventory 1.1.5: toolbox slot, `BetterInventoryApi`, offhand carousel key moved to Right Alt (one-time migration) | DONE in the BI repo, uncommitted (jar built) |
+| 1 | H icons | 48 building glyphs, Java ports `IconsGen`/`ModIconsGen`, mod icon | DONE, merged (aeb9244) |
+| 2 | A variants | variant registry and discovery, 13 shape blocks, unify hooks (drops, recipes, creative tab, JEI), swap and in-world reshape | DONE, merged (c4e6562) |
+| 2 | B render | shape quad baker + loader models, ghost shader and renderer, overlays, hand preview | DONE, merged (114c5fc) |
+| 2 | C ui | Alt swap wheel, build menu, mode HUD, wheel editor, settings tab and screen, pick-block swap | DONE, merged (51f6159) |
+| 2 | D1 ops-server | planners for all 20 modes, economy, tick executor, history, clipboard, symmetry, `/slatebuild`, ops self-test | DONE, merged (987c739) |
+| 2 | D2 ops-client | selection state machine, previews through the shared planners, anchors, params | DONE, merged (a06f56f) |
+| 2 | E toolbox | toolbox, tools, upgrades, menu + screen, pouch, Supply Link, recipes, textures, BI bridge | DONE, merged (c715a96) |
+| 2 | I chisel | group index, providers (overrides, Rechiseled, Chipped, Chisel, stonecutter, families), safety rules, sync, held and in-world chisel | DONE, merged (ab789a4) |
+| 3 | INT integration | wired the parts onto each other's real code, settings rows, reload hooks, harness | DONE (16b39bf, 9fcfb0c) |
+| 4 | review | read-only review of the integrated tree: 46 confirmed findings (3 critical dupes) | DONE |
+| 5 | fix-ops / fix-variants / fix-ui / fix-render | all confirmed findings fixed (economy dupes, unloaded chunks, reshape loot guard, natives kept with deleteNatives, stuck keys on Fabric, HUD, re-planning) | DONE, merged (8fc2d4c, afc02da, 1fdfcf4, 2d87f57); both loaders green |
+| 6 | COMPAT | DF-pack dev run (`:dev:runClientCompat`): Sodium, Iris, Diagonal*, OPAC, BetterInventory pass; KleeSlabs, Create toolbelt and JEI subtype compat added | DONE, merged (f1f351d) |
+| 7 | POLISH | compat patches (KleeSlabs probe in `canBreak`, JEI stand-in entries, Create copper stairs by name), review leftovers | RUNNING (sbwt/base) |
+| 7 | DOCS | `docs/building.md`, README, DESIGN, this section | DONE (agent/b-docs) |
+| 8 | lead | merge building → master (user's dirty files untouched), final build both loaders, jars, morning report | TODO |
+
+Open decision for the user: with an empty hand looking at a block the player may reshape (any block in creative),
+Left Alt goes to the in-world reshape wheel, so Shoulder Surfing / Relics / Create lose it there. The compat
+report proposes claiming Alt for the in-world wheel only while a building tool is held.

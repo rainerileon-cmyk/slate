@@ -19,10 +19,11 @@ change existing Core signatures.
 | Multiplayer | `slate_multiplayer` | `dev.fallingcloud.slate.multiplayer` | both | core |
 | Chat | `slate_chat` | `dev.fallingcloud.slate.chat` | both | core, multiplayer |
 | Config | `slate_config` | `dev.fallingcloud.slate.config` | client | core |
+| Building | `slate_building` | `dev.fallingcloud.slate.building` | both (**required on both**: adds blocks/items) | core; config, jei, betterinventory optional |
 | Teams | `slate_teams` | — | — | **later** (id reserved) |
 | Quests | `slate_quests` | — | — | **later** (id reserved) |
 
-Display names: "Slate", "Slate Menu", "Slate Multiplayer", "Slate Chat", "Slate Config".
+Display names: "Slate", "Slate Menu", "Slate Multiplayer", "Slate Chat", "Slate Config", "Slate Building".
 Version `1.0.0`, MIT, author `falling_colud`, maven group `dev.fallingcloud`.
 
 Hard rules:
@@ -242,7 +243,20 @@ everything, Favourites (pin options), Presets (snapshot/restore of chosen option
 **Curated pages** from `config/slate/config/pages/*.json` (`path` = `optionsTxt:<key>` | `sodium:<id>` |
 `toml:<modid>:<file>:<section.key>` | `json:<file>:<pointer>` | `props:<file>:<key>` | `slate:<module>:<key>`);
 ships `df.json` — an example curated set for the DF pack (Visuals, Performance, Immersion, Gameplay,
-Social) built from the real config files in the pack.
+Social) built from the real config files in the pack. (Since 2026-09-24: sections are top tabs, Gameplay and
+Customization are categories other modules add tabs to via `config.api.SettingsTabs`, and the DF page is retired;
+[docs/config.md](docs/config.md) is current.)
+
+### Building (`slate_building`) — both sides
+A survival-friendly building mod: unified shapes per material (natives such as oak stairs plus its own
+material-carrying shape blocks) with a strict one-material-unit economy, an Alt swap wheel, placement ghosts, an R
+build menu with 20 building modes (selected in the world, planned identically on client and server, executed over
+ticks, undoable) unlocked by tiered tools in a Builder's Toolbox, chisel groups, and a Building tab under Slate
+Config's Gameplay category. It is the one module that registers content, so it breaks two rules above on purpose:
+it must be installed on both sides (NeoForge `displayTest = "MATCH_VERSION"`), and it adds `building.json`,
+`building-server.json` (synced to clients) and `building-chisel.json`. Its payloads still use the `slate`
+namespace. The contract (model, APIs, economy, ownership, and the corrections to the Core section above) is
+[docs/building-design.md](docs/building-design.md); the user guide is [docs/building.md](docs/building.md).
 
 ## Visual language (both skins)
 - 2 px base grid, 8 px spacing unit, pixel-stepped corners (radius 3 → steps 1,1,1), 1 px borders.
