@@ -4,7 +4,10 @@
   "package": "dev.fallingcloud.slate.building.mixin.ui",
   "compatibilityLevel": "JAVA_21",
   "mixins": [],
-  "client": [],
+  "client": [
+    "GuiAccessor",
+    "GuiCrosshairMixin"
+  ],
   "injectors": {
     "defaultRequire": 1
   }
