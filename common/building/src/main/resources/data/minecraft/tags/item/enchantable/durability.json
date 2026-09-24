@@ -1,0 +1,29 @@
+{
+  "replace": false,
+  "values": [
+    "slate_building:copper_trowel",
+    "slate_building:copper_hammer",
+    "slate_building:copper_brush",
+    "slate_building:copper_blueprint",
+    "slate_building:copper_square",
+    "slate_building:copper_chisel",
+    "slate_building:iron_trowel",
+    "slate_building:iron_hammer",
+    "slate_building:iron_brush",
+    "slate_building:iron_blueprint",
+    "slate_building:iron_square",
+    "slate_building:iron_chisel",
+    "slate_building:diamond_trowel",
+    "slate_building:diamond_hammer",
+    "slate_building:diamond_brush",
+    "slate_building:diamond_blueprint",
+    "slate_building:diamond_square",
+    "slate_building:diamond_chisel",
+    "slate_building:netherite_trowel",
+    "slate_building:netherite_hammer",
+    "slate_building:netherite_brush",
+    "slate_building:netherite_blueprint",
+    "slate_building:netherite_square",
+    "slate_building:netherite_chisel"
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "group": "slate_building:upgrades",
+  "key": {
+    "X": { "item": "minecraft:book" },
+    "i": { "tag": "c:ingots/iron" },
+    "r": { "tag": "c:dusts/redstone" }
+  },
+  "pattern": [
+    " r ",
+    "iXi",
+    " r "
+  ],
+  "result": {
+    "count": 1,
+    "id": "slate_building:memory_upgrade"
+  }
+}

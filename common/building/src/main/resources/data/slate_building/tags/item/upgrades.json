@@ -1,0 +1,12 @@
+{
+  "replace": false,
+  "values": [
+    "slate_building:reach_upgrade",
+    "slate_building:capacity_upgrade",
+    "slate_building:speed_upgrade",
+    "slate_building:memory_upgrade",
+    "slate_building:supply_link_upgrade",
+    "slate_building:magnet_upgrade",
+    "slate_building:efficiency_upgrade"
+  ]
+}
