@@ -47,4 +47,12 @@ public final class ServerOps {
     public List<String> disabledModes = new ArrayList<>();
     /** Permission level needed to paste (0: everyone). */
     public int pasteOpLevel = 0;
+    /** Mirror / radial symmetry reach around its centre, per square tier. */
+    public int[] symmetryRadius = {16, 32, 64, 128};
+    /** Most blocks one Extend click adds, per trowel tier. */
+    public int[] extendMax = {16, 64, 256, 1024};
+    /** Server ticks a player must wait between two operations (flood protection). */
+    public int minTicksBetweenOps = 4;
+    /** Break particles and place sounds while an operation runs (a few per tick, never one per block). */
+    public boolean effects = true;
 }
