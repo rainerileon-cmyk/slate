@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "group": "slate_building:toolbox",
+  "key": {
+    "X": { "tag": "c:chests/wooden" },
+    "c": { "tag": "c:ingots/copper" }
+  },
+  "pattern": [
+    " c ",
+    "cXc"
+  ],
+  "result": {
+    "count": 1,
+    "id": "slate_building:toolbox"
+  }
+}

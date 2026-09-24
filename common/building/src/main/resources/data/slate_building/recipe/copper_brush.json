@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "group": "slate_building:brush",
+  "key": {
+    "m": { "tag": "c:ingots/copper" },
+    "s": { "tag": "c:rods/wooden" },
+    "w": { "tag": "minecraft:wool" }
+  },
+  "pattern": [
+    " mw",
+    " mm",
+    "s  "
+  ],
+  "result": {
+    "count": 1,
+    "id": "slate_building:copper_brush"
+  }
+}

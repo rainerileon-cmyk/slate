@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "group": "slate_building:trowel",
+  "key": {
+    "m": { "tag": "c:ingots/copper" },
+    "s": { "tag": "c:rods/wooden" }
+  },
+  "pattern": [
+    "  m",
+    " mm",
+    "s  "
+  ],
+  "result": {
+    "count": 1,
+    "id": "slate_building:copper_trowel"
+  }
+}

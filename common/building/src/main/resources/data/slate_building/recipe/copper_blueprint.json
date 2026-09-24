@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "group": "slate_building:blueprint",
+  "key": {
+    "l": { "tag": "c:gems/lapis" },
+    "m": { "tag": "c:ingots/copper" },
+    "p": { "item": "minecraft:paper" }
+  },
+  "pattern": [
+    "pmp",
+    "mlm",
+    "ppp"
+  ],
+  "result": {
+    "count": 1,
+    "id": "slate_building:copper_blueprint"
+  }
+}
