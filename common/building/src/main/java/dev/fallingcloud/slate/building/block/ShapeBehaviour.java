@@ -137,16 +137,17 @@ public final class ShapeBehaviour {
     // ------------------------------------------------------------------------------------------------ economy
 
     /**
-     * Drops of a shape block: its material's item, one per unit, and only when the material could be harvested by the
-     * breaking player's tool (explosions follow vanilla's "survives explosion" odds instead). An unset shape drops
-     * nothing.
+     * Drops of a shape block: itself, one shape item per unit (a double slab drops 2 slabs, a layer block one item per
+     * layer), and only when the material could be harvested by the breaking player's tool (explosions follow vanilla's
+     * "survives explosion" odds instead). The item is the material's native one where it exists, else this shape's own
+     * item carrying the material; in the inventory it joins any stack of the same material ({@code VariantStacking}).
+     * An unset shape drops nothing.
      */
     public static List<ItemStack> drops(final ShapeBlock shape, final BlockState state, final LootParams.Builder params) {
         final BlockEntity be = params.getOptionalParameter(LootContextParams.BLOCK_ENTITY);
         final BlockState material = be instanceof ShapeBlockEntity s ? s.material() : null;
         if (material == null) return List.of();
-        final Item item = material.getBlock().asItem();
-        if (item == Items.AIR) return List.of();
+        if (material.getBlock().asItem() == Items.AIR) return List.of();
         final ItemStack tool = params.getOptionalParameter(LootContextParams.TOOL);
         final Entity breaker = params.getOptionalParameter(LootContextParams.THIS_ENTITY);
         if (material.requiresCorrectToolForDrops()) {
@@ -155,21 +156,27 @@ public final class ShapeBehaviour {
         }
         final Float radius = params.getOptionalParameter(LootContextParams.EXPLOSION_RADIUS);
         if (radius != null && radius > 1F && params.getLevel().getRandom().nextFloat() > 1F / radius) return List.of();
-        return List.of(new ItemStack(item, Math.max(1, shape.units(state))));
+        return List.of(selfStack(shape, state.getBlock(), material.getBlock(), Math.max(1, shape.units(state))));
+    }
+
+    /** {@code units} shape items of {@code material}: the native item where one exists, else {@code self}'s item with the material set. */
+    static ItemStack selfStack(final ShapeBlock shape, final Block self, final Block material, final int units) {
+        final ItemStack stack = VariantRegistry.get().stackFor(material, shape.shape(), units);
+        return stack.isEmpty() ? ShapeBlockItem.withMaterial(new ItemStack(self, units), material) : stack;
     }
 
     /** Pick block: the variant stack (a native item where one exists), else this shape's item with the material. */
     public static ItemStack cloneStack(final ShapeBlock shape, final Block self, final LevelReader level, final BlockPos pos) {
         final BlockState material = ShapeBlock.material(level, pos);
         if (material == null) return new ItemStack(self);
-        final ItemStack stack = VariantRegistry.get().stackFor(material.getBlock(), shape.shape(), 1);
-        return stack.isEmpty() ? ShapeBlockItem.withMaterial(new ItemStack(self), material.getBlock()) : stack;
+        return selfStack(shape, self, material.getBlock(), 1);
     }
 
     /**
      * KleeSlabs (DF pack) splits a double slab by dropping {@code new ItemStack(Item.byBlock(block))} (our shape item
-     * WITHOUT a material) and then setting the single state. That drop is turned into the material here, the moment
-     * the state shrinks: the item entity already exists (it is spawned first), is brand new, and sits in the block.
+     * WITHOUT a material) and then setting the single state. That drop is given its material here (the slab of the
+     * material, as a normal break would drop), the moment the state shrinks: the item entity already exists (it is
+     * spawned first), is brand new, and sits in the block.
      */
     public static void healSplitDrops(final Level level, final BlockPos pos, final BlockState oldState, final BlockState newState) {
         if (level.isClientSide() || !newState.is(oldState.getBlock()) || !(oldState.getBlock() instanceof ShapeBlock shape)) return;
@@ -178,7 +185,7 @@ public final class ShapeBehaviour {
         if (material == null || material.getBlock().asItem() == Items.AIR) return;
         for (final ItemEntity drop : level.getEntitiesOfClass(ItemEntity.class, new AABB(pos).inflate(0.5),
             e -> e.tickCount == 0 && e.getItem().getItem() instanceof ShapeBlockItem && ShapeBlockItem.material(e.getItem()) == null)) {
-            drop.setItem(new ItemStack(material.getBlock().asItem(), drop.getItem().getCount()));
+            drop.setItem(selfStack(shape, oldState.getBlock(), material.getBlock(), drop.getItem().getCount()));
         }
     }
 

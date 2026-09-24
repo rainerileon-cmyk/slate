@@ -88,39 +88,53 @@ public final class SodiumBridge {
 
     // ------------------------------------------------------------------ sections
 
-    /** One section per option page of every mod registered with Sodium's config API, grouped into one top tab per mod. */
-    public static List<Section> sections() {
-        final List<Section> out = new ArrayList<>();
+    /**
+     * One option page of a mod on Sodium's config API, every option wrapped as a binding. {@code external} is the
+     * "open its own screen" action of an {@link ExternalPage} (then {@code options} is empty).
+     */
+    public record ModPage(String mod, String configId, int index, Component title, List<OptionBinding> options, @Nullable OptionBinding external) {}
+
+    /** Every page of every mod registered with Sodium's config API, in registration order. */
+    public static List<ModPage> pages() {
+        final List<ModPage> out = new ArrayList<>();
         if (!available()) return out;
         try {
             for (final ModOptions mod : config().getModOptions()) {
                 int pageIdx = 0;
                 for (final Page page : mod.pages()) {
-                    final String sid = "sodium." + mod.configId() + "." + pageIdx++;
-                    final Component title = page.name();
-                    final String tabId = "sodium." + mod.configId();
-                    final Component tabTitle = Component.literal(mod.name());
+                    final int idx = pageIdx++;
                     if (page instanceof ExternalPage ext) {
-                        final Section s = Section.of(sid, title).tab(tabId, tabTitle);
-                        s.add(Binding.of("sodium:" + mod.configId() + ":page." + (pageIdx - 1), OptionType.ACTION, page.name())
+                        final OptionBinding open = Binding.of("sodium:" + mod.configId() + ":page." + idx, OptionType.ACTION, page.name())
                             .tooltip(Component.translatable("slate_config.video.external_page", mod.name()))
                             .action(Component.translatable("slate_config.row.open"), () -> ext.currentScreenConsumer().accept(Minecraft.getInstance().screen))
-                            .searchWords("sodium " + mod.name()));
-                        out.add(s);
+                            .searchWords("sodium " + mod.name());
+                        out.add(new ModPage(mod.name(), mod.configId(), idx, page.name(), List.of(), open));
                         continue;
                     }
-                    final Section s = Section.of(sid, title).tab(tabId, tabTitle);
+                    final List<OptionBinding> options = new ArrayList<>();
                     for (final OptionGroup group : page.groups()) {
                         for (final Option opt : group.options()) {
                             final OptionBinding b = wrap(opt, mod);
-                            if (b != null) s.add(b);
+                            if (b != null) options.add(b);
                         }
                     }
-                    if (!s.isEmpty()) out.add(s);
+                    if (!options.isEmpty()) out.add(new ModPage(mod.name(), mod.configId(), idx, page.name(), options, null));
                 }
             }
         } catch (final Throwable t) {
             SlateConfig.LOGGER.warn("[Slate Config] Sodium config model changed; its pages are unavailable: {}", t.toString());
+        }
+        return out;
+    }
+
+    /** One section per option page of every mod, grouped into one tab per mod (presets and the option index). */
+    public static List<Section> sections() {
+        final List<Section> out = new ArrayList<>();
+        for (final ModPage p : pages()) {
+            final Section s = Section.of("sodium." + p.configId() + "." + p.index(), p.title()).tab("sodium." + p.configId(), Component.literal(p.mod()));
+            if (p.external() != null) s.add(p.external());
+            else s.addAll(p.options());
+            out.add(s);
         }
         return out;
     }

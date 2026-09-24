@@ -40,7 +40,8 @@ Right-click two corners, then right-click a third time to build.
 stone brick wall, a mod's marble slab). The swap wheel then hands out that native item. Otherwise Slate Building
 uses its **own shape block**, which stores the material and borrows everything from it: the look (quads cut
 from the material's model, with its tint, cutout or translucency), sound, hardness, the right tool, light,
-friction and explosion resistance. The item is called "*Material Shape*" (e.g. "Glass Vertical Slab"). There are
+friction and explosion resistance. The item is named the way vanilla names its shapes, without the "block" words:
+"Grass Stairs" (from a grass block), "Oak Vertical Slab" (oak planks), "Stone Brick Wall", "Quartz Slab". There are
 no crafting recipes for the custom shapes: hold the block and swap. A shape item without a material places nothing.
 
 Natives are found automatically, the same way on client and server: vanilla block families, every stairs
@@ -59,9 +60,13 @@ vaults, end portal frame, reinforced deepslate, light, budding amethyst, infeste
 - Every shape item and every freshly placed shape is worth **one unit** of its material. A double slab or double
   vertical slab is worth 2; a layer block is worth its layer count.
 - **Swapping keeps the count, 1:1**: 16 planks become 16 stairs and back.
-- **Breaking any shape drops the material**, one per unit (a stone stair drops stone, not cobblestone, and a
-  double slab drops 2), and only when your tool could harvest the material. This covers natives too: breaking
-  oak stairs drops oak planks.
+- **Breaking any shape drops itself**, one shape item per unit (a stone stair drops a stone stair, a double slab
+  drops 2 slabs, a layer block one layer per layer), and only when your tool could harvest the material.
+- **In your inventory, shapes stack across shapes:** a picked-up shape item joins any stack of the same material
+  you already carry, converted 1:1 — a mined oak stair lands in your oak planks (or your oak slabs), so nothing
+  needs swapping back. An exact stack with room comes first, then the first same-material stack with room
+  (selected slot, off hand, then the inventory), then an empty slot keeps the item as it is. The full block itself
+  never turns into a shape: planks stay planks. Operation drops and refunds follow the same rule.
 - **Fair recipes** (`rebalanceRecipes`, on by default): recipes that make natives at better than 1:1 are
   rewritten to give one shape per material block used. 3 planks → 6 slabs becomes 3 → 3, 6 planks → 4 stairs
   becomes 6 → 6, and stonecutting gives 1. Recipes whose inputs cannot be counted are left alone. Takes effect
@@ -71,7 +76,7 @@ vaults, end portal frame, reinforced deepslate, light, budding amethyst, infeste
     own item of that material in their place), and removes the recipes that **make** natives (for multi-output
     recipes, only the native outputs). Takes effect on `/reload` or restart.
   - *Does not:* unregister anything, convert items already in inventories or chests, or touch blocks already
-    placed (they keep working and still drop their material). The wheel, build menu, chisel and pick-block still
+    placed (they keep working and drop themselves). The wheel, build menu, chisel and pick-block still
     hand out the native item where one exists, so every recipe that **uses** oak slabs or `#wooden_slabs` still
     works. It only acts while *Unify shapes* is on.
 - Building modes and in-world reshaping pay the same way (see [Toolbox](#builders-toolbox)). Creative costs
@@ -98,6 +103,26 @@ replacements are tinted amber, removals are red and hatched.
 | Ghost block limit (larger plans draw outlines only) | `preview.maxBlocks` | 4096 |
 | Show mirrored copies | `preview.showMirrored` | on |
 
+## Accurate placement
+
+The behaviour of the Accurate Block Placement mod is built in (with that mod installed, Slate Building's copy
+stays idle). With a block in hand, holding right-click places a block **every time the crosshair reaches a spot
+that can take one**, instead of vanilla's one block per 4 ticks: sweep along a row or up a wall and no block is
+skipped.
+
+- A fresh click places at once. The first 4 ticks of a hold keep vanilla's pause unless the mouse moved a good
+  bit; spots the crosshair passed during that pause are filled when it ends.
+- Holding still on the block you just placed places nothing more; step back a block along that face and it does
+  again (bridging backwards).
+- Vanilla keeps interactive blocks (chest, door, lever, …) unless you sneak, block-entity blocks right next to
+  you, scaffolding on scaffolding, compostables on a composter, lily pads, and anything that is not a block. It
+  stays out of the way while a selection-driven building mode is active (Mirror, Radial and Extended build
+  normally, so it works with them).
+- **Fast breaking** (off by default) removes the 5-tick pause between blocks while attack is held.
+
+Both have unbound toggle keys (*Toggle accurate placement*, *Toggle fast breaking*) that say what they did in
+chat. Settings: *Placing & breaking*.
+
 ## Quick-swap wheel (Left Alt)
 
 Hold the swap key with a block or shape in your main hand. The wheel opens around the crosshair as an overlay,
@@ -109,7 +134,7 @@ reason such as "Needs: Hammer".
 |---|---|
 | Hold the swap key | Open the wheel (closes when you let go) |
 | Move the mouse | Moves a cursor on the wheel. The camera stays still |
-| Release the key | Applies the hovered slice. Tapping without moving does nothing; moving out and back to the centre picks the full block |
+| Release the key | Applies the hovered slice. Tapping without moving does nothing; any nudge of the mouse arms the centre, so nudge and let go (or come back to the middle from a slice) to get the full block |
 | Left click / right click | Previous / next wheel page (page dots and the wheel name show where you are) |
 | Scroll | Step around the ring |
 | Hotbar keys 1–9 | Point at that slice (applied on release, or at once with *Release to apply* off) |
@@ -149,9 +174,12 @@ pause screen: the world keeps running behind it.
 - **Right: Building modes.** The header holds the toolbox summary (your tools with tier pips; click it to open
   the toolbox), **Undo** / **Redo** with step counts, and **Edit wheels**. Below it, a table of every mode with
   icon, name, description, required tool, keybind and a lock reason when locked. Click a row to activate the
-  mode and close the menu. Shift+click keeps the menu open, and right-click only selects the row so you can
-  change its options. Clicking the active mode turns it off. The panel under the table edits the selected mode's
-  options (saved per mode in `building.json`), with a reset button.
+  mode; the menu stays open, so you can set its options or try another one (*Close menu on pick* makes it close
+  instead, and Shift+click always does the opposite of that setting). Right-click only selects the row so you
+  can change its options. Clicking the active mode turns it off. The panel under the table edits the selected
+  mode's options (saved per mode in `building.json`), with a reset button, and holds the *Corner distance in the
+  air* slider for every mode that can put a corner in the air. Its bottom right shows the running operation's
+  progress (with a bar), or the last result, live.
 - **Keyboard:** Tab cycles the areas, the arrow keys move in the table or around a focused wheel, Enter
   activates, `/` searches, and R or Esc closes the menu.
 
@@ -181,6 +209,7 @@ Iron 2, Diamond 3, Netherite 4. Option defaults are in brackets.
 | Move | Blueprint 3 | Lift the box and put it down somewhere else | Rotation, Mirror |
 | Mirror | Square 1 | Your normal placing and breaking is mirrored across a plane through the centre | Axis [X] / Z / X and Z; Mirror breaking [on] |
 | Radial | Square 3 | N-fold rotational symmetry around the centre | Slices 2–8 [4]; Mirror breaking [on] |
+| Extended | none (needs a reach bonus) | Build and mine normally, as far away as the building modes reach: while it is on, your block reach grows by the toolbox reach bonus | none |
 | Measure | none | Size, volume and distance; changes nothing (also works in spectator) | none |
 
 Replace choices: *Air only*, *Air and plants* (replaceables such as grass, water and snow), *Everything*. Blocks
@@ -192,22 +221,24 @@ hotbar palette. A held shape builds in that shape.
 
 | Kind | Modes | Clicks |
 |---|---|---|
-| Area | fill, walls, line, hollow, outline, cylinder, sphere, replace, overlay, clear, reshape, copy, cut, stack | Right-click corner A. The box follows the crosshair. Right-click corner B, and the plan shows as ghosts. Right-click again to apply |
+| Area | fill, walls, line, hollow, outline, cylinder, sphere, replace, overlay, clear, reshape, copy, cut, stack | Right-click corner A. The box follows the crosshair. Right-click corner B, and the plan shows as ghosts. Right-click again to apply. Left-click the same way to break instead of place |
 | Point | extend, paste | The preview follows the crosshair. Right-click fixes it, right-click again applies |
 | Move | move | Corner A, corner B, then the destination follows the crosshair. Right-click fixes it, right-click again applies |
 | Toggle | mirror, radial | Stays on while you build normally. It centres on the block you look at when you turn it on; the plane or centre is drawn in the world |
+| Reach | extended | Stays on while you build normally, with the corner reach of the building modes (the toolbox reach bonus: +8/16/32 by tier, doubled per Reach upgrade). Nothing to select or draw; the chip shows the bonus |
 | Measure | measure | Two right-clicks. A third starts a new measurement, and left click clears it |
 
 | In the world | What it does |
 |---|---|
 | Right click | Next step (corner, fix, apply). With *Right-click applies* off, only the Confirm key applies (right-click still does while Confirm is unbound) |
 | Confirm key | Same as the next right-click. In Mirror/Radial it re-centres on the block you look at |
-| Left click, Esc, Cancel key | Clear the pending selection without mining. The Cancel key also stops a running operation (what was built stays and can be undone) |
+| Left click | The same corners, but the mode **breaks** what it would have placed: Fill clears the box, Walls tears them down, Replace removes the matching blocks, Overlay strips the top layer. Drops and harvest rules are Clear's (hammer tier). The ghosts turn warm while a breaking selection is pending |
+| Q (Cancel key), Esc | Clear the pending selection. Q also stops a running operation (what was built stays and can be undone). Q is vanilla's drop key: Slate Building takes it only while there is something to cancel |
 | Ctrl + scroll | Push or pull the face of the box you look at (radius/height on cylinders and spheres). On a fixed paste/move point: nudge it along your view |
 | Shift + scroll | Step the main option: thickness, count, depth, slices, rotation (paste, move) or axis (mirror). Radius on spheres and cylinders |
-| Scroll while aiming at air | Distance of a corner placed in the air (*Corner distance in the air*, default 4) |
+| *Corner distance in the air* slider (build menu, under the mode's options) | Distance of a corner placed in the air (default 4; also a setting). Scrolling never changes it |
 | Arrow keys | Nudge the selection, paste point or symmetry centre one block. Shift+↑/↓ or PageUp/PageDown move it vertically |
-| Leave-mode key, the mode's own key, or its row in the menu | Turn the mode off |
+| The leave-mode key, the mode's own key, or its row in the menu | Turn the mode off (Esc never does) |
 
 Corners can be picked at your normal reach plus the reach bonus of your tier. Clicking air puts the corner in
 the air at the corner distance. While any mode except Mirror and Radial is active, right-clicking with a block, a
@@ -381,11 +412,13 @@ All in the **Slate Building** category (Slate Config → Controls, or vanilla Co
 | Undo build | unbound |
 | Redo build | unbound |
 | Confirm selection | unbound (right-click confirms) |
-| Cancel selection | unbound (left click / Esc cancel) |
+| Cancel selection | Q (vanilla's drop key; taken only while a selection or an operation can be cancelled; Esc also clears a selection) |
 | Leave building mode | unbound |
-| Mode: Fill … Mode: Measure (one per mode, 20) | unbound |
+| Toggle accurate placement | unbound |
+| Toggle fast breaking | unbound |
+| Mode: Fill … Mode: Extended, Mode: Measure (one per mode, 21) | unbound |
 
-The keys inside the wheel (clicks, scroll, hotbar keys, Esc) and in modes (Ctrl/Shift+scroll, arrows, PageUp/PageDown)
+The keys inside the wheel (clicks, scroll, hotbar keys, Esc) and in modes (Ctrl/Shift+scroll, arrows, PageUp/PageDown, Esc)
 are fixed.
 
 **Shared keys.** Left Alt and R are popular: in the DF pack six mods use Left Alt (Create's toolbelt, Relics, Iron's
@@ -423,19 +456,23 @@ Building settings screen shows the same rows. Client settings apply live. Server
 | `wheel.exclusiveSwapKey` | `true` | The swap key takes Alt while the wheel would open | General › Swap key takes Alt |
 | `wheel.menuKeyContext` | `"SMART"` | When R opens the build menu: `SMART` or `ALWAYS` | General › Build menu key |
 | `preview.*` | see [Placement preview](#placement-preview) | | Placement preview |
+| `placement.accurate` | `true` | [Accurate placement](#accurate-placement): a block per new crosshair spot while use is held | Placing & breaking › Accurate placement |
+| `placement.fastBreaking` | `false` | No 5-tick pause between broken blocks while attack is held | Placing & breaking › Fast breaking |
+| `placement.toggleMessage` | `true` | A chat line when a toggle key flips one of the two | Placing & breaking › Toggle messages |
 | `hud.enabled` | `true` | The mode chip | Build menu & HUD › Mode HUD |
 | `hud.anchor` | `"TOP"` | `TOP_LEFT`, `TOP`, `TOP_RIGHT`, `LEFT`, `RIGHT`, `BOTTOM_LEFT`, `BOTTOM`, `BOTTOM_RIGHT` | Build menu & HUD › HUD position |
 | `hud.scale` | `1.0` | Chip size (0.5–2) | Build menu & HUD › HUD size |
 | `hud.actionBar` | `true` | Result line after an operation | Build menu & HUD › Result line |
+| `hud.closeMenuOnPick` | `false` | Choosing a mode closes the build menu (Shift+click keeps it open); off: it stays open and Shift+click closes it | Build menu & HUD › Close menu on pick |
 | `hud.sounds` | `true` | Quiet clicks for the wheel, swaps and modes | General › Sounds |
 | `hud.hints` | `true` | A short tip with the swap and menu keys the first times you hold a block that can change shape (shown at most twice, `hud.onboardingShown` counts) | General › Tips for new players |
 | `modes.confirmWithRightClick` | `true` | A third right-click applies | Building modes › Right-click applies |
 | `modes.livePreview` | `true` | Plan ghosts while the box still follows the crosshair (small selections) | Building modes › Live preview |
 | `modes.labels` | `true` | Size labels above the selection | Building modes › Size labels |
 | `modes.arrowNudge` | `true` | Arrow keys nudge | Building modes › Arrow keys nudge |
-| `modes.escapeCancels` | `true` | Esc clears a pending selection before opening the pause menu | Building modes › Esc clears the selection |
+| `modes.escapeCancels` | `true` | Esc clears a pending selection before opening the pause menu (the mode stays on) | Building modes › Esc clears the selection |
 | `modes.openContainers` | `true` | With nothing selected, right-clicking a chest opens it | Building modes › Open containers |
-| `modes.airDistance` | `4` | Distance of a corner placed on air | Building modes › Corner distance in the air |
+| `modes.airDistance` | `4` | Distance of a corner placed on air (also a slider in the build menu) | Building modes › Corner distance in the air |
 | `modes.params` | `{}` | Options per mode, e.g. `{"fill": {"replace": "AIR"}}` | Build menu options panel |
 | `modes.lastMode` | `""` | Last used mode | file only |
 
@@ -446,7 +483,7 @@ edited as text, e.g. `16, 32, 64, 128`. `/slatebuild reload` re-reads the file a
 
 | Key | Default | Meaning | Settings row |
 |---|---|---|---|
-| `variants.unify` | `true` | Natives and Slate Building's shapes of one material form one family (natives drop their material, swap, and count as it) | Server: shapes › Unify shapes |
+| `variants.unify` | `true` | Natives and Slate Building's shapes of one material form one family (natives swap, count as their material and join its stacks on pickup) | Server: shapes › Unify shapes |
 | `variants.customShapes` | `true` | Offer Slate Building's own shapes where no native exists | Server: shapes › Extra shapes |
 | `variants.rebalanceRecipes` | `true` | Fair recipes (after `/reload`) | Server: shapes › Fair recipes |
 | `variants.deleteNativeVariants` | `false` | Remove vanilla shapes (after `/reload`) | Server: shapes › Remove vanilla shapes |
@@ -512,11 +549,17 @@ blocks are in `#minecraft:stairs`, `slabs`, `walls`, `fences` and `fence_gates`.
   key, so it is blocked only while our swap key holds Alt (block in hand). With an empty hand it opens as usual.
   Create's stairs and slabs join their material's family like any other.
 - **DiagonalFences / DiagonalWalls / DiagonalWindows:** their re-pointed items (the `oak_fence` item placing
-  `diagonalfences:…/oak_fence`) are recognised as the same fence or wall and drop the material. Slate Building's
-  own walls, fences and panes carry an extra hidden property so these mods do not make twins of them. Fences join
-  in both directions.
+  `diagonalfences:…/oak_fence`) are recognised as the same fence or wall (their drop, the fence item, joins the
+  material's stacks like any shape). Slate Building's own fences, walls and panes take diagonal arms too: with each
+  other, and with the mods' twins in both directions (our fence grows an arm towards a diagonal oak fence and the oak
+  fence grows one back). The arms are kept in the block entity, not in block states, so a wall's state count does
+  not multiply; the arm is part of the outline and the collision shape and renders as the material cut to the arm
+  and turned 45°. Arms follow each mod's own rules (a fence only joins fences, walls and panes join each other
+  as well as their own kind) and only exist while the matching mod is installed. For the twins' "same fence" rule
+  our fence block counts as a wooden fence (the `minecraft:wooden_fences` tag), whatever its material: wooden
+  fences join it both ways, a nether brick fence only from our side.
 - **KleeSlabs:** breaking a double slab (native or ours, horizontal or vertical) removes the half you look at and
-  drops one unit of the material. A half mined without the right tool drops nothing, as with a full break. Our
+  drops one slab of the material. A half mined without the right tool drops nothing, as with a full break. Our
   permission checks probe a single slab, so a check never splits one.
 - **JEI:** each material of a shape is its own entry. With *Remove vanilla shapes*, native shape items disappear
   from JEI (and come back when the rule is turned off).
@@ -527,6 +570,8 @@ blocks are in `#minecraft:stairs`, `slabs`, `walls`, `fences` and `fence_gates`.
 - **Sodium:** the shapes render with Sodium (tint, cutout, translucency, light). **Iris:** with a shader pack active,
   ghosts use the pack's translucent path (opacity only, no desaturation) and are not drawn into the shadow pass.
 - **BridgingMod:** the placement ghost steps aside while its bridge assist shows its own target.
+- **Accurate Block Placement:** its behaviour is built in ([Accurate placement](#accurate-placement)). With the mod
+  installed, Slate Building's copy stays idle and the mod does the work.
 - **Chisel mods:** Rechiseled, Chipped, Chisel (Modern) and Chisel (Reborn) groups are read when installed (see
   [Chisel groups](#chisel-groups)).
 

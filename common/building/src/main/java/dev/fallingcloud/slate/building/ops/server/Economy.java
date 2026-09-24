@@ -5,6 +5,7 @@ import dev.fallingcloud.slate.building.toolbox.SlotRef;
 import dev.fallingcloud.slate.building.toolbox.ToolboxAccess;
 import dev.fallingcloud.slate.building.toolbox.ToolboxItem;
 import dev.fallingcloud.slate.building.toolbox.UpgradeType;
+import dev.fallingcloud.slate.building.variant.VariantStacking;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -198,18 +199,25 @@ public final class Economy {
         }
     }
 
-    /** Merges {@code stack} into matching stacks of {@code slots}, then empty ones; shrinks it by what fit. */
+    /**
+     * Merges {@code stack} into matching stacks of {@code slots}, then (a shape item) into stacks of another shape of
+     * its material ({@link VariantStacking}: a returned stair joins the planks it came from), then empty ones; shrinks
+     * it by what fit.
+     */
     private static void insert(final List<SlotRef> slots, final ItemStack stack) {
-        for (final SlotRef ref : slots) {
-            if (stack.isEmpty()) return;
-            final ItemStack s = ref.get();
-            if (s.isEmpty() || !ItemStack.isSameItemSameComponents(s, stack)) continue;
-            final int room = Math.min(s.getMaxStackSize(), ref.container().getMaxStackSize()) - s.getCount();
-            if (room <= 0) continue;
-            final int n = Math.min(room, stack.getCount());
-            final ItemStack grown = s.copyWithCount(s.getCount() + n);
-            ref.set(grown);
-            stack.shrink(n);
+        for (int pass = 0; pass < 2; pass++) {
+            for (final SlotRef ref : slots) {
+                if (stack.isEmpty()) return;
+                final ItemStack s = ref.get();
+                if (s.isEmpty()) continue;
+                if (pass == 0 ? !ItemStack.isSameItemSameComponents(s, stack) : !VariantStacking.joins(s, stack)) continue;
+                final int room = Math.min(s.getMaxStackSize(), ref.container().getMaxStackSize()) - s.getCount();
+                if (room <= 0) continue;
+                final int n = Math.min(room, stack.getCount());
+                final ItemStack grown = s.copyWithCount(s.getCount() + n);
+                ref.set(grown);
+                stack.shrink(n);
+            }
         }
         for (final SlotRef ref : slots) {
             if (stack.isEmpty()) return;

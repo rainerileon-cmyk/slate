@@ -34,6 +34,8 @@
   "slate_building.notice.param": "%s: %s",
   "slate_building.notice.left_dimension": "Building mode ended: you changed dimension",
   "slate_building.notice.symmetry_off": "Symmetry was turned off by the server",
+  "slate_building.notice.reach_off": "Extended reach was turned off by the server",
+  "slate_building.notice.no_reach": "Extended needs a toolbox with a reach bonus",
   "slate_building.notice.mode_on": "%s: right-click to start",
 
   "slate_building.hint.key.rmb": "Right-click",
@@ -41,10 +43,13 @@
   "slate_building.hint.key.scroll": "Scroll",
   "slate_building.hint.key.ctrl_scroll": "Ctrl + Scroll",
   "slate_building.hint.key.shift_scroll": "Shift + Scroll",
+  "slate_building.hint.key.esc": "Esc",
   "slate_building.hint.key.arrows": "Arrow keys",
   "slate_building.hint.corner_a": "First corner",
   "slate_building.hint.corner_b": "Second corner",
   "slate_building.hint.apply": "Apply",
+  "slate_building.hint.break": "Break",
+  "slate_building.hint.break_corner_a": "Break from here",
   "slate_building.hint.cancel": "Cancel",
   "slate_building.hint.resize": "Push / pull a side",
   "slate_building.hint.radius": "Radius",
@@ -61,7 +66,7 @@
   "slate_building.hint.air_distance": "Corner distance %s",
 
   "slate_building.settings.modes.airDistance": "Air corner distance",
-  "slate_building.settings.modes.airDistance.desc": "How far away a corner placed on air sits. Scroll while aiming at air to change it on the fly.",
+  "slate_building.settings.modes.airDistance.desc": "How far away a corner placed on air sits. The build menu has the same slider under a mode's options.",
   "slate_building.settings.modes.confirmWithRightClick": "Right-click applies",
   "slate_building.settings.modes.confirmWithRightClick.desc": "A third right-click applies the selection. When off, use the Confirm key (right-click still works while that key is unbound).",
   "slate_building.settings.modes.livePreview": "Live preview",
@@ -71,7 +76,7 @@
   "slate_building.settings.modes.arrowNudge": "Arrow keys nudge",
   "slate_building.settings.modes.arrowNudge.desc": "Arrow keys move the selection one block; Shift, Page Up and Page Down move it vertically.",
   "slate_building.settings.modes.escapeCancels": "Esc clears the selection",
-  "slate_building.settings.modes.escapeCancels.desc": "With a selection pending, Esc clears it instead of opening the pause menu.",
+  "slate_building.settings.modes.escapeCancels.desc": "With a selection pending, Esc clears it instead of opening the pause menu (the mode stays on). The cancel key (Q) always does.",
   "slate_building.settings.modes.openContainers": "Open containers",
   "slate_building.settings.modes.openContainers.desc": "With nothing selected, right-clicking a chest or barrel opens it instead of starting a selection."
 }

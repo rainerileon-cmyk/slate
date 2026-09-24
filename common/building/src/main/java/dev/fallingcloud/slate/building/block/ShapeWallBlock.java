@@ -1,6 +1,7 @@
 package dev.fallingcloud.slate.building.block;
 
 import com.mojang.serialization.MapCodec;
+import dev.fallingcloud.slate.building.variant.RotatedBox;
 import dev.fallingcloud.slate.building.variant.Shape;
 import dev.fallingcloud.slate.building.variant.ShapeBlock;
 import java.util.ArrayList;
@@ -17,6 +18,7 @@ import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Explosion;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.EntityBlock;
@@ -50,9 +52,13 @@ public class ShapeWallBlock extends WallBlock implements ShapeBlock, EntityBlock
     private static final Direction[] HORIZONTAL = {Direction.NORTH, Direction.EAST, Direction.SOUTH, Direction.WEST};
 
     private volatile @Nullable Map<BlockState, List<AABB>> boxes;
+    /** The low arm as it points north beside a post: what a diagonal arm is cut from before its turn ({@link DiagonalShapes}). */
+    private static final List<AABB> NORTH_ARM = List.of(ShapeBoxes.box(5, 0, 0, 11, 14, 4));
+    private final DiagonalShapes.ShapeCache diagonalShapes = new DiagonalShapes.ShapeCache(3, 0, 14);
+    private final DiagonalShapes.ShapeCache diagonalCollisions = new DiagonalShapes.ShapeCache(3, 0, 24);
 
     public ShapeWallBlock(final BlockBehaviour.Properties properties) {
-        super(ShapeBehaviour.refine(properties).forceSolidOn());
+        super(DiagonalShapes.properties(ShapeBehaviour.refine(properties).forceSolidOn(), DiagonalShapes.Kind.WALL));
     }
 
     @Override
@@ -75,12 +81,33 @@ public class ShapeWallBlock extends WallBlock implements ShapeBlock, EntityBlock
 
     @Override
     protected VoxelShape getShape(final BlockState state, final BlockGetter level, final BlockPos pos, final CollisionContext context) {
-        return super.getShape(shapeKey(state), level, pos, context);
+        return diagonalShapes.get(state, DiagonalShapes.mask(level, pos), super.getShape(shapeKey(state), level, pos, context));
     }
 
     @Override
     protected VoxelShape getCollisionShape(final BlockState state, final BlockGetter level, final BlockPos pos, final CollisionContext context) {
-        return super.getCollisionShape(shapeKey(state), level, pos, context);
+        return diagonalCollisions.get(state, DiagonalShapes.mask(level, pos), super.getCollisionShape(shapeKey(state), level, pos, context));
+    }
+
+    // ------------------------------------------------------------------------------------------------ diagonal arms
+
+    @Override
+    public List<RotatedBox> renderRotatedBoxes(final BlockState state, final int diagonals) {
+        return DiagonalShapes.rotated(diagonals, NORTH_ARM);
+    }
+
+    @Override
+    protected BlockState updateShape(final BlockState state, final Direction direction, final BlockState neighbourState, final LevelAccessor level,
+                                     final BlockPos pos, final BlockPos neighbourPos) {
+        final BlockState updated = super.updateShape(state, direction, neighbourState, level, pos, neighbourPos);
+        DiagonalShapes.refresh(updated, level, pos, DiagonalShapes.Kind.WALL);
+        return updated;
+    }
+
+    @Override
+    public void updateIndirectNeighbourShapes(final BlockState state, final LevelAccessor level, final BlockPos pos, final int flags, final int recursionLeft) {
+        super.updateIndirectNeighbourShapes(state, level, pos, flags, recursionLeft);
+        DiagonalShapes.refreshAround(state, level, pos, DiagonalShapes.Kind.WALL);
     }
 
     @Override

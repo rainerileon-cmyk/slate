@@ -21,6 +21,8 @@ import net.minecraft.world.item.ItemStack;
  *   <li>{@link BuildKeys#BUILD_MENU} (R): {@code wheel.menuKeyContext = ALWAYS}, or ({@code SMART}) while holding a
  *       block, a variant, the toolbox or a building tool, or while a building mode is active. In spectator (no mode
  *       but Measure can run there) only while a mode is active, unless {@code ALWAYS}.</li>
+ *   <li>{@link BuildKeys#CANCEL} (Q, vanilla's drop key) only while a building mode has a pending selection or a
+ *       running operation to cancel; dropping items works as usual otherwise.</li>
  * </ul>
  * Everything else pressed on those keys behaves exactly as without Slate Building. The wheel overlay claims SWAP
  * with {@link #swapWanted()} itself, so both always agree.
@@ -31,6 +33,13 @@ public final class KeyClaims {
         ExclusiveKeys.init();
         ExclusiveKeys.claim(BuildKeys.SWAP, KeyClaims::swapWanted);
         ExclusiveKeys.claim(BuildKeys.BUILD_MENU, KeyClaims::menuWanted);
+        ExclusiveKeys.claim(BuildKeys.CANCEL, KeyClaims::cancelWanted);
+    }
+
+    /** Whether the cancel key (Q, vanilla's drop) has something to cancel: a pending selection or a running operation. */
+    public static boolean cancelWanted() {
+        return Minecraft.getInstance().screen == null && ClientModeState.isActive()
+            && (ClientModeState.selectionPending() || ClientModeState.pending() == ClientModeState.Pending.APPLYING || ClientModeState.progress() != null);
     }
 
     /** Whether pressing the swap key right now would open a wheel (and exclusivity is wanted). */

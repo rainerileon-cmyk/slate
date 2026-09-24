@@ -1,5 +1,6 @@
 package dev.fallingcloud.slate.building.neoforge.render;
 
+import dev.fallingcloud.slate.building.block.DiagonalShapes;
 import dev.fallingcloud.slate.building.client.model.ShapeModels;
 import dev.fallingcloud.slate.building.client.model.ShapeQuadBaker;
 import java.util.List;
@@ -35,6 +36,8 @@ final class NeoShapeBlockModel extends BakedModelWrapper<BakedModel> {
     static final ModelProperty<Long> SEED = new ModelProperty<>();
     /** Sides whose boundary faces a neighbour hides ({@code ShapeModels.hiddenSides}). */
     static final ModelProperty<Integer> HIDDEN = new ModelProperty<>();
+    /** Diagonal arms of a fence / wall / pane ({@code DiagonalShapes.mask}). */
+    static final ModelProperty<Integer> DIAGONALS = new ModelProperty<>();
 
     NeoShapeBlockModel(final BakedModel placeholder) {
         super(placeholder);
@@ -44,7 +47,8 @@ final class NeoShapeBlockModel extends BakedModelWrapper<BakedModel> {
     public ModelData getModelData(final BlockAndTintGetter level, final BlockPos pos, final BlockState state, final ModelData data) {
         final BlockState material = ShapeModels.materialAt(level, pos);
         final int hidden = ShapeModels.hiddenSides(level, pos, material);
-        if (material == null) return ModelData.builder().with(SEED, state.getSeed(pos)).with(HIDDEN, hidden).build();
+        final int diagonals = DiagonalShapes.mask(level, pos);
+        if (material == null) return ModelData.builder().with(SEED, state.getSeed(pos)).with(HIDDEN, hidden).with(DIAGONALS, diagonals).build();
         ModelData materialData = ModelData.EMPTY;
         try {
             materialData = ShapeModels.modelOf(material).getModelData(level, pos, material, ModelData.EMPTY);
@@ -52,7 +56,7 @@ final class NeoShapeBlockModel extends BakedModelWrapper<BakedModel> {
             // A material model that cannot compute its data away from its own block renders with none.
         }
         return ModelData.builder().with(MATERIAL, material).with(MATERIAL_DATA, materialData).with(SEED, material.getSeed(pos))
-            .with(HIDDEN, hidden).build();
+            .with(HIDDEN, hidden).with(DIAGONALS, diagonals).build();
     }
 
     @Override
@@ -63,15 +67,17 @@ final class NeoShapeBlockModel extends BakedModelWrapper<BakedModel> {
         if (hidden != null && ShapeModels.hidden(hidden, side)) return List.of();
         final Long seedBox = data.get(SEED);
         final long seed = seedBox != null ? seedBox : 42L;
+        final Integer diagonalsBox = data.get(DIAGONALS);
+        final int diagonals = diagonalsBox != null ? diagonalsBox : 0;
         final BlockState material = data.get(MATERIAL);
         if (material == null) {
             return ShapeQuadBaker.quads(state, side, ShapeModels.UNSET, renderType,
-                d -> originalModel.getQuads(state, d, ShapeModels.random(seed), ModelData.EMPTY, renderType));
+                d -> originalModel.getQuads(state, d, ShapeModels.random(seed), ModelData.EMPTY, renderType), diagonals);
         }
         final BakedModel model = ShapeModels.modelOf(material);
         final ModelData materialData = data.has(MATERIAL_DATA) ? data.get(MATERIAL_DATA) : ModelData.EMPTY;
         return ShapeQuadBaker.quads(state, side, material, renderType,
-            d -> model.getQuads(material, d, ShapeModels.random(seed), materialData == null ? ModelData.EMPTY : materialData, renderType));
+            d -> model.getQuads(material, d, ShapeModels.random(seed), materialData == null ? ModelData.EMPTY : materialData, renderType), diagonals);
     }
 
     @Override

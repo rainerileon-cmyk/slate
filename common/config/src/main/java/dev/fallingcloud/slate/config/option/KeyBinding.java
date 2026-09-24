@@ -30,6 +30,12 @@ public final class KeyBinding extends Binding {
 
     public KeyMapping mapping() { return mapping; }
 
+    /** Also the key it is bound to right now ("Left Alt", "key.keyboard.left.alt"), so search finds keys by key. */
+    @Override
+    public String searchText() {
+        return super.searchText() + " " + mapping.getTranslatedKeyMessage().getString() + " " + mapping.saveString().replace('.', ' ');
+    }
+
     public static InputConstants.Key parse(@Nullable final String name) {
         if (name == null || name.isEmpty()) return InputConstants.UNKNOWN;
         try { return InputConstants.getKey(name); } catch (final Exception e) { return InputConstants.UNKNOWN; }

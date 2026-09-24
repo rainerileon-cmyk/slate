@@ -6,8 +6,10 @@ import dev.fallingcloud.slate.config.ui.OptionPageBase;
 import dev.fallingcloud.slate.config.ui.OptionRow;
 import dev.fallingcloud.slate.config.ui.Section;
 import dev.fallingcloud.slate.core.gfx.Icon;
+import dev.fallingcloud.slate.config.ui.ConfigSearchField;
 import dev.fallingcloud.slate.core.layout.ui.Rect;
 import dev.fallingcloud.slate.core.screen.SidebarScreen;
+import java.util.Locale;
 import dev.fallingcloud.slate.core.widget.SlateButton;
 import dev.fallingcloud.slate.core.widget.SlateKeybindButton;
 import dev.fallingcloud.slate.core.widget.SlateModal;
@@ -37,9 +39,23 @@ public final class ControlsPage extends OptionPageBase {
     public static final String KEYS_TAB = "keys";
 
     private boolean unboundOnly;
+    /** The key binds tab's own search: name, bound key ("left alt", "f5") or category, every word must match. */
+    private String keySearch = "";
+    private boolean keySearchFocus;
+    @Nullable private ConfigSearchField keyField;
+    @Nullable private Toolbar keyToolbar;
 
     public ControlsPage() {
         super("controls", Component.translatable("slate_config.page.controls"), Icon.KEYBOARD);
+    }
+
+    /** Whether {@code m} matches every word of the key search. */
+    static boolean keyMatches(final KeyMapping m, final String query) {
+        if (query.isEmpty()) return true;
+        final String hay = (Component.translatable(m.getName()).getString() + " " + m.getTranslatedKeyMessage().getString() + " "
+            + m.saveString().replace('.', ' ') + " " + Component.translatable(m.getCategory()).getString()).toLowerCase(Locale.ROOT);
+        for (final String tok : query.toLowerCase(Locale.ROOT).trim().split("\\s+")) if (!tok.isEmpty() && !hay.contains(tok)) return false;
+        return true;
     }
 
     @Override
@@ -58,6 +74,7 @@ public final class ControlsPage extends OptionPageBase {
         all.sort(Comparator.comparing(KeyMapping::getCategory).thenComparing(m -> Component.translatable(m.getName()).getString()));
         for (final KeyMapping m : all) {
             if (unboundOnly && !m.isUnbound()) continue;
+            if (!keyMatches(m, keySearch)) continue;
             byCategory.computeIfAbsent(m.getCategory(), k -> new ArrayList<>()).add(m);
         }
         final List<String> cats = new ArrayList<>(byCategory.keySet());
@@ -75,6 +92,16 @@ public final class ControlsPage extends OptionPageBase {
     protected boolean pills(final String tabKey) { return !KEYS_TAB.equals(tabKey); }
 
     private AbstractWidget toolbar(final int w) {
+        final int searchW = Math.max(90, w - 150 - 120 - 16);
+        final ConfigSearchField search = new ConfigSearchField(0, 0, searchW, s -> {
+            if (s.equals(keySearch)) return;
+            keySearch = s;
+            keySearchFocus = true;                 // the rebuild recreates this field: give it the focus back
+            rebuild();
+        });
+        search.setValue(keySearch);
+        search.placeholder(Component.translatable("slate_config.controls.search_keys"));
+        keyField = search;
         final SlateToggle unbound = new SlateToggle(0, 0, 150, Component.translatable("slate_config.controls.unbound_only"), unboundOnly, v -> { unboundOnly = v; rebuild(); });
         final SlateButton reset = new SlateButton(0, 0, 120, Component.translatable("slate_config.controls.reset_keys"), () ->
             SlateModal.confirmDanger(Component.translatable("slate_config.controls.reset_keys"), Component.translatable("slate_config.controls.reset_keys.body"),
@@ -84,13 +111,25 @@ public final class ControlsPage extends OptionPageBase {
                     Minecraft.getInstance().options.save();
                     rebuild();
                 })).icon(Icon.UNDO).variant(SlateButton.Variant.DANGER);
-        return new Toolbar(w, List.of(unbound, reset));
+        final Toolbar t = new Toolbar(w, List.of(search, unbound, reset));
+        keyToolbar = t;
+        return t;
     }
 
     @Override
     public void build(final SidebarScreen screen, final Rect area) {
+        keyField = null;
+        keyToolbar = null;
         super.build(screen, area);
         markConflicts();
+        if (keySearchFocus) {
+            keySearchFocus = false;
+            if (keyField != null && keyToolbar != null) {
+                screen.setFocused(keyToolbar);
+                keyToolbar.setFocused(keyField);
+                keyField.setFocused(true);
+            }
+        }
     }
 
     private void markConflicts() {

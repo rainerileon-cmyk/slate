@@ -298,7 +298,9 @@ final class ModePreview {
         planRuns++;
         Plan p;
         try {
-            p = Planners.of(mode).plan(new PlanContext(player.level(), player, mode, params.copy(), anchors, face, palette, clipboard, limits));
+            final boolean destructive = ClientModeState.destructive();
+            final Palette pal = destructive && palette.isEmpty() ? Palette.standIn() : palette;
+            p = Planners.of(mode).plan(new PlanContext(player.level(), player, mode, params.copy(), anchors, face, pal, clipboard, limits, destructive));
             if (p == null) p = Plan.EMPTY;
         } catch (final RuntimeException e) {
             SlateBuilding.LOGGER.error("[Slate Building] preview planning of {} failed", mode.id(), e);

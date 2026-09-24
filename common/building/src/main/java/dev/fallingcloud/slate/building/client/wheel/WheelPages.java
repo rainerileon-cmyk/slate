@@ -8,6 +8,7 @@ import dev.fallingcloud.slate.building.config.WheelSettings;
 import dev.fallingcloud.slate.building.ops.ToolType;
 import dev.fallingcloud.slate.building.toolbox.ToolboxAccess;
 import dev.fallingcloud.slate.building.variant.Shape;
+import dev.fallingcloud.slate.building.variant.VariantNames;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.client.Minecraft;
@@ -138,12 +139,12 @@ public final class WheelPages {
         return stack.isEmpty() ? variantName(material, shape) : stack.getHoverName();
     }
 
-    /** "Oak Planks Stairs"-style fallback name; FULL is the material's own name. */
+    /** "Oak Stairs"-style fallback name ({@link VariantNames}); FULL is the material's own name. */
     public static Component variantName(final Block material, final Shape shape) {
         if (shape == Shape.FULL) return material.getName();
         final ItemStack stack = WheelSources.get().stackFor(material, shape, 1);
         if (!stack.isEmpty()) return stack.getHoverName();
-        return Component.translatable("slate_building.ui.variant_name", material.getName(), shape.displayName());
+        return VariantNames.of(material, shape);
     }
 
     /** Registry id of a block (for payloads). */

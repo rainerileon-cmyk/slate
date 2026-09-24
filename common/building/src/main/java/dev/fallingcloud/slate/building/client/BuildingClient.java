@@ -4,6 +4,7 @@ import dev.fallingcloud.slate.building.SlateBuilding;
 import dev.fallingcloud.slate.building.client.input.BuildKeys;
 import dev.fallingcloud.slate.building.client.input.KeyClaims;
 import dev.fallingcloud.slate.building.client.mode.ClientModeState;
+import dev.fallingcloud.slate.building.client.place.AccuratePlacement;
 import dev.fallingcloud.slate.core.client.CoreActions;
 import dev.fallingcloud.slate.core.module.SlateModule;
 import dev.fallingcloud.slate.core.platform.SlatePlatform;
@@ -32,6 +33,7 @@ public final class BuildingClient {
         if (initialised) return;
         initialised = true;
         BuildKeys.init();
+        AccuratePlacement.init();
         KeyClaims.init();
         ServerSettingsClient.init();
         ClientModeState.init();

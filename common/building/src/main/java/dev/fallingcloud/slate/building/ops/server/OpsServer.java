@@ -65,6 +65,9 @@ public final class OpsServer {
         @Nullable RunningOp running;
         @Nullable Clipboard clipboard;
         @Nullable Symmetry.Settings symmetry;
+        /** The Extended mode ({@link Reach}): on, and the bonus last applied / told to the client. */
+        boolean reachOn;
+        int reachBonus;
         @Nullable OpResult lastResult;
         long lastOpTick = Long.MIN_VALUE / 2;
         int nextOp = 1;
@@ -142,9 +145,9 @@ public final class OpsServer {
 
     // ---- requests ----
 
-    /** {@code ApplyOp}: validate, plan, charge and start (copy runs at once). */
+    /** {@code ApplyOp}: validate, plan, charge and start (copy runs at once). {@code destructive}: a left-click selection, the plan breaks instead of placing. */
     public static void apply(final ServerPlayer player, final String modeId, final CompoundTag paramsTag, final List<BlockPos> anchors,
-                             final Direction face, final int slot) {
+                             final Direction face, final int slot, final boolean destructive) {
         final BuildMode mode = BuildModes.byId(modeId);
         if (mode == null) return;
         final Session s = session(player);
@@ -162,7 +165,7 @@ public final class OpsServer {
 
         final ModeParams params = ModeParams.fromTag(mode, paramsTag);
         final int paySlot = Inventory.isHotbarSlot(slot) || slot == Inventory.SLOT_OFFHAND ? slot : player.getInventory().selected;
-        final PlanContext ctx = PlanContext.create(player, mode, params, anchors, face, paySlot, s.clipboard);
+        final PlanContext ctx = PlanContext.create(player, mode, params, anchors, face, paySlot, s.clipboard, destructive);
         final Plan plan = Planners.plan(ctx);
         if (!plan.ok()) {
             fail(player, op, mode.id(), plan.error());
@@ -371,7 +374,9 @@ public final class OpsServer {
         if (!rules.enabled) return Component.translatable("slate_building.plan.disabled");
         if (BuildingPlatform.get().isFakePlayer(player) || player.isSpectator()) return Component.translatable("slate_building.error.game_mode");
         if (mode.changesWorld() && !player.mayBuild()) return Component.translatable("slate_building.error.game_mode");
-        if (mode.kind() == ModeKind.TOGGLE || mode.kind() == ModeKind.MEASURE) return Component.translatable("slate_building.error.not_applicable");
+        if (mode.kind() == ModeKind.TOGGLE || mode.kind() == ModeKind.MEASURE || mode.kind() == ModeKind.REACH) {
+            return Component.translatable("slate_building.error.not_applicable");
+        }
         if (rules.disabledModes != null && rules.disabledModes.contains(mode.id())) return Component.translatable("slate_building.plan.mode_disabled");
         if (!caps.unlocked(mode)) return lockError(mode);
         if (s.running != null) return Component.translatable("slate_building.error.busy");

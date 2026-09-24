@@ -72,7 +72,7 @@ public final class SimplePages {
         }
     }
 
-    /** Language &amp; Accessibility › Accessibility: reading aids, motion and effects, input helpers. */
+    /** Accessibility › Accessibility: reading aids, motion and effects. */
     public static final class AccessibilityPage extends OptionPageBase {
         public AccessibilityPage() { super("accessibility", Component.translatable("slate_config.page.accessibility"), Icon.ACCESSIBILITY); }
 
@@ -88,7 +88,7 @@ public final class SimplePages {
                 "hideLightningFlashes", "bobView", "panoramaScrollSpeed", "darkMojangStudiosBackground", "hideSplashTexts"));
             motion.addAll(CoreBindings.all("motion", "transitions"));
             out.add(motion);
-            out.add(Section.of("input", Component.translatable("slate_config.accessibility.input"), VanillaOptions.all("autoJump", "toggleSprint", "toggleCrouch")));
+            // Auto-jump and the sprint / sneak toggles are Controls › Movement only.
             return out;
         }
     }

@@ -104,10 +104,16 @@ public abstract class SidebarScreen extends SlateScreen {
         return new Rect(navW() + PAD, HEADER_H + 6, width - navW() - PAD * 2, PAGE_TITLE_H);
     }
 
-    /** Where pages build their widgets (below the title row). */
+    /**
+     * Whether the page area starts with the page's own title row. A screen that names the page in its header instead
+     * (the settings hub: "Settings › Controls") returns false and hands that row's height to the page.
+     */
+    protected boolean showPageTitle() { return true; }
+
+    /** Where pages build their widgets (below the title row, or right under the header without one). */
     public Rect pageRect() {
         final Rect t = pageTitleRect();
-        final int top = t.bottom() + 6;
+        final int top = showPageTitle() || !pageActions.isEmpty() ? t.bottom() + 6 : t.y();
         return new Rect(t.x(), top, t.w(), height - top - PAD);
     }
 
@@ -276,7 +282,7 @@ public abstract class SidebarScreen extends SlateScreen {
     /** The current page's title in the heading font, at the top of the page area. */
     protected void renderPageTitle(final GuiGraphics g) {
         final SidebarPage page = currentPage();
-        if (page == null) return;
+        if (page == null || (!showPageTitle() && pageActions.isEmpty())) return;
         final Theme t = Theme.current();
         final Palette p = t.palette();
         final Rect r = pageTitleRect();

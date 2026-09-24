@@ -18,4 +18,6 @@ public final class BuildingConfig {
     public HudSettings hud = new HudSettings();
     /** Last mode, per-mode parameters, selection feel. Owner: D2. */
     public ModeSettings modes = new ModeSettings();
+    /** Accurate placement and fast breaking ({@code client.place.AccuratePlacement}). */
+    public PlacementSettings placement = new PlacementSettings();
 }

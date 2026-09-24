@@ -22,8 +22,6 @@ public final class ConfigSettings {
     public double musicVolumeBeforeMute = 1.0;
     /** Section ids collapsed by the user (page:section), for the collapsible headers inside a tab (key categories). */
     public List<String> collapsedSections = new ArrayList<>();
-    /** Show the Sodium/Iris/NeoForge-native rows the vanilla pages would otherwise hide as duplicates. */
-    public boolean showDuplicateRows = false;
     /** Route vanilla's option sub-screens (video, sound, controls, chat, language, accessibility, online) and Sodium's screen to the hub. Read at startup. */
     public boolean swapVanillaScreens = true;
     /**

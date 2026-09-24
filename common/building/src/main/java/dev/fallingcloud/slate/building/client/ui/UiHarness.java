@@ -249,6 +249,8 @@ final class UiHarness {
                     ClientModeState.setMode(BuildModes.FILL);
                 })
                 .run(() -> Minecraft.getInstance().setScreen(new BuildMenuScreen(null))).run(UiHarness::parkMouse)
+                // The table remembers the row shown last (another scenario may have left it on the last row): start at the top.
+                .run(() -> { if (Minecraft.getInstance().screen instanceof BuildMenuScreen m) m.debugSelect("fill"); })
                 .wait(8).screenshot("menu-" + k + "-opening").wait(40)
                 .screenshot("menu-" + k)
                 .run(() -> {

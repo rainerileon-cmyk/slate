@@ -6,7 +6,11 @@ import dev.fallingcloud.slate.config.ui.OptionPageBase;
 import dev.fallingcloud.slate.config.ui.Section;
 import java.util.List;
 
-/** A tab another module added to a category through {@link SettingsTabs}: its sections, rebuilt on every show. */
+/**
+ * A tab another module added to a category through {@link SettingsTabs}: its sections, rebuilt on every show, all
+ * on one scrolling tab under collapsible headers (the category strip already names the tab; a second strip of
+ * pills for its groups was one strip too many).
+ */
 public final class ContributedTabPage extends OptionPageBase {
 
     private final SettingsTabs.Tab tab;

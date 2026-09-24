@@ -233,7 +233,11 @@ Mixin configs (skeleton declares all of them in both manifests; owners fill thei
 
 One router for in-world input (no screen open), fed by common client mixins on `MouseHandler.onPress`,
 `onScroll`, `turnPlayer` (reads + zeroes the accumulated deltas when consumed), `Minecraft.startUseItem`,
-`startAttack`, `continueAttack`, `pickBlock`, `KeyboardHandler.keyPress` (screen == null only):
+`startAttack`, `continueAttack`, `pickBlock`, `KeyboardHandler.keyPress` (screen == null only). Next to it,
+`client.place.AccuratePlacement` is the Accurate Block Placement mod rebuilt: a `GameRenderer.pick` RETURN hook
+runs its rules after every crosshair update, `startUseItem` is cancelled while it takes a tick over (it calls the
+invoker itself, once per new spot), and a `ModifyConstant` on `MultiPlayerGameMode.continueDestroyBlock` turns the
+5-tick break pause into 0 for fast breaking. `placement.*` in `building.json`; idle when the original mod is loaded.
 ```java
 public final class BuildInput {
   public interface Handler {
@@ -294,7 +298,8 @@ background, opens/closes with R, Esc:
 - Right column (~60%): header "Building modes" + Undo / Redo buttons with counts + toolbox summary chip
   (tools owned, tier pips). A scrollable table (`SlateList`-style rows, no search): icon, name, one-line
   description, required tool + tier chip, keybind chip, lock icon + reason when locked, active highlight.
-  Clicking a row activates the mode (closes the menu unless Shift is held); a detail/options panel under the
+  Clicking a row activates the mode (the menu stays open unless `hud.closeMenuOnPick`; Shift+click does the
+  opposite); a detail/options panel (plus the global corner-distance-in-the-air slider) under the
   table edits the selected mode's parameters (toggles, segmented choices, sliders) and shows its hints.
 - Both skins, entrance stagger, keyboard: arrows move in the table, Enter activates, Tab cycles areas,
   `/` focuses search.
@@ -388,11 +393,14 @@ public final class BuildModes { static List<BuildMode> all(); static @Nullable B
 | `mirror` | TOGGLE | Square 1 | your normal placing and breaking is mirrored across a plane through the centre | axis X / Z / XZ, radius by tier 16/32/64/128, mirrorBreaking |
 | `radial` | TOGGLE | Square 3 | N-fold rotational symmetry around the centre | slices 2–8, mirrorBreaking |
 | `measure` | MEASURE | — | size / volume / distance, no world change | — |
+| `extended` | REACH | — (needs a reach bonus) | normal placing / breaking with the toolbox reach bonus added to `block_interaction_range` (transient attribute modifier, `SetReach` / `ReachState`, re-checked every second) | — |
 
 Client flow (D2, `building.client.mode`): activating a mode (menu row or its keybind) makes it current;
 AREA: 1st right-click = corner A (reach = `blockInteractionRange()` + tier reach bonus; on air, a corner at a
-scroll-adjustable distance), the box then follows the crosshair, 2nd right-click = corner B, the planned result
-shows as ghosts, 3rd right-click (or `confirm` key) applies; left-click cancels the pending selection;
+distance set by the build-menu slider), the box then follows the crosshair, 2nd right-click = corner B, the planned result
+shows as ghosts, 3rd right-click (or `confirm` key) applies; the same selection driven by LEFT-click breaks what the
+plan would place (`destructive` in `ApplyOp` / `PlanContext`, `Planners.destructive` turns places into breaks);
+Q (the cancel key, claimed only while there is something to cancel) or Esc cancels;
 Ctrl+scroll pushes/pulls the looked-at face of the box, Shift+scroll changes the main numeric param (thickness /
 count / radius); arrow keys nudge. POINT: one click shows the ghost, the next applies. TOGGLE: the centre is the
 targeted block when activated (re-centre with `confirm`), plane/centre drawn in the world. Normal placing is

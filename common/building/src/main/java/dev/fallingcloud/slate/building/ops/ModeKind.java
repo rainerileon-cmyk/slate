@@ -9,8 +9,10 @@ package dev.fallingcloud.slate.building.ops;
  *   <li>MOVE: select an area, then click a destination.</li>
  *   <li>TOGGLE: stays on and changes how normal placing/breaking works (mirror, radial).</li>
  *   <li>MEASURE: selection only, never changes the world.</li>
+ *   <li>REACH: stays on and lets normal placing/breaking reach as far as the building modes pick corners
+ *       (extended); no selection, no centre.</li>
  * </ul>
  */
 public enum ModeKind {
-    AREA, POINT, MOVE, TOGGLE, MEASURE
+    AREA, POINT, MOVE, TOGGLE, MEASURE, REACH
 }

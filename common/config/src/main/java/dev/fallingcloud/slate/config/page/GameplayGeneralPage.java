@@ -90,8 +90,9 @@ public final class GameplayGeneralPage extends OptionPageBase {
             }
             out.add(world);
         }
+        // Auto-jump and the sprint / sneak toggles are Controls › Movement (one home each).
         out.add(Section.of("player", Component.translatable("slate_config.gameplay.player"),
-            VanillaOptions.all("mainHand", "attackIndicator", "autoJump", "toggleSprint", "toggleCrouch", "operatorItemsTab")).fixed().tab(TAB, title()));
+            VanillaOptions.all("mainHand", "attackIndicator", "operatorItemsTab")).fixed().tab(TAB, title()));
         return out;
     }
 }

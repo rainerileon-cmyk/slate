@@ -133,17 +133,26 @@ final class ModeHarness {
                 world("filled corner B", B);
             })
             .screenshot("selection-applied")
-            .log("selection: left-click cancels")
+            .log("selection: cancel key, left-click breaking selection")
             .run(() -> {
                 // Without the ops server's planners the apply is refused and the selection stays: clear it the user's way.
-                if (ClientModeState.selectionPending()) check(BuildInput.fireAttack(), "left-click clears a refused selection");
+                if (ClientModeState.selectionPending()) {
+                    ModeController.INSTANCE.cancelSelection();
+                    check(!ClientModeState.selectionPending(), "the cancel key clears a refused selection");
+                }
             })
             .run(() -> ModeController.INSTANCE.debugClick(new BlockPos(-4, -60, 9), Direction.UP))
-            .run(() -> check(ClientModeState.pending() == ClientModeState.Pending.FIRST_ANCHOR, "a new click starts a new selection"))
-            .run(() -> check(BuildInput.fireAttack(), "left-click on a pending selection is consumed"))
-            .run(() -> check(ClientModeState.pending() == ClientModeState.Pending.NONE && ClientModeState.anchors().isEmpty(),
-                "left-click clears the selection"))
-            .run(() -> check(!BuildInput.fireAttack(), "left-click with nothing selected mines normally"))
+            .run(() -> check(ClientModeState.pending() == ClientModeState.Pending.FIRST_ANCHOR && !ClientModeState.destructive(),
+                "a new right-click starts a new placing selection"))
+            .run(() -> check(BuildInput.fireAttack(), "left-click on a placing selection is consumed"))
+            .run(() -> check(ClientModeState.selectionPending() && ClientModeState.destructive(),
+                "left-click starts a breaking selection in its place"))
+            .run(() -> {
+                ModeController.INSTANCE.cancelSelection();
+                check(!ClientModeState.selectionPending() && !ClientModeState.destructive(), "cancel clears the breaking selection");
+            })
+            .run(() -> check(BuildInput.fireAttack() && ClientModeState.destructive(), "left-click with nothing selected starts a breaking selection"))
+            .run(ModeController.INSTANCE::cancelSelection)
             .log("selection: walls + Shift+scroll")
             .run(() -> check(ClientModeState.activate(BuildModes.WALLS), "walls activates"))
             .run(() -> ModeController.INSTANCE.debugClick(new BlockPos(-6, -60, 8), Direction.UP))
@@ -165,6 +174,17 @@ final class ModeHarness {
                 check(Math.abs(ClientModeState.stats().distance() - Math.sqrt(15 * 15 + 2 * 2 + 15 * 15)) < 0.01, "measure reports the distance");
             })
             .screenshot("selection-measure")
+            .log("selection: extended reach")
+            .run(() -> check(ClientModeState.activate(BuildModes.EXTENDED), "extended activates"))
+            .wait(15)
+            .run(() -> check(net.minecraft.client.Minecraft.getInstance().player.blockInteractionRange() > 6.0,
+                "extended raises the block reach (now " + net.minecraft.client.Minecraft.getInstance().player.blockInteractionRange() + ")"))
+            .run(() -> check(ClientModeState.reachBonus() > 0, "the server reported the reach bonus"))
+            .run(ClientModeState::deactivate)
+            .wait(15)
+            .run(() -> check(net.minecraft.client.Minecraft.getInstance().player.blockInteractionRange() <= 6.0,
+                "the block reach is back after leaving extended (now " + net.minecraft.client.Minecraft.getInstance().player.blockInteractionRange() + ")"))
+            .run(() -> check(ClientModeState.activate(BuildModes.MEASURE), "measure activates again"))
             .run(ClientModeState::deactivate)
             .run(() -> check(!ClientModeState.isActive() && ClientModeState.anchors().isEmpty(), "modes turn off"))
             .wait(5)

@@ -25,6 +25,14 @@ public interface ShapeBlock {
     /** Boxes in block space 0..16 used for rendering (quad cropping) and for the ghost. */
     List<AABB> renderBoxes(BlockState state);
 
+    /**
+     * Boxes turned about the vertical axis: the diagonal arms of {@code diagonals} (a mask of
+     * {@code DiagonalShapes.Diagonal} bits, from the block entity). Rendered only, never part of the ghost.
+     */
+    default List<RotatedBox> renderRotatedBoxes(final BlockState state, final int diagonals) {
+        return List.of();
+    }
+
     /** Units this state is worth (double slab 2, layers n, everything else 1). */
     int units(BlockState state);
 

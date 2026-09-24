@@ -14,6 +14,7 @@ import dev.fallingcloud.slate.core.theme.Theme;
 import dev.fallingcloud.slate.core.widget.SlateBadge;
 import dev.fallingcloud.slate.core.widget.SlateButton;
 import dev.fallingcloud.slate.core.widget.SlateList;
+import dev.fallingcloud.slate.config.ui.FilePicker;
 import dev.fallingcloud.slate.core.widget.SlateToasts;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -58,17 +59,31 @@ public final class ShaderPacksPage extends OptionPageBase {
     }
 
     private net.minecraft.client.gui.components.AbstractWidget toolbar(final int w) {
-        final int bw = Math.max(60, (w - 16) / 3);
+        final int bw = Math.max(56, (w - 24) / 4);
         final SlateButton apply = new SlateButton(0, 0, bw, Component.translatable("slate_config.shaders.apply"), this::applyChosen)
             .icon(Icon.CHECK).variant(SlateButton.Variant.PRIMARY);
         applyButton = apply;
         updateApply();
+        final SlateButton imp = new SlateButton(0, 0, bw, Component.translatable("slate_config.shaders.import"), this::importPacks).icon(Icon.IMPORT);
+        imp.tip(Component.translatable("slate_config.shaders.import.tip"));
         final SlateButton folder = new SlateButton(0, 0, bw, Component.translatable("slate_config.shaders.folder"),
             () -> net.minecraft.Util.getPlatform().openPath(IrisBridge.packsDir())).icon(Icon.FOLDER);
         final SlateButton iris = new SlateButton(0, 0, bw, Component.translatable("slate_config.shaders.iris_screen"),
             () -> IrisBridge.openIrisScreen(Minecraft.getInstance().screen)).icon(Icon.EXTERNAL);
         iris.tip(Component.translatable("slate_config.shaders.iris_screen.tip"));
-        return new ControlsPage.Toolbar(w, List.of(apply, folder, iris));
+        return new ControlsPage.Toolbar(w, List.of(apply, imp, folder, iris));
+    }
+
+    /** Native file dialog → copies into {@code shaderpacks/}; the first pack imported is selected, ready for Apply. */
+    private void importPacks() {
+        final Path dir = IrisBridge.packsDir();
+        final List<Path> picked = FilePicker.openFiles(Component.translatable("slate_config.shaders.import"), dir, "Shader packs (*.zip)", "*.zip");
+        if (picked.isEmpty()) return;
+        final List<String> names = FilePicker.copyInto(picked, dir);
+        if (names.isEmpty()) return;
+        chosen = names.get(0);
+        SlateToasts.show(Component.translatable("slate_config.shaders.imported", names.size()), Component.literal(String.join(", ", names)), Icon.SHADER);
+        rebuild();
     }
 
     private net.minecraft.client.gui.components.AbstractWidget packList(final int w) {

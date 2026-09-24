@@ -30,6 +30,10 @@ public final class MenuConfig {
     public boolean showFooter = true;
     /** Title-screen button for the loader's mod list (when one exists). */
     public boolean showModsButton = true;
+    /** Ask before the Quit button closes the game. */
+    public boolean confirmQuitGame = true;
+    /** Skip vanilla's first-launch accessibility screen (narrator / text size prompt) and go straight to the title. */
+    public boolean skipOnboarding = true;
 
     // ---- worlds
     /** {@code GRID} or {@code LIST}. */

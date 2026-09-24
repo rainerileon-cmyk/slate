@@ -7,6 +7,7 @@ import dev.fallingcloud.slate.building.net.ClipboardSync;
 import dev.fallingcloud.slate.building.net.HistoryState;
 import dev.fallingcloud.slate.building.net.OpProgress;
 import dev.fallingcloud.slate.building.net.OpResult;
+import dev.fallingcloud.slate.building.net.ReachState;
 import dev.fallingcloud.slate.building.net.SymmetryState;
 import dev.fallingcloud.slate.building.ops.BuildMode;
 import dev.fallingcloud.slate.building.ops.BuildModes;
@@ -44,6 +45,11 @@ public final class ClientActions {
     public static void symmetryState(final SymmetryState p) {
         final BuildMode mode = BuildModes.byId(p.mode());
         ClientModeState.setSymmetry(mode == null ? null : new ClientModeState.Symmetry(mode, ModeParams.fromTag(mode, p.params()), p.centre()));
+    }
+
+    /** The extra block reach the server applies for the Extended mode; 0 means off. */
+    public static void reachState(final ReachState p) {
+        ClientModeState.setReach(p.bonus());
     }
 
     private ClientActions() {}

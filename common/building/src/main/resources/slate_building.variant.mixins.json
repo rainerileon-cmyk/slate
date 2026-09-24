@@ -6,12 +6,12 @@
   "mixins": [
     "BlockItemInvoker",
     "BlockPropertiesAccessor",
-    "BlockStateBaseMixin",
     "CreativeModeTabMixin",
     "CreativeModeTabsAccessor",
     "EntityStepSoundMixin",
     "ExplosionDamageCalculatorMixin",
     "FenceBlockMixin",
+    "InventoryMixin",
     "LivingEntityFrictionMixin",
     "RecipeManagerMixin",
     "StairBlockAccessor"

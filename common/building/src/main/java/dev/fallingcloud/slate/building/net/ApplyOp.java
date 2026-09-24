@@ -11,11 +11,11 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 
 /**
- * C2S (owner D1 → {@code OpActions.applyOp}): run building mode {@code mode} with {@code params} (a {@code ModeParams} tag) on the selection {@code anchors} (1 or 2 corners, or a paste origin) clicked on {@code face}, paying from the stack in hotbar slot {@code slot}. The server re-plans and re-validates everything.
+ * C2S (owner D1 → {@code OpActions.applyOp}): run building mode {@code mode} with {@code params} (a {@code ModeParams} tag) on the selection {@code anchors} (1 or 2 corners, or a paste origin) clicked on {@code face}, paying from the stack in hotbar slot {@code slot}. {@code destructive} (a left-click selection) breaks what the mode would have placed instead of placing it. The server re-plans and re-validates everything.
  *
  * <p>Wire id {@code slate:building/apply_op}; registered by {@link BuildingNetwork}.
  */
-public record ApplyOp(String mode, CompoundTag params, List<BlockPos> anchors, Direction face, int slot) implements CustomPacketPayload {
+public record ApplyOp(String mode, CompoundTag params, List<BlockPos> anchors, Direction face, int slot, boolean destructive) implements CustomPacketPayload {
 
     public static final Type<ApplyOp> TYPE = new Type<>(Slate.id("building/apply_op"));
     public static final StreamCodec<ByteBuf, ApplyOp> CODEC = StreamCodec.composite(
@@ -24,6 +24,7 @@ public record ApplyOp(String mode, CompoundTag params, List<BlockPos> anchors, D
         BlockPos.STREAM_CODEC.apply(ByteBufCodecs.list(BuildingNetwork.MAX_ANCHORS)), ApplyOp::anchors,
         Direction.STREAM_CODEC, ApplyOp::face,
         ByteBufCodecs.VAR_INT, ApplyOp::slot,
+        ByteBufCodecs.BOOL, ApplyOp::destructive,
         ApplyOp::new);
 
     @Override

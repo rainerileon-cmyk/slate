@@ -43,8 +43,9 @@ import org.lwjgl.glfw.GLFW;
  * The build menu (R, design §5). Left (~40%): the held material's shape wheel (click applies, ◀ ▶ pages, search
  * glows matches) and its chisel wheel, stacked when there is room, else as two tabs. Right (~60%): "Building modes"
  * with the toolbox summary, Undo / Redo (with counts) and the wheel editor; a table of every mode (click activates
- * and closes, Shift+click keeps the menu open, right-click only shows the options); below it the selected mode's
- * options. Not a pause screen, with a light in-world backdrop so the world stays visible. Keyboard: Tab cycles the
+ * and the menu stays open unless {@code hud.closeMenuOnPick}, Shift+click does the opposite, right-click only shows
+ * the options); below it the selected mode's options, plus the corner-distance-in-the-air slider for modes that put
+ * corners in the air. Not a pause screen, with a light in-world backdrop so the world stays visible. Keyboard: Tab cycles the
  * areas, arrows move in the table / around a focused wheel, Enter activates, {@code /} searches, PageUp / PageDown
  * turn wheel pages, R or Esc closes.
  */
@@ -235,7 +236,9 @@ public final class BuildMenuScreen extends SlateScreen {
             ClientModeState.setMode(m);
         }
         SlateSounds.click();
-        if (!hasShiftDown()) onClose();
+        // The menu stays open by default (browse, tweak options, try another mode); Shift+click does the opposite of
+        // the setting.
+        if (WheelConfig.hud().closeMenuOnPick != hasShiftDown()) onClose();
     }
 
     private void undo() {

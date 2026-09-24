@@ -5,6 +5,9 @@ import dev.fallingcloud.slate.config.option.OptionType;
 import dev.fallingcloud.slate.config.ui.OptionPageBase;
 import dev.fallingcloud.slate.config.ui.Section;
 import dev.fallingcloud.slate.core.gfx.Icon;
+import dev.fallingcloud.slate.config.ui.FilePicker;
+import dev.fallingcloud.slate.core.widget.SlateToasts;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.client.Minecraft;
@@ -39,6 +42,21 @@ public final class ResourcePacksPage extends OptionPageBase {
                 }, mc.getResourcePackDirectory(), Component.translatable("resourcePack.title")));
             })
             .searchWords("resource packs select"));
+        actions.add(Binding.of("packs:import", OptionType.ACTION, Component.translatable("slate_config.packs.import"))
+            .tooltip(Component.translatable("slate_config.packs.import.tip"))
+            .actionIcon(Icon.IMPORT)
+            .action(Component.translatable("slate_config.row.choose_files"), () -> {
+                final Path dir = mc.getResourcePackDirectory();
+                final List<Path> picked = FilePicker.openFiles(Component.translatable("slate_config.packs.import"), dir, "Resource packs (*.zip)", "*.zip");
+                if (picked.isEmpty()) return;
+                final List<String> names = FilePicker.copyInto(picked, dir);
+                mc.getResourcePackRepository().reload();
+                if (!names.isEmpty()) {
+                    SlateToasts.show(Component.translatable("slate_config.packs.imported", names.size()), Component.literal(String.join(", ", names)), Icon.PACK);
+                }
+                rebuild();
+            })
+            .searchWords("resource packs import add zip file"));
         actions.add(Binding.of("packs:folder", OptionType.ACTION, Component.translatable("slate_config.packs.folder"))
             .actionIcon(Icon.FOLDER)
             .action(Component.translatable("slate_config.row.open"), () -> net.minecraft.Util.getPlatform().openPath(mc.getResourcePackDirectory()))

@@ -1,6 +1,7 @@
 package dev.fallingcloud.slate.building.block;
 
 import com.mojang.serialization.MapCodec;
+import dev.fallingcloud.slate.building.variant.RotatedBox;
 import dev.fallingcloud.slate.building.variant.Shape;
 import dev.fallingcloud.slate.building.variant.ShapeBlock;
 import java.util.ArrayList;
@@ -18,6 +19,7 @@ import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Explosion;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.EntityBlock;
@@ -30,6 +32,7 @@ import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.material.MapColor;
 import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.Nullable;
 
@@ -46,9 +49,13 @@ public class ShapeFenceBlock extends FenceBlock implements ShapeBlock, EntityBlo
     private static final Direction[] HORIZONTAL = {Direction.NORTH, Direction.EAST, Direction.SOUTH, Direction.WEST};
     /** Keyed by the connection bits (N 1, E 2, S 4, W 8). */
     private static final Map<Integer, List<AABB>> BOXES = new ConcurrentHashMap<>();
+    /** The arm as it points north (the two bars): what a diagonal arm is cut from before its turn ({@link DiagonalShapes}). */
+    private static final List<AABB> NORTH_ARM = List.of(ShapeBoxes.box(7, 12, 0, 9, 15, 6), ShapeBoxes.box(7, 6, 0, 9, 9, 6));
+    private final DiagonalShapes.ShapeCache diagonalShapes = new DiagonalShapes.ShapeCache(1, 6, 15);
+    private final DiagonalShapes.ShapeCache diagonalCollisions = new DiagonalShapes.ShapeCache(1, 0, 24);
 
     public ShapeFenceBlock(final BlockBehaviour.Properties properties) {
-        super(ShapeBehaviour.refine(properties).forceSolidOn());
+        super(DiagonalShapes.properties(ShapeBehaviour.refine(properties).forceSolidOn(), DiagonalShapes.Kind.FENCE));
     }
 
     @Override
@@ -79,6 +86,37 @@ public class ShapeFenceBlock extends FenceBlock implements ShapeBlock, EntityBlo
         int bits = 0;
         for (int i = 0; i < HORIZONTAL.length; i++) if (state.getValue(PROPERTY_BY_DIRECTION.get(HORIZONTAL[i]))) bits |= 1 << i;
         return BOXES.computeIfAbsent(bits, ShapeFenceBlock::computeBoxes);
+    }
+
+    @Override
+    public List<RotatedBox> renderRotatedBoxes(final BlockState state, final int diagonals) {
+        return DiagonalShapes.rotated(diagonals, NORTH_ARM);
+    }
+
+    // ------------------------------------------------------------------------------------------------ diagonal arms
+
+    @Override
+    protected BlockState updateShape(final BlockState state, final Direction direction, final BlockState neighbourState, final LevelAccessor level,
+                                     final BlockPos pos, final BlockPos neighbourPos) {
+        final BlockState updated = super.updateShape(state, direction, neighbourState, level, pos, neighbourPos);
+        DiagonalShapes.refresh(updated, level, pos, DiagonalShapes.Kind.FENCE);
+        return updated;
+    }
+
+    @Override
+    public void updateIndirectNeighbourShapes(final BlockState state, final LevelAccessor level, final BlockPos pos, final int flags, final int recursionLeft) {
+        super.updateIndirectNeighbourShapes(state, level, pos, flags, recursionLeft);
+        DiagonalShapes.refreshAround(state, level, pos, DiagonalShapes.Kind.FENCE);
+    }
+
+    @Override
+    protected VoxelShape getShape(final BlockState state, final BlockGetter level, final BlockPos pos, final CollisionContext context) {
+        return diagonalShapes.get(state, DiagonalShapes.mask(level, pos), super.getShape(state, level, pos, context));
+    }
+
+    @Override
+    protected VoxelShape getCollisionShape(final BlockState state, final BlockGetter level, final BlockPos pos, final CollisionContext context) {
+        return diagonalCollisions.get(state, DiagonalShapes.mask(level, pos), super.getCollisionShape(state, level, pos, context));
     }
 
     private static List<AABB> computeBoxes(final int bits) {

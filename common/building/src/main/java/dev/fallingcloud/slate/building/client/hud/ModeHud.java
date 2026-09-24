@@ -271,6 +271,12 @@ public final class ModeHud {
             out.add(Component.translatable("slate_building.ui.hud.progress", progress.done(), progress.total()));
             return out;
         }
+        if (ClientModeState.selectionPending() && ClientModeState.destructive()) out.add(Component.translatable("slate_building.ui.hud.breaking"));
+        if (mode.kind() == ModeKind.REACH) {
+            final int bonus = ClientModeState.reachBonus();
+            out.add(bonus > 0 ? Component.translatable("slate_building.ui.hud.reach", bonus) : Component.translatable("slate_building.ui.hud.reach_off"));
+            return out;
+        }
         if (mode.kind() == ModeKind.TOGGLE) {
             final ModeParams params = ClientModeState.params(mode);
             final ModeParam first = mode.params().isEmpty() ? null : mode.params().get(0);
@@ -335,7 +341,7 @@ public final class ModeHud {
         // The mode controller's hints follow its state machine exactly (and the confirm / nudge settings).
         for (final ClientModeState.Hint h : ClientModeState.hints()) out.add(new Hint(h.key().getString(), h.action()));
         final String exit = UiDraw.keyName(BuildKeys.EXIT_MODE);
-        if (mode.kind() != ModeKind.TOGGLE && !exit.isEmpty()) {
+        if (mode.kind() != ModeKind.TOGGLE && mode.kind() != ModeKind.REACH && !exit.isEmpty()) {
             out.add(new Hint(exit, Component.translatable("slate_building.ui.hint.exit")));
         } else if (exit.isEmpty() && pending == ClientModeState.Pending.NONE) {
             final String menu = UiDraw.keyName(BuildKeys.BUILD_MENU);

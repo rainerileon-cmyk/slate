@@ -20,6 +20,7 @@
   "slate_building.error.unloaded": "Part of the selection isn't loaded",
   "slate_building.error.too_far": "The selection is out of reach",
   "slate_building.error.locked": "Needs: %s %s",
+  "slate_building.error.no_reach": "Extended needs a toolbox with a reach bonus",
   "slate_building.error.not_enough": "Not enough %s: you have %s of %s",
   "slate_building.error.no_materials": "You have no %s to build with",
   "slate_building.error.nothing_to_undo": "Nothing to undo",

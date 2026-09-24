@@ -77,6 +77,11 @@ public record Palette(List<WeightedEntry> entries, Pattern pattern) {
         return stack.isEmpty() ? EMPTY : new Palette(List.of(new WeightedEntry(stack, variant, 1)), Pattern.SINGLE);
     }
 
+    /** A block that is never placed: what a destructive (left-click) plan runs its geometry with when the hand is empty. */
+    public static Palette standIn() {
+        return single(new ItemStack(net.minecraft.world.level.block.Blocks.STONE), null);
+    }
+
     public boolean isEmpty() {
         return entries.isEmpty();
     }

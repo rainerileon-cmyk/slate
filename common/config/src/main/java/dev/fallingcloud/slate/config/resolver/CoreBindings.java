@@ -74,6 +74,7 @@ public final class CoreBindings {
             .getter(() -> new ArrayList<>(Slate.config().reskinAllowlist))
             .setter(v -> save(c -> c.reskinAllowlist = new ArrayList<>(OptionValues.asList(v))))
             .def(new ArrayList<>(DEFAULTS.reskinAllowlist)));
+        bool("reskinContainers", c -> c.reskinContainers, (c, v) -> c.reskinContainers = v);
         DEFS.put("reskinDenylist", () -> base("reskinDenylist", OptionType.LIST)
             .getter(() -> new ArrayList<>(Slate.config().reskinDenylist))
             .setter(v -> save(c -> c.reskinDenylist = new ArrayList<>(OptionValues.asList(v))))

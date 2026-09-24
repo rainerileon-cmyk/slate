@@ -34,8 +34,8 @@ import org.jetbrains.annotations.Nullable;
  * at once, grouped by tab), "jump to row" (selects the owning tab, scrolls and flashes the row), reset of the
  * current tab, the search index and the tab switch animation. Subclasses only provide {@link #sections()}.
  *
- * <p>Inside a {@link CategoryHost} the page is "hosted": the category's strip already names the page, so its
- * own tabs become the small secondary tabs and anything grouped deeper shows as headers.</p>
+ * <p>Inside a {@link CategoryHost} the page is "hosted": the category's strip already names the page, so all of
+ * its sections go on that one tab under collapsible headers; there is never a second strip.</p>
  */
 public abstract class OptionPageBase extends SidebarPage implements TabHost, Enterable {
 
@@ -80,10 +80,12 @@ public abstract class OptionPageBase extends SidebarPage implements TabHost, Ent
     protected abstract List<Section> sections();
 
     /**
-     * How a tab holding several sections shows them: true = small secondary tabs (one section at a time),
-     * false = all of them under headers (collapsible unless {@link Section#fixed}). Default: secondary tabs.
+     * How a tab holding several sections shows them: false = all of them on one scrolling tab under headers
+     * (collapsible unless {@link Section#fixed}), true = small secondary tabs (one section at a time). Default:
+     * headers; a second strip of tabs under the first is never wanted, and a hosted page (a category's tab) never
+     * gets one at all.
      */
-    protected boolean pills(final String tabKey) { return true; }
+    protected boolean pills(final String tabKey) { return false; }
 
     /** Optional line under the rows when nothing is there (e.g. "No favourites yet"). */
     protected OptionPageBase emptyText(final Component c) { this.emptyText = c; return this; }
@@ -175,14 +177,20 @@ public abstract class OptionPageBase extends SidebarPage implements TabHost, Ent
             return;
         }
 
-        // Top level: the page's tabs, or, when it has a single tab of several sections, those sections.
+        // Top level: the page's tabs, or, when it has a single tab of several sections, those sections. A hosted page
+        // is one tab of its category already: everything it has goes on that one tab, under headers.
         final List<Tab> groups = group(visible);
-        promoted = groups.size() == 1 && groups.get(0).sections().size() > 1 && pills(groups.get(0).key());
         final List<Tab> primary;
-        if (promoted) {
-            primary = new ArrayList<>();
-            for (final Section s : groups.get(0).sections()) primary.add(new Tab(s.id, s.title, List.of(s)));
-        } else primary = groups;
+        if (isHosted()) {
+            promoted = false;
+            primary = visible.isEmpty() ? List.of() : List.of(new Tab(id(), title(), visible));
+        } else {
+            promoted = groups.size() == 1 && groups.get(0).sections().size() > 1 && pills(groups.get(0).key());
+            if (promoted) {
+                primary = new ArrayList<>();
+                for (final Section s : groups.get(0).sections()) primary.add(new Tab(s.id, s.title, List.of(s)));
+            } else primary = groups;
+        }
         tabs = primary;
         int ti = indexOf(primary, promoted ? wantSub : wantTab);
         if (ti >= 0) ConfigSettings.setLastTab(memKey(), primary.get(ti).key());

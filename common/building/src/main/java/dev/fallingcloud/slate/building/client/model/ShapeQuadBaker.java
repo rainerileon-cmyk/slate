@@ -1,5 +1,6 @@
 package dev.fallingcloud.slate.building.client.model;
 
+import dev.fallingcloud.slate.building.variant.RotatedBox;
 import dev.fallingcloud.slate.building.variant.ShapeBlock;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -13,6 +14,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import net.minecraft.client.renderer.block.model.BakedQuad;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -84,18 +86,31 @@ public final class ShapeQuadBaker {
      */
     public static List<BakedQuad> quads(final BlockState shape, final @Nullable Direction side, final Object materialKey,
                                         final @Nullable Object layer, final QuadSource source) {
+        return quads(shape, side, materialKey, layer, source, 0);
+    }
+
+    /**
+     * As {@link #quads(BlockState, Direction, Object, Object, QuadSource)}, plus the diagonal arms of {@code diagonals}
+     * (the block entity's mask, {@code DiagonalShapes}): they are cut from the material like any box, turned into place,
+     * and always land in the never-culled bucket.
+     */
+    public static List<BakedQuad> quads(final BlockState shape, final @Nullable Direction side, final Object materialKey,
+                                        final @Nullable Object layer, final QuadSource source, final int diagonals) {
         final ShapeFaces faces = faces(shape);
+        final List<RotatedBox> rotated = side == null && diagonals != 0 && shape.getBlock() instanceof ShapeBlock sb
+            ? sb.renderRotatedBoxes(shape, diagonals) : List.of();
         final List<?>[] lists = new List<?>[7];
         if (side != null) {
             if (!faces.hasBoundary(side)) return NONE;   // only internal faces (or none) point this way
             lists[side.ordinal()] = source.quads(side);
         } else {
             // Internal faces are cut from the material's quads of their own direction; everything else only needs
-            // the unculled quads. Directions without an internal face are never asked for.
-            for (final Direction d : DIRECTIONS) if (faces.hasInternal(d)) lists[d.ordinal()] = source.quads(d);
+            // the unculled quads. Directions without an internal face are never asked for (all six for turned arms).
+            for (final Direction d : DIRECTIONS) if (faces.hasInternal(d) || !rotated.isEmpty()) lists[d.ordinal()] = source.quads(d);
             lists[6] = source.quads(null);
         }
-        final Key key = new Key(shape, materialKey, side == null ? 6 : side.ordinal(), layer == null ? NO_LAYER : layer, lists);
+        final int bucket = (side == null ? 6 : side.ordinal()) | (rotated.isEmpty() ? 0 : diagonals << 4);
+        final Key key = new Key(shape, materialKey, bucket, layer == null ? NO_LAYER : layer, lists);
         final Map<Key, List<BakedQuad>> shard = QUADS[Math.floorMod(key.hash ^ (key.hash >>> 16), SHARDS)];
         synchronized (shard) {
             final List<BakedQuad> hit = shard.get(key);
@@ -105,7 +120,7 @@ public final class ShapeQuadBaker {
             }
         }
         MISSES.incrementAndGet();
-        final List<BakedQuad> built = build(faces, side, lists);
+        final List<BakedQuad> built = build(faces, side, lists, rotated);
         synchronized (shard) {
             shard.put(key, built);
         }
@@ -125,6 +140,7 @@ public final class ShapeQuadBaker {
     /** Drops every cached region and quad. Call on resource reload. */
     public static void clearCaches() {
         FACES.clear();
+        ROTATED_FACES.clear();
         ShapeGeometry.clear();
         for (final Map<Key, List<BakedQuad>> shard : QUADS) {
             synchronized (shard) {
@@ -139,7 +155,7 @@ public final class ShapeQuadBaker {
     }
 
     @SuppressWarnings("unchecked")
-    private static List<BakedQuad> build(final ShapeFaces faces, final @Nullable Direction side, final List<?>[] lists) {
+    private static List<BakedQuad> build(final ShapeFaces faces, final @Nullable Direction side, final List<?>[] lists, final List<RotatedBox> rotated) {
         final List<BakedQuad> out = new ArrayList<>();
         if (side != null) {
             // Boundary faces on this side, from the material's quads culled on the same side.
@@ -157,8 +173,71 @@ public final class ShapeQuadBaker {
                     crop(unculled, r, d, out);
                 }
             }
+            for (final RotatedBox rb : rotated) bakeRotated(rb, lists, out);
         }
         return out.isEmpty() ? NONE : Collections.unmodifiableList(out);
+    }
+
+    // ---- turned boxes (diagonal arms)
+
+    private static final Map<AABB, ShapeFaces> ROTATED_FACES = new ConcurrentHashMap<>();
+    private static final float SQRT2 = (float) Math.sqrt(2);
+
+    /**
+     * A turned box: every face of the box (boundary faces included, it never touches a neighbour) is cut from the
+     * material's quads of that direction and from its unculled quads, then the quads are stretched by √2 along Z about
+     * the block centre and turned about the block's vertical axis ({@link RotatedBox}).
+     */
+    @SuppressWarnings("unchecked")
+    private static void bakeRotated(final RotatedBox rb, final List<?>[] lists, final List<BakedQuad> out) {
+        final ShapeFaces f = ROTATED_FACES.computeIfAbsent(rb.box(), b -> ShapeFaces.of(List.of(b)));
+        final List<BakedQuad> arm = new ArrayList<>();
+        for (final Direction d : DIRECTIONS) {
+            for (final ShapeFaces.Region r : f.facing(d)) {
+                crop((List<BakedQuad>) lists[d.ordinal()], r, d, arm);
+                crop((List<BakedQuad>) lists[6], r, d, arm);
+            }
+        }
+        final double rad = Math.toRadians(rb.yaw());
+        final float cos = (float) Math.cos(rad), sin = (float) Math.sin(rad);
+        for (final BakedQuad q : arm) out.add(turn(q, cos, sin));
+    }
+
+    private static BakedQuad turn(final BakedQuad q, final float cos, final float sin) {
+        final int[] src = q.getVertices();
+        if (src.length < 16 || src.length % 4 != 0) return q;
+        final int stride = src.length / 4;
+        final int[] v = src.clone();
+        final float[][] p = new float[4][3];
+        float nx = 0, ny = 0, nz = 0;
+        for (int i = 0; i < 4; i++) {
+            final int b = i * stride;
+            final float x = Float.intBitsToFloat(v[b]) - 0.5f, y = Float.intBitsToFloat(v[b + 1]);
+            final float z = (Float.intBitsToFloat(v[b + 2]) - 0.5f) * SQRT2;
+            final float rx = x * cos - z * sin, rz = x * sin + z * cos;
+            p[i][0] = rx + 0.5f;
+            p[i][1] = y;
+            p[i][2] = rz + 0.5f;
+            v[b] = Float.floatToRawIntBits(p[i][0]);
+            v[b + 2] = Float.floatToRawIntBits(p[i][2]);
+            if (stride >= 8) {
+                final int packed = v[b + 7];
+                final float px = (byte) (packed & 0xFF) / 127f, py = (byte) (packed >> 8 & 0xFF) / 127f, pz = (byte) (packed >> 16 & 0xFF) / 127f;
+                nx = px * cos - pz * sin;
+                ny = py;
+                nz = px * sin + pz * cos;
+                v[b + 7] = ((int) (nx * 127) & 0xFF) | ((int) (ny * 127) & 0xFF) << 8 | ((int) (nz * 127) & 0xFF) << 16;
+            }
+        }
+        if (Math.abs(nx) + Math.abs(ny) + Math.abs(nz) < 0.01f) {
+            // No packed normal in the source: take the face's own.
+            final float ax = p[1][0] - p[0][0], ay = p[1][1] - p[0][1], az = p[1][2] - p[0][2];
+            final float bx = p[3][0] - p[0][0], by = p[3][1] - p[0][1], bz = p[3][2] - p[0][2];
+            nx = ay * bz - az * by;
+            ny = az * bx - ax * bz;
+            nz = ax * by - ay * bx;
+        }
+        return new BakedQuad(v, q.getTintIndex(), Direction.getNearest(nx, ny, nz), q.getSprite(), q.isShade());
     }
 
     private static void crop(final @Nullable List<BakedQuad> source, final ShapeFaces.Region region, final Direction dir,

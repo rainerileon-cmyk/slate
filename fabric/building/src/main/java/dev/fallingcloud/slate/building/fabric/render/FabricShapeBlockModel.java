@@ -1,5 +1,6 @@
 package dev.fallingcloud.slate.building.fabric.render;
 
+import dev.fallingcloud.slate.building.block.DiagonalShapes;
 import dev.fallingcloud.slate.building.client.model.ShapeModels;
 import dev.fallingcloud.slate.building.client.model.ShapeQuadBaker;
 import java.util.EnumMap;
@@ -58,10 +59,11 @@ final class FabricShapeBlockModel extends ForwardingBakedModel {
         final ShapeQuadBaker.QuadSource quads = d -> source.getQuads(sourceState, d, ShapeModels.random(seed));
         final QuadEmitter emitter = context.getEmitter();
         final int hidden = ShapeModels.hiddenSides(view, pos, material);
+        final int diagonals = DiagonalShapes.mask(view, pos);
         for (int bucket = 0; bucket < 7; bucket++) {
             final Direction side = bucket < 6 ? DIRECTIONS[bucket] : null;
             if (side != null && (ShapeModels.hidden(hidden, side) || context.isFaceCulled(side))) continue;
-            for (final BakedQuad q : ShapeQuadBaker.quads(state, side, key, blend, quads)) {
+            for (final BakedQuad q : ShapeQuadBaker.quads(state, side, key, blend, quads, diagonals)) {
                 emitter.fromVanilla(q, renderMaterial, side);
                 emitter.emit();
             }

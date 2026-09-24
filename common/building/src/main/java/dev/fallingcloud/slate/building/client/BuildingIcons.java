@@ -53,6 +53,7 @@ public final class BuildingIcons {
     public static final Icon MODE_MIRROR = Icon.MODE_MIRROR;
     public static final Icon MODE_RADIAL = Icon.MODE_RADIAL;
     public static final Icon MODE_MEASURE = Icon.MODE_MEASURE;
+    public static final Icon MODE_EXTENDED = Icon.UPG_REACH;
 
     // Tools
     public static final Icon TOOL_TROWEL = Icon.TROWEL;
@@ -119,6 +120,7 @@ public final class BuildingIcons {
             case "mirror" -> MODE_MIRROR;
             case "radial" -> MODE_RADIAL;
             case "measure" -> MODE_MEASURE;
+            case "extended" -> MODE_EXTENDED;
             default -> SELECTION;
         };
     }

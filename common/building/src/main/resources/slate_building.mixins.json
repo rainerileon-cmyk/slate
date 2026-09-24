@@ -8,8 +8,11 @@
     "BuildKeyboardHandlerMixin",
     "BuildMinecraftMixin",
     "BuildMouseHandlerMixin",
+    "FastBreakGameModeMixin",
+    "GameRendererPickMixin",
     "KeyMappingAccessor",
-    "KeyMappingMixin"
+    "KeyMappingMixin",
+    "MinecraftAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -548,7 +548,7 @@ public final class OpsSelfTest {
     private static void apply(final ServerPlayer p, final BuildMode mode, final ModeParams params, final Direction face, final BlockPos... anchors) {
         final BlockPos a = anchors[0];
         p.teleportTo(p.serverLevel(), a.getX() + 0.5, Y, Math.min(a.getZ(), anchors[anchors.length - 1].getZ()) - 5.5, 0F, 30F);
-        OpsServer.apply(p, mode.id(), params.toTag(), List.of(anchors), face, p.getInventory().selected);
+        OpsServer.apply(p, mode.id(), params.toTag(), List.of(anchors), face, p.getInventory().selected, false);
     }
 
     private static int count(final ServerPlayer p, final BlockPos a, final BlockPos b, final Block block) {

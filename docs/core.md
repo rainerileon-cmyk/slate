@@ -31,8 +31,13 @@ hex colour field live in Slate settings (the Config module offers the same on it
 | `devGrid` / `devSnap` | `true` / `4` | editor grid and snap size |
 | `reskinScope` | `ALLOWLIST` | which screens get restyled: `VANILLA_AND_SLATE`, `ALLOWLIST`, `ALL_NON_CONTAINER`, `NONE` |
 | `reskinAllowlist` / `reskinDenylist` | … | package prefixes / mod ids added to or excluded from restyling |
+| `reskinContainers` | `true` | dark skin: inventories and containers get Slate's panel, slot wells, light labels and tooltips |
 
-Container screens (inventories, chests, machines, JEI) are never restyled.
+**Inventories and containers** (`reskinContainers`, dark skin only): the one full-size background blit a
+container screen makes becomes Slate's panel with a well per slot, its dark grey titles become light text,
+and its tooltips are Slate's. Progress arrows, flames and a mod's own widgets keep drawing on top. A screen
+that paints its background in pieces keeps its own look, the creative inventory is never touched, and the
+deny-list applies (Create, JEI, Xaero's and FancyMenu screens by default).
 
 ## Development mode
 

@@ -3,9 +3,11 @@ package dev.fallingcloud.slate.building.ops;
 import dev.fallingcloud.slate.building.net.ApplyOp;
 import dev.fallingcloud.slate.building.net.CancelOp;
 import dev.fallingcloud.slate.building.net.Redo;
+import dev.fallingcloud.slate.building.net.SetReach;
 import dev.fallingcloud.slate.building.net.SetSymmetry;
 import dev.fallingcloud.slate.building.net.Undo;
 import dev.fallingcloud.slate.building.ops.server.OpsServer;
+import dev.fallingcloud.slate.building.ops.server.Reach;
 import dev.fallingcloud.slate.building.ops.server.Symmetry;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -23,7 +25,7 @@ import net.minecraft.server.level.ServerPlayer;
 public final class OpActions {
 
     public static void applyOp(final ApplyOp p, final ServerPlayer player) {
-        OpsServer.apply(player, p.mode(), p.params(), p.anchors(), p.face(), p.slot());
+        OpsServer.apply(player, p.mode(), p.params(), p.anchors(), p.face(), p.slot(), p.destructive());
     }
 
     public static void cancelOp(final CancelOp p, final ServerPlayer player) {
@@ -40,6 +42,10 @@ public final class OpActions {
 
     public static void setSymmetry(final SetSymmetry p, final ServerPlayer player) {
         Symmetry.set(player, p.mode(), p.params(), p.centre());
+    }
+
+    public static void setReach(final SetReach p, final ServerPlayer player) {
+        Reach.set(player, p.on());
     }
 
     private OpActions() {}

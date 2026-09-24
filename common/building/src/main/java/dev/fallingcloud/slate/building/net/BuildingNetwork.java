@@ -51,6 +51,7 @@ public final class BuildingNetwork {
         c2s(Undo.TYPE, Undo.CODEC, OpActions::undo);
         c2s(Redo.TYPE, Redo.CODEC, OpActions::redo);
         c2s(SetSymmetry.TYPE, SetSymmetry.CODEC, OpActions::setSymmetry);
+        c2s(SetReach.TYPE, SetReach.CODEC, OpActions::setReach);
         c2s(OpenToolbox.TYPE, OpenToolbox.CODEC, ToolboxActions::openToolbox);
 
         s2c(ServerSettingsSync.TYPE, ServerSettingsSync.CODEC, p -> ClientSide.serverSettings(p));
@@ -60,6 +61,7 @@ public final class BuildingNetwork {
         s2c(OpResult.TYPE, OpResult.CODEC, p -> ClientSide.result(p));
         s2c(ClipboardSync.TYPE, ClipboardSync.CODEC, p -> ClientSide.clipboard(p));
         s2c(SymmetryState.TYPE, SymmetryState.CODEC, p -> ClientSide.symmetry(p));
+        s2c(ReachState.TYPE, ReachState.CODEC, p -> ClientSide.reach(p));
     }
 
     private static <T extends CustomPacketPayload> void c2s(final CustomPacketPayload.Type<T> type,
@@ -90,6 +92,7 @@ public final class BuildingNetwork {
         static void result(final OpResult p) { dev.fallingcloud.slate.building.client.ClientActions.opResult(p); }
         static void clipboard(final ClipboardSync p) { dev.fallingcloud.slate.building.client.ClientActions.clipboardSync(p); }
         static void symmetry(final SymmetryState p) { dev.fallingcloud.slate.building.client.ClientActions.symmetryState(p); }
+        static void reach(final ReachState p) { dev.fallingcloud.slate.building.client.ClientActions.reachState(p); }
     }
 
     private BuildingNetwork() {}

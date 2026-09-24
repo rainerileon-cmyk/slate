@@ -190,7 +190,8 @@ final class ModeOverlay {
         if (s.error() != null) return Colors.lerp(pal.accent(), pal.danger(), 0.6F);
         if (s.missing() > 0 || s.blocked() > 0) return pal.warning();
         if (f.mode().kind() == ModeKind.MEASURE) return pal.text();
-        if (!f.mode().places() && f.mode().breaks()) return Colors.lerp(pal.accent(), pal.danger(), 0.35F);
+        // Breaking (clear / cut, or any left-click selection) shows in a warmer colour.
+        if ((!f.mode().places() && f.mode().breaks()) || ClientModeState.destructive()) return Colors.lerp(pal.accent(), pal.danger(), 0.35F);
         return pal.accent();
     }
 

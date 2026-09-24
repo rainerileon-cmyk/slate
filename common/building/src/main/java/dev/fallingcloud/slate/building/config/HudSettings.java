@@ -15,6 +15,8 @@ public final class HudSettings {
     public double scale = 1.0;
     /** Show operation results as an action-bar style line. */
     public boolean actionBar = true;
+    /** Choosing a mode in the build menu closes it (Shift+click then keeps it open); off: it stays open (Shift+click closes). */
+    public boolean closeMenuOnPick = false;
     /** UI sounds for selections, applies and undo. */
     public boolean sounds = true;
     /** Short tips for new players (the first times a block that can change shape is held). */

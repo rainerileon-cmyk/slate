@@ -3,6 +3,7 @@ package dev.fallingcloud.slate.building.client.mode;
 import dev.fallingcloud.slate.building.config.BuildingServerSettings;
 import dev.fallingcloud.slate.building.config.ServerOps;
 import dev.fallingcloud.slate.building.net.ApplyOp;
+import dev.fallingcloud.slate.building.net.SetReach;
 import dev.fallingcloud.slate.building.net.SetSymmetry;
 import dev.fallingcloud.slate.building.ops.BuildMode;
 import dev.fallingcloud.slate.building.ops.BuildModes;
@@ -41,13 +42,21 @@ final class ModeRules {
         if (mode == BuildModes.PASTE && ops.pasteOpLevel > 0 && !player.hasPermissions(ops.pasteOpLevel)) {
             return Component.translatable("slate_building.notice.paste_permission");
         }
+        // Extended is only worth turning on with a reach bonus to add (the server refuses it the same way).
+        if (mode.kind() == ModeKind.REACH && ToolboxAccess.of(player).limits(BuildingServerSettings.effective(player)).reachBonus() <= 0) {
+            return Component.translatable("slate_building.notice.no_reach");
+        }
         return ToolboxAccess.of(player).lockReason(mode);    // fresh: activation must not see a stale toolbox
     }
 
     /** Whether the server can take this mode's payloads (false on servers without Slate Building). */
     static boolean serverHasModule(final BuildMode mode) {
         if (Minecraft.getInstance().getConnection() == null) return false;
-        return SlateNetwork.get().serverHasChannel(mode.kind() == ModeKind.TOGGLE ? SetSymmetry.TYPE : ApplyOp.TYPE);
+        return SlateNetwork.get().serverHasChannel(switch (mode.kind()) {
+            case TOGGLE -> SetSymmetry.TYPE;
+            case REACH -> SetReach.TYPE;
+            default -> ApplyOp.TYPE;
+        });
     }
 
     /** Whether undo / redo / cancel can reach the server. */

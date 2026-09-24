@@ -8,7 +8,9 @@ import dev.fallingcloud.slate.building.config.BuildingConfig;
 import dev.fallingcloud.slate.building.config.BuildingServerConfig;
 import dev.fallingcloud.slate.building.config.BuildingServerSettings;
 import dev.fallingcloud.slate.building.config.HudSettings;
+import dev.fallingcloud.slate.building.client.place.AccuratePlacement;
 import dev.fallingcloud.slate.building.config.ModeSettings;
+import dev.fallingcloud.slate.building.config.PlacementSettings;
 import dev.fallingcloud.slate.building.config.PreviewSettings;
 import dev.fallingcloud.slate.building.config.ServerChisel;
 import dev.fallingcloud.slate.building.config.ServerOps;
@@ -57,6 +59,7 @@ public final class BuildingSettings {
         final List<Group> out = new ArrayList<>();
         out.add(general());
         out.add(preview());
+        out.add(placement());
         out.add(wheel());
         out.add(menuHud());
         out.add(modes());
@@ -72,6 +75,7 @@ public final class BuildingSettings {
         final BuildingConfig c = SlateBuilding.config();
         if (c.preview == null) c.preview = new PreviewSettings();
         if (c.modes == null) c.modes = new ModeSettings();
+        if (c.placement == null) c.placement = new PlacementSettings();
         WheelConfig.wheel();
         WheelConfig.hud();
         return c;
@@ -108,6 +112,17 @@ public final class BuildingSettings {
         return new Group("preview", group("preview"), null, s, false);
     }
 
+    /** Accurate placement and fast breaking (the Accurate Block Placement behaviour); greyed out while that mod is installed. */
+    private static Group placement() {
+        final List<Setting> s = new ArrayList<>();
+        final PlacementSettings d = new PlacementSettings();
+        s.add(bool("placement.accurate", () -> cfg().placement.accurate, v -> cfg().placement.accurate = v, d.accurate));
+        s.add(bool("placement.fast_breaking", () -> cfg().placement.fastBreaking, v -> cfg().placement.fastBreaking = v, d.fastBreaking));
+        s.add(bool("placement.toggle_message", () -> cfg().placement.toggleMessage, v -> cfg().placement.toggleMessage = v, d.toggleMessage));
+        final Component desc = AccuratePlacement.yields() ? Component.translatable("slate_building.settings.group.placement.yields") : null;
+        return new Group("placement", group("placement"), desc, s, false);
+    }
+
     private static Group wheel() {
         final List<Setting> s = new ArrayList<>();
         final WheelSettings d = new WheelSettings();
@@ -134,6 +149,7 @@ public final class BuildingSettings {
         s.add(number("hud.scale", () -> (double) WheelConfig.hudScale(), v -> cfg().hud.scale = v, d.scale, 0.5, 2.0, 0.05,
             v -> Component.literal(String.format(Locale.ROOT, "%.2f×", ((Number) v).doubleValue()))));
         s.add(bool("hud.action_bar", () -> cfg().hud.actionBar, v -> cfg().hud.actionBar = v, d.actionBar));
+        s.add(bool("hud.close_on_pick", () -> cfg().hud.closeMenuOnPick, v -> cfg().hud.closeMenuOnPick = v, d.closeMenuOnPick));
         return new Group("menu_hud", group("menu_hud"), null, s, false);
     }
 

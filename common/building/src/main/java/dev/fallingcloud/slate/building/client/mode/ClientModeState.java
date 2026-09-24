@@ -7,6 +7,7 @@ import dev.fallingcloud.slate.building.config.ModeSettings;
 import dev.fallingcloud.slate.building.net.OpResult;
 import dev.fallingcloud.slate.building.ops.BuildMode;
 import dev.fallingcloud.slate.building.ops.BuildModes;
+import dev.fallingcloud.slate.building.ops.ModeKind;
 import dev.fallingcloud.slate.building.ops.ModeParams;
 import dev.fallingcloud.slate.core.event.SlateEvents;
 import java.util.ArrayList;
@@ -59,7 +60,7 @@ public final class ClientModeState {
     }
 
     /** What an update touched. */
-    public enum Change { MODE, PARAMS, SELECTION, HISTORY, PROGRESS, RESULT, CLIPBOARD, SYMMETRY, STATS, NOTICE }
+    public enum Change { MODE, PARAMS, SELECTION, HISTORY, PROGRESS, RESULT, CLIPBOARD, SYMMETRY, REACH, STATS, NOTICE }
 
     /** Server-reported progress of a running operation. */
     public record Progress(int op, int done, int total, String mode) {
@@ -189,6 +190,7 @@ public final class ClientModeState {
     private static final List<BlockPos> ANCHORS = new ArrayList<>();
     private static @Nullable Direction face;
     private static Pending pending = Pending.NONE;
+    private static boolean destructive;
     private static int undoCount;
     private static int redoCount;
     private static String undoLabel = "";
@@ -198,6 +200,7 @@ public final class ClientModeState {
     private static @Nullable CompoundTag clipboard;
     private static int clipboardVersion;
     private static @Nullable Symmetry symmetry;
+    private static int reachBonus;
     private static Stats stats = Stats.EMPTY;
     private static List<Hint> hints = List.of();
     private static @Nullable Notice notice;
@@ -356,6 +359,19 @@ public final class ClientModeState {
         fire(Change.SELECTION);
     }
 
+    /**
+     * Whether the pending selection was started with left-click: the mode then BREAKS what it would have placed (Fill
+     * clears the box, Walls tears them down, Replace removes the matching blocks, ...) instead of placing.
+     */
+    public static boolean destructive() { return destructive; }
+
+    /** Set by the controller when a selection starts; cleared with the selection. */
+    public static void setDestructive(final boolean value) {
+        if (destructive == value) return;
+        destructive = value;
+        fire(Change.SELECTION);
+    }
+
     public static void clearSelection() {
         clearSelectionSilently();
         fire(Change.SELECTION);
@@ -364,6 +380,11 @@ public final class ClientModeState {
     /** Distance of a corner placed on air (persisted in {@code modes.airDistance}). */
     public static int airDistance() {
         return Math.max(1, settings().airDistance);
+    }
+
+    /** Whether {@code mode} can put a corner in the air (at {@link #airDistance()}): every mode with a selection except Extend. */
+    public static boolean airAllowed(final BuildMode mode) {
+        return mode != BuildModes.EXTEND && mode.kind() != ModeKind.TOGGLE && mode.kind() != ModeKind.REACH;
     }
 
     public static void setAirDistance(final int blocks) {
@@ -474,6 +495,14 @@ public final class ClientModeState {
         fire(Change.SYMMETRY);
     }
 
+    /** The extra block reach the server applies for the Extended mode ({@code ReachState}); 0 while off. */
+    public static int reachBonus() { return reachBonus; }
+
+    public static void setReach(final int bonus) {
+        reachBonus = Math.max(0, bonus);
+        fire(Change.REACH);
+    }
+
     // ---- listeners ----
 
     public static void addListener(final Consumer<Change> listener) { LISTENERS.add(listener); }
@@ -492,6 +521,7 @@ public final class ClientModeState {
         clipboard = null;
         clipboardVersion++;
         symmetry = null;
+        reachBonus = 0;
         stats = Stats.EMPTY;
         hints = List.of();
         notice = null;
@@ -512,6 +542,7 @@ public final class ClientModeState {
         ANCHORS.clear();
         face = null;
         pending = Pending.NONE;
+        destructive = false;
     }
 
     private static void flushParams() {

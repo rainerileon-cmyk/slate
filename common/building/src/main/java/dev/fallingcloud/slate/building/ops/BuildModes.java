@@ -80,6 +80,8 @@ public final class BuildModes {
         ModeParam.choice("axis", "X", "X", "Z", "XZ"), MIRROR_BREAKING);
     public static final BuildMode RADIAL = add("radial", ModeKind.TOGGLE, ToolType.SQUARE, 3, true, true,
         ModeParam.integer("slices", 4, 2, 8), MIRROR_BREAKING);
+    /** Normal placing and breaking at the corner reach of the building modes (the toolbox reach bonus, applied by the server as an attribute modifier while on). */
+    public static final BuildMode EXTENDED = add("extended", ModeKind.REACH, null, 0, false, false);
     public static final BuildMode MEASURE = add("measure", ModeKind.MEASURE, null, 0, false, false);
 
     private static final List<BuildMode> ALL = Collections.unmodifiableList(new ArrayList<>(BY_ID.values()));

@@ -17,6 +17,7 @@ import dev.fallingcloud.slate.core.theme.Colors;
 import dev.fallingcloud.slate.core.theme.Palette;
 import dev.fallingcloud.slate.core.theme.Theme;
 import dev.fallingcloud.slate.core.widget.SlateIconButton;
+import dev.fallingcloud.slate.core.widget.SlateModal;
 import dev.fallingcloud.slate.menu.MenuConfig;
 import dev.fallingcloud.slate.menu.SlateMenu;
 import dev.fallingcloud.slate.menu.client.MenuClient;
@@ -155,8 +156,15 @@ public final class SlateTitleScreen extends SlateScreen {
             mods.ifPresent(f -> nav.add(new NavButton(0, 0, NAV_W, Icon.MODS, Component.translatable("slate_menu.title.mods"), () -> mc.setScreen(f.apply(this)))));
         }
         nav.add(new NavButton(0, 0, NAV_W, Icon.SETTINGS, Component.translatable("menu.options"), () -> mc.setScreen(new OptionsScreen(this, mc.options))));
-        nav.add(new NavButton(0, 0, NAV_W, Icon.QUIT, Component.translatable("menu.quit"), mc::stop).danger());
+        nav.add(new NavButton(0, 0, NAV_W, Icon.QUIT, Component.translatable("menu.quit"), () -> quit(mc)).danger());
         return nav;
+    }
+
+    /** The danger dialog has no PRIMARY button, so a stray Enter cannot confirm it. */
+    private static void quit(final Minecraft mc) {
+        if (!SlateMenu.config().confirmQuitGame) { mc.stop(); return; }
+        SlateModal.confirmDanger(Component.translatable("menu.quit"), Component.translatable("slate_menu.title.confirm_quit"),
+            Component.translatable("menu.quit"), mc::stop);
     }
 
     private Optional<AbstractWidget> friendsPanel(final int x, final int y, final int w, final int h) {

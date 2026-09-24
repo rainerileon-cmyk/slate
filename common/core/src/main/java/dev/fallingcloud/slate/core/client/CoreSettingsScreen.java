@@ -146,6 +146,8 @@ public final class CoreSettingsScreen extends SlateScreen {
         restyle.row(new SlateDropdown<>(0, 0, restyle.rowW, List.of("VANILLA_AND_SLATE", "ALLOWLIST", "ALL_NON_CONTAINER", "NONE"), cfg.reskinScope,
             s -> Component.translatable("slate.reskin." + s.toLowerCase(java.util.Locale.ROOT)), s -> { save(x -> x.reskinScope = s); Reskin.invalidate(); })
             .label(Component.translatable("slate.settings.reskin_scope")));
+        restyle.row(new SlateToggle(0, 0, restyle.rowW, Component.translatable("slate.settings.reskin_containers"), cfg.reskinContainers,
+            v -> { save(x -> x.reskinContainers = v); Reskin.invalidate(); }));
         panel.add(restyle.finish(), 0, y);
         y += restyle.card.getHeight() + CARD_GAP;
 

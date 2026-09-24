@@ -36,8 +36,8 @@ import org.lwjgl.glfw.GLFW;
  * hand while looking at a variant block) and it opens around a virtual cursor fed by mouse movement (the camera stays still).
  * <ul>
  *   <li>Release the key: apply the hovered slice ({@code SwapHeld} / {@code ChiselHeld}, or {@code ReshapeTarget} /
- *       {@code ChiselTarget} in the world). Tapping without moving does nothing (dead zone around the centre);
- *       moving out and back to the centre picks the full block.</li>
+ *       {@code ChiselTarget} in the world). Tapping without moving does nothing; any nudge of the cursor arms the
+ *       centre, so a nudge and release (or coming back to the middle from a slice) picks the full block.</li>
  *   <li>LMB / RMB: previous / next page. Scroll: step along the ring. Hotbar keys 1-9: pick a slice. Esc: cancel.</li>
  *   <li>{@code releaseToSelect = false}: LMB applies (and the wheel stays open), release just closes.</li>
  * </ul>
@@ -49,6 +49,8 @@ public final class WheelOverlay implements BuildInput.Handler {
     public static final WheelOverlay INSTANCE = new WheelOverlay();
 
     private static final int BASE_RADIUS = 64;
+    /** Cursor travel (GUI px) after which the centre can be picked: a nudge, not a trip to the ring. */
+    private static final float ARM_DISTANCE = 6f;
 
     private final RadialWheel wheel = new RadialWheel();
     private final Anim openAnim = new Anim(0, 180, Ease.OUT_BACK);
@@ -207,7 +209,9 @@ public final class WheelOverlay implements BuildInput.Handler {
 
     private void updateHover() {
         final float d = (float) Math.sqrt(cursorX * cursorX + cursorY * cursorY);
-        if (d >= deadZone()) armed = true;
+        // Any nudge arms the centre (a tap without moving still does nothing): the full block must be as quick to
+        // get back to as any slice, without a trip out to the ring first.
+        if (d >= ARM_DISTANCE) armed = true;
         int h;
         final int n = wheel.slices().size();
         if (d >= deadZone() && n > 0) h = dev.fallingcloud.slate.building.client.gfx.RingRaster.sliceAtAngle(cursorX, cursorY, n);

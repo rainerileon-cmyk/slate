@@ -50,6 +50,12 @@ public final class CoreConfig {
     /** Screens (class name prefixes) never restyled even under ALL_NON_CONTAINER. */
     public List<String> reskinDenylist = new ArrayList<>(List.of(
         "de.keksuccino.fancymenu", "mezz.jei", "com.simibubi.create", "xaero"));
+    /**
+     * Dark skin: inventory and container screens (chests, furnaces, machines, ...) get Slate's panel in place of
+     * their background texture, slot wells, light labels and Slate tooltips ({@code ContainerReskin}). A screen that
+     * draws its background in pieces keeps its own look; the creative inventory and the deny-list are never touched.
+     */
+    public boolean reskinContainers = true;
 
     public boolean isVanillaSkin() {
         return "VANILLA".equalsIgnoreCase(skin);

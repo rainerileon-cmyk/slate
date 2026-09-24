@@ -157,6 +157,53 @@ public final class ReskinDraw {
     // ------------------------------------------------------------------ tooltips & tabs
 
     /** Tooltip box around the text rect (vanilla's rect is the text bounds; the box is 3 px bigger + 1 px border). */
+    // ---- container screens (ContainerReskin): the panel that replaces the texture, and what the texture used to hold
+
+    /** A container screen's body in place of its background texture. */
+    public static void containerPanel(final GuiGraphics g, final int x, final int y, final int w, final int h) {
+        final Palette p = Theme.current().palette();
+        SlateDraw.panel(g, x, y, w, h, p.surface(), p.borderStrong());
+    }
+
+    /** One 18 x 18 slot well (the item is drawn on top by the screen). */
+    public static void containerSlot(final GuiGraphics g, final int x, final int y) {
+        final Palette p = Theme.current().palette();
+        SlateDraw.pixelRound(g, x, y, 18, 18, p.bg2(), 1);
+        SlateDraw.outline(g, x, y, 18, 18, p.border(), 1);
+    }
+
+    /** A sunken area (the player model's frame in the inventory). */
+    public static void containerInset(final GuiGraphics g, final int x, final int y, final int w, final int h) {
+        final Palette p = Theme.current().palette();
+        SlateDraw.pixelRound(g, x, y, w, h, p.bg(), 2);
+        SlateDraw.outline(g, x, y, w, h, p.border(), 2);
+    }
+
+    /** The "goes to" arrow between an input and its result (crafting grid, furnace). */
+    public static void containerArrow(final GuiGraphics g, final int x, final int y) {
+        Icons.draw(g, Icon.ARROW_RIGHT, x + 4, y, 14, Theme.current().palette().textDim());
+    }
+
+    /** A screen that painted its body its own way: a dark veil over it, so it still sits in the dark skin. */
+    public static void containerTint(final GuiGraphics g, final int x, final int y, final int w, final int h) {
+        final Palette p = Theme.current().palette();
+        SlateDraw.pixelRound(g, x, y, w, h, Colors.withAlpha(p.bg(), 0xD0), Theme.current().radius());
+        SlateDraw.outline(g, x, y, w, h, p.borderStrong(), Theme.current().radius());
+    }
+
+    /** A creative inventory tab (the item is drawn on it by the screen). */
+    public static void containerTab(final GuiGraphics g, final int x, final int y, final int w, final int h, final boolean selected) {
+        final Palette p = Theme.current().palette();
+        SlateDraw.pixelRound(g, x, y, w, h, selected ? p.surface() : p.bg2(), 2);
+        SlateDraw.outline(g, x, y, w, h, selected ? p.borderStrong() : p.border(), 2);
+    }
+
+    /** The creative inventory's scroll thumb (its track is part of the panel). */
+    public static void containerThumb(final GuiGraphics g, final int x, final int y, final int w, final int h, final boolean enabled) {
+        final Palette p = Theme.current().palette();
+        SlateDraw.pixelRound(g, x, y, w, h, enabled ? p.textDim() : Colors.withAlpha(p.textDim(), 0x60), 1);
+    }
+
     public static void tooltipBackground(final GuiGraphics g, final int x, final int y, final int w, final int h, final int z) {
         final Theme t = Theme.current();
         final Palette p = t.palette();

@@ -42,7 +42,8 @@ public final class InterfacePage extends OptionPageBase {
         look.addAll(CoreBindings.all("accent", "radius", "headingFont", "blurInGame"));
         out.add(look);
         out.add(Section.of("motion", Component.translatable("slate_config.interface.motion"), CoreBindings.all("motion", "transitions", "uiSounds", "toasts")));
-        out.add(Section.of("restyle", Component.translatable("slate_config.interface.restyle"), CoreBindings.all("reskinScope", "reskinAllowlist", "reskinDenylist")));
+        out.add(Section.of("restyle", Component.translatable("slate_config.interface.restyle"),
+            CoreBindings.all("reskinScope", "reskinContainers", "reskinAllowlist", "reskinDenylist")));
         out.add(Section.of("vanilla", Component.translatable("slate_config.interface.vanilla"), VanillaOptions.all(
             // Narrator/contrast/fonts live under Language & Accessibility, main hand and the operator tab under Gameplay.
             "guiScale", "darkMojangStudiosBackground", "hideSplashTexts", "panoramaScrollSpeed", "reducedDebugInfo")));

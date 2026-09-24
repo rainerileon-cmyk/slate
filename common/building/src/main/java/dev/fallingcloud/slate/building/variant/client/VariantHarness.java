@@ -106,6 +106,7 @@ final class VariantHarness {
         s.wait(10);
         onServer(s, VariantHarness::registryChecks);
         onServer(s, VariantHarness::dropChecks);
+        onServer(s, VariantHarness::pickupChecks);
         onServer(s, VariantHarness::actionChecks);
         onServer(s, VariantHarness::geometryChecks);
         onServer(s, VariantHarness::regressionChecks);
@@ -287,18 +288,18 @@ final class VariantHarness {
                 final BlockEntity be = level.getBlockEntity(pos);
                 final List<ItemStack> drops = Block.getDrops(state, level, pos, be, c.player(), pickaxe);
                 final int units = reg.units(state, be);
-                if (!isExactly(drops, MATERIALS[m].asItem(), units)) wrong.add(shape.id() + "=" + drops);
+                if (!isVariant(drops, MATERIALS[m], shape, units)) wrong.add(shape.id() + "=" + drops);
                 checked++;
             }
-            check("drops of " + checked + " " + name(MATERIALS[m]) + " shapes = material x units", wrong.isEmpty(), wrong);
+            check("drops of " + checked + " " + name(MATERIALS[m]) + " shapes = themselves x units", wrong.isEmpty(), wrong);
         }
 
         final BlockPos vslab = new BlockPos(5, Y, DEMO_Z);
         final BlockState merged = level.getBlockState(vslab);
         check("vertical slab double = 2 units",
             merged.getBlock() instanceof VerticalSlabBlock && !merged.getValue(VerticalSlabBlock.SINGLE) && reg.units(merged, level.getBlockEntity(vslab)) == 2, merged);
-        check("vertical slab double drops 2 grass blocks",
-            isExactly(Block.getDrops(merged, level, vslab, level.getBlockEntity(vslab), c.player(), pickaxe), Items.GRASS_BLOCK, 2), "wrong drops");
+        check("vertical slab double drops 2 grass vertical slabs",
+            isVariant(Block.getDrops(merged, level, vslab, level.getBlockEntity(vslab), c.player(), pickaxe), Blocks.GRASS_BLOCK, Shape.VERTICAL_SLAB, 2), "wrong drops");
         final BlockPos layers = new BlockPos(7, Y, DEMO_Z);
         final BlockState layerState = level.getBlockState(layers);
         check("five glowstone layers = 5 units", layerState.getBlock() instanceof LayerBlock && reg.units(layerState, null) == 5, layerState);
@@ -323,24 +324,24 @@ final class VariantHarness {
                 clearItems(level, nativeDouble);
                 c.player().setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.DIAMOND_AXE));
                 c.player().gameMode.destroyBlock(nativeDouble);
-                int planks = 0;
+                int slabs = 0;
                 for (final ItemEntity e : level.getEntitiesOfClass(ItemEntity.class, new AABB(nativeDouble).inflate(1.0))) {
-                    if (e.getItem().is(Items.OAK_PLANKS)) planks += e.getItem().getCount();
+                    if (e.getItem().is(Items.OAK_SLAB)) slabs += e.getItem().getCount();
                     e.discard();
                 }
                 // Whichever half it takes (or the whole block, if its ray misses), nothing is lost or made: 2 units in all.
                 final BlockState left = level.getBlockState(nativeDouble);
                 final int stays = left.is(Blocks.OAK_SLAB) ? VariantRegistry.get().units(left, null) : left.isAir() ? 0 : 99;
-                check("survival break with KleeSlabs: a native double oak slab keeps its 2 units (planks dropped + slab left)",
-                    planks >= 1 && planks + stays == 2, planks + " planks, " + left);
+                check("survival break with KleeSlabs: a native double oak slab keeps its 2 units (slabs dropped + slab left)",
+                    slabs >= 1 && slabs + stays == 2, slabs + " slabs, " + left);
                 level.setBlock(nativeDouble, Blocks.AIR.defaultBlockState(), 3);
             } else {
-                survivalBreak(c, nativeDouble, new ItemStack(Items.DIAMOND_AXE), Items.OAK_PLANKS, 2, "native double oak slab");
+                survivalBreak(c, nativeDouble, new ItemStack(Items.DIAMOND_AXE), Blocks.OAK_PLANKS, Shape.SLAB, 2, "native double oak slab");
             }
-            survivalBreak(c, gridPos(7, Shape.VERTICAL_STAIRS), pickaxe.copy(), Items.DEEPSLATE_TILES, 1, "deepslate tile vertical stairs");
-            survivalBreak(c, gridPos(6, Shape.STAIRS), ItemStack.EMPTY, Items.DIRT, 1, "dirt stairs by hand");
-            survivalBreak(c, gridPos(0, Shape.STAIRS), pickaxe.copy(), Items.STONE, 1, "native stone stairs");
-            survivalBreak(c, gridPos(0, Shape.PANEL), ItemStack.EMPTY, Items.STONE, 0, "stone panel by hand");
+            survivalBreak(c, gridPos(7, Shape.VERTICAL_STAIRS), pickaxe.copy(), Blocks.DEEPSLATE_TILES, Shape.VERTICAL_STAIRS, 1, "deepslate tile vertical stairs");
+            survivalBreak(c, gridPos(6, Shape.STAIRS), ItemStack.EMPTY, Blocks.DIRT, Shape.STAIRS, 1, "dirt stairs by hand");
+            survivalBreak(c, gridPos(0, Shape.STAIRS), pickaxe.copy(), Blocks.STONE, Shape.STAIRS, 1, "native stone stairs");
+            survivalBreak(c, gridPos(0, Shape.PANEL), ItemStack.EMPTY, Blocks.STONE, Shape.PANEL, 0, "stone panel by hand");
         } finally {
             player.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
             player.setGameMode(GameType.CREATIVE);
@@ -353,26 +354,72 @@ final class VariantHarness {
         clearItems(level, gridPos(0, Shape.STAIRS));
     }
 
-    private static void survivalBreak(final Ctx c, final BlockPos pos, final ItemStack tool, final Item expected, final int count, final String what) {
+    /** Breaks {@code pos} in survival with {@code tool} and expects exactly {@code count} items identifying as ({@code material}, {@code shape}). */
+    private static void survivalBreak(final Ctx c, final BlockPos pos, final ItemStack tool, final Block material, final Shape shape, final int count, final String what) {
         final ServerLevel level = c.level();
         clearItems(level, pos);
         c.player().setItemInHand(InteractionHand.MAIN_HAND, tool);
         final boolean broken = c.player().gameMode.destroyBlock(pos);
-        final Map<Item, Integer> dropped = new LinkedHashMap<>();
+        final Map<Variant, Integer> dropped = new LinkedHashMap<>();
         for (final ItemEntity e : level.getEntitiesOfClass(ItemEntity.class, new AABB(pos).inflate(1.0))) {
-            dropped.merge(e.getItem().getItem(), e.getItem().getCount(), Integer::sum);
+            dropped.merge(VariantRegistry.get().identify(e.getItem()).orElse(null), e.getItem().getCount(), Integer::sum);
             e.discard();
         }
+        final Variant expected = new Variant(material, shape);
         final boolean ok = broken && (count == 0 ? dropped.isEmpty() : dropped.size() == 1 && Objects.equals(dropped.get(expected), count));
-        check("survival break: " + what + " drops " + count + " " + BuiltInRegistries.ITEM.getKey(expected).getPath(), ok, "broken=" + broken + " " + dropped);
+        check("survival break: " + what + " drops " + count + " " + name(material) + " " + shape.id(), ok, "broken=" + broken + " " + dropped);
+    }
+
+    /** Pickups: a shape item joins a stack of another shape of its material; the full block never converts. */
+    private static void pickupChecks(final Ctx c) {
+        final Inventory inv = c.player().getInventory();
+        final List<ItemStack> saved = new ArrayList<>();
+        for (int i = 0; i < inv.getContainerSize(); i++) saved.add(inv.getItem(i).copy());
+        try {
+            inv.clearContent();
+            inv.setItem(0, new ItemStack(Items.OAK_PLANKS, 10));
+            inv.add(new ItemStack(Items.OAK_STAIRS, 3));
+            check("picked-up oak stairs join the planks in hand (13 planks, no stairs)",
+                inv.getItem(0).is(Items.OAK_PLANKS) && inv.getItem(0).getCount() == 13 && inv.countItem(Items.OAK_STAIRS) == 0, inv.getItem(0));
+
+            inv.setItem(1, new ItemStack(Items.OAK_STAIRS, 5));
+            inv.add(new ItemStack(Items.OAK_STAIRS, 2));
+            check("an exact stack wins over conversion (7 stairs, planks untouched)",
+                inv.getItem(1).getCount() == 7 && inv.getItem(0).getCount() == 13, inv.getItem(1));
+
+            inv.setItem(0, new ItemStack(Items.OAK_PLANKS, 64));
+            inv.add(new ItemStack(Items.OAK_SLAB, 2));
+            check("with the planks full, oak slabs join the stairs (9 stairs, no slabs)",
+                inv.getItem(1).getCount() == 9 && inv.countItem(Items.OAK_SLAB) == 0, inv.getItem(1));
+
+            inv.clearContent();
+            inv.setItem(0, new ItemStack(Items.OAK_STAIRS, 5));
+            inv.add(new ItemStack(Items.OAK_PLANKS, 2));
+            check("picked-up planks never turn into stairs (5 stairs + 2 planks)",
+                inv.getItem(0).getCount() == 5 && inv.countItem(Items.OAK_PLANKS) == 2, inv.getItem(1));
+
+            inv.clearContent();
+            inv.setItem(0, new ItemStack(Items.DIRT, 10));
+            inv.add(VariantRegistry.get().stackFor(Blocks.DIRT, Shape.VERTICAL_SLAB, 4));
+            check("our dirt vertical slabs join the dirt (14 dirt)", inv.getItem(0).is(Items.DIRT) && inv.getItem(0).getCount() == 14, inv.getItem(0));
+
+            inv.clearContent();
+            inv.add(new ItemStack(Items.OAK_STAIRS, 3));
+            check("with nothing to join, stairs stay stairs", inv.countItem(Items.OAK_STAIRS) == 3 && inv.countItem(Items.OAK_PLANKS) == 0, inv.getItem(0));
+        } finally {
+            for (int i = 0; i < saved.size(); i++) inv.setItem(i, saved.get(i));
+        }
     }
 
     private static void clearItems(final ServerLevel level, final BlockPos pos) {
         for (final ItemEntity e : level.getEntitiesOfClass(ItemEntity.class, new AABB(pos).inflate(1.0))) e.discard();
     }
 
-    private static boolean isExactly(final List<ItemStack> drops, final Item item, final int count) {
-        return drops.size() == 1 && drops.get(0).is(item) && drops.get(0).getCount() == count;
+    /** One drop that identifies as ({@code material}, {@code shape}) with {@code count} items. */
+    private static boolean isVariant(final List<ItemStack> drops, final Block material, final Shape shape, final int count) {
+        if (drops.size() != 1 || drops.get(0).getCount() != count) return false;
+        final Variant v = VariantRegistry.get().identify(drops.get(0)).orElse(null);
+        return v != null && v.material() == material && v.shape() == shape;
     }
 
     // ------------------------------------------------------------------------------------------------ swap, reshape, split
@@ -433,7 +480,7 @@ final class VariantHarness {
         final ItemEntity split = new ItemEntity(level, r3.getX() + 0.5, r3.getY() + 0.5, r3.getZ() + 0.5, new ItemStack(BuildingItems.forShape(Shape.SLAB).get()));
         level.addFreshEntity(split);
         level.setBlock(r3, doubled.setValue(SlabBlock.TYPE, SlabType.BOTTOM), 3);
-        check("split slab drop becomes the material (KleeSlabs)", split.getItem().is(Items.DIRT) && split.getItem().getCount() == 1, split.getItem());
+        check("split slab drop becomes a dirt slab (KleeSlabs)", isVariant(List.of(split.getItem()), Blocks.DIRT, Shape.SLAB, 1), split.getItem());
         split.discard();
     }
 

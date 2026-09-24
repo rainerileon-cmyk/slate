@@ -50,10 +50,15 @@ final class ModeOptions {
         return width >= 200 ? 2 : 1;
     }
 
+    /** Controls shown for {@code m}: its parameters, plus the corner-distance-in-the-air slider for modes that put corners in the air. */
+    private static int controls(final BuildMode m) {
+        return m.params().size() + (ClientModeState.airAllowed(m) ? 1 : 0);
+    }
+
     /** Height the panel needs for {@code m} at {@code width}. */
     static int heightFor(final @Nullable BuildMode m, final int width) {
-        if (m == null || m.params().isEmpty()) return TITLE_H + 12;
-        final int rows = (m.params().size() + columns(width) - 1) / columns(width);
+        if (m == null || controls(m) == 0) return TITLE_H + 12;
+        final int rows = (controls(m) + columns(width) - 1) / columns(width);
         return TITLE_H + rows * (CELL_H + ROW_GAP) + 1;
     }
 
@@ -87,6 +92,18 @@ final class ModeOptions {
             if (w instanceof SlateWidget sw) sw.tip(List.of(p.displayName(), p.description().copy().withStyle(net.minecraft.ChatFormatting.GRAY)));
             widgets.add(w);
         }
+        if (ClientModeState.airAllowed(m)) {
+            // The corner distance in the air is one setting for every mode (modes.airDistance), edited here where the
+            // mode is picked, so nothing rides on the scroll wheel in the world.
+            final int i = m.params().size();
+            final int cx = r.x() + (i % cols) * (colW + COL_GAP);
+            final int cy = r.y() + TITLE_H + (i / cols) * (CELL_H + ROW_GAP);
+            final Component label = Component.translatable("slate_building.settings.modes.air_distance");
+            final SlateSlider air = new SlateSlider(cx, cy, colW, label, 1, 16, 1, ClientModeState.airDistance(),
+                d -> Integer.toString((int) Math.round(d)), d -> ClientModeState.setAirDistance((int) Math.round(d))).compact(true);
+            air.tip(List.of(label, Component.translatable("slate_building.settings.modes.air_distance.desc").withStyle(net.minecraft.ChatFormatting.GRAY)));
+            widgets.add(air);
+        }
         return widgets;
     }
 
@@ -117,6 +134,29 @@ final class ModeOptions {
         }
     }
 
+    /**
+     * Bottom right of the panel, drawn live every frame (never a rebuild): the running operation's progress with a
+     * bar, else the last result. Kept inside the panel's rounded corner: the corner sits to the right of it.
+     */
+    private void renderProgress(final GuiGraphics g, final float alpha, final boolean vanilla, final Palette p) {
+        final ClientModeState.Progress progress = ClientModeState.progress();
+        final var last = ClientModeState.lastResult();
+        if (progress == null && last == null) return;
+        final int inset = Theme.current().radius() + 6;
+        final int right = area.right() - inset;
+        final int textY = area.bottom() - 11;
+        if (progress != null) {
+            final Component text = Component.translatable("slate_building.ui.menu.progress", progress.done(), progress.total());
+            SlateDraw.textRight(g, text, right, textY, Colors.scaleAlpha(vanilla ? 0xFFFFFFFF : p.text(), alpha));
+            final int barW = Math.min(120, Math.max(40, area.w() / 3)), barX = right - barW, barY = textY - 5;
+            SlateDraw.rect(g, barX, barY, barW, 3, Colors.scaleAlpha(vanilla ? 0xFF404040 : p.bg2(), alpha));
+            SlateDraw.rect(g, barX, barY, Math.round(barW * progress.fraction()), 3, Colors.scaleAlpha(vanilla ? 0xFF55FF55 : p.accent(), alpha));
+        } else {
+            final Component text = Component.translatable("slate_building.ui.menu.result", last.placed(), last.broken());
+            SlateDraw.textRight(g, text, right, textY, Colors.scaleAlpha(vanilla ? 0xFF909090 : p.textDim(), alpha));
+        }
+    }
+
     /** Title row and the labels of segmented controls. */
     void render(final GuiGraphics g, final float alpha) {
         final BuildMode m = mode;
@@ -134,10 +174,11 @@ final class ModeOptions {
             final Component how = Component.translatable("slate_building.ui.menu.how." + m.kind().name().toLowerCase(Locale.ROOT));
             g.drawString(SlateDraw.font(), SlateDraw.truncate(how, howW), howX, y + 2, Colors.scaleAlpha(vanilla ? 0xFF909090 : p.textDim(), alpha), vanilla);
         }
-        if (m.params().isEmpty()) {
+        if (controls(m) == 0) {
             g.drawString(SlateDraw.font(), Component.translatable("slate_building.ui.menu.no_options"), x, y + TITLE_H,
                 Colors.scaleAlpha(vanilla ? 0xFF909090 : p.textDim(), alpha), vanilla);
         }
+        renderProgress(g, alpha, vanilla, p);
         for (final Label l : labels) {
             g.drawString(SlateDraw.font(), SlateDraw.truncate(l.text, l.w - 4), l.x, SlateDraw.textY(l.y, CELL_H),
                 Colors.scaleAlpha(vanilla ? 0xFFE0E0E0 : p.textMuted(), alpha), vanilla);

@@ -12,6 +12,9 @@ dependencies {
     // JEI is optional (hide deleted native variants). The common API jar is in official (Mojang) names, which is
     // what this build compiles against, so it needs no remapping.
     compileOnly "mezz.jei:jei-1.21.1-common-api:19.44.0.403"
+    // DiagonalBlocks (DiagonalFences / Walls / Windows) is optional: block.diagonal bridges our fences, walls and panes to
+    // its API (same package on both loaders) and is only loaded when the mod is present.
+    compileOnly fileTree(dir: rootProject.slateLibsDir, include: ['diagonalblocks*.jar'])
 }
 
 // Translations are written by several agents into assets/slate_building/lang/parts/<agent>.json (so they never edit

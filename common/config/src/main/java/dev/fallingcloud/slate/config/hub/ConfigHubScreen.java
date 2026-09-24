@@ -80,7 +80,7 @@ public final class ConfigHubScreen extends SidebarScreen {
         Map.entry("resourcepacks", "customization/packs"),
         Map.entry("shaders", "customization/shaders"),
         Map.entry("shaderpacks", "customization/shaders"),
-        Map.entry("skin", "customization/skin"),
+        Map.entry("skin", "multiplayer/skin"),
         Map.entry("language", "language_accessibility/language"),
         Map.entry("accessibility", "language_accessibility/accessibility"),
         Map.entry("general", "gameplay/general"),
@@ -111,14 +111,15 @@ public final class ConfigHubScreen extends SidebarScreen {
         pages.add(new AudioPage());
         pages.add(new ControlsPage());
         pages.add(new CategoryPage(GAMEPLAY, Component.translatable("slate_config.page.gameplay"), Icon.GAMEPLAY, List.of(new GameplayGeneralPage())));
-        pages.add(new InterfacePage());
+        // Skin lives with the other "how others see me" settings.
         pages.add(new CategoryPage(MULTIPLAYER, Component.translatable("slate_config.page.multiplayer"), Icon.MULTIPLAYER,
-            List.of(new SimplePages.OnlinePage(), new SimplePages.ChatPage())));
+            List.of(new SimplePages.OnlinePage(), new SimplePages.ChatPage(), new SkinPage())));
         final List<SidebarPage> custom = new ArrayList<>(List.of(new ModsPage(), new ResourcePacksPage()));
         if (SlatePlatform.get().isModLoaded("iris")) custom.add(new ShaderPacksPage());
-        custom.add(new SkinPage());
         pages.add(new CategoryPage(CUSTOMIZATION, Component.translatable("slate_config.page.customization"), Icon.CUSTOMIZE, custom));
-        pages.add(new CategoryPage(LANGUAGE_ACCESSIBILITY, Component.translatable("slate_config.page.language_accessibility"), Icon.LANGUAGE,
+        pages.add(new InterfacePage());
+        // Still id "language_accessibility" (paths and remembered tabs); the sidebar just says Accessibility.
+        pages.add(new CategoryPage(LANGUAGE_ACCESSIBILITY, Component.translatable("slate_config.page.language_accessibility"), Icon.ACCESSIBILITY,
             List.of(new LanguagePage(), new SimplePages.AccessibilityPage())));
         pages.add(new FavouritesPage());
         pages.add(new PresetsPage());
@@ -162,7 +163,7 @@ public final class ConfigHubScreen extends SidebarScreen {
         return super.addPageWidget(widget);
     }
 
-    /** The sidebar is as wide as its longest title needs ("Language & Accessibility"), within reason. */
+    /** The sidebar is as wide as its longest title needs ("Customization"), within reason. */
     @Override
     protected int navWidth() {
         if (narrow()) return NAV_W_NARROW;
@@ -172,14 +173,14 @@ public final class ConfigHubScreen extends SidebarScreen {
     }
 
     /** With top tabs right below, the title drops its rule: the strip's baseline is the divider. */
+    /** No title row inside the page: the header reads "Settings › Controls" and the tabs start right under it. */
     @Override
-    protected void renderPageTitle(final GuiGraphics g) {
-        final SidebarPage page = currentPage();
-        if (!(page instanceof TabHost th) || !th.hasTopTabs()) { super.renderPageTitle(g); return; }
-        final Theme t = Theme.current();
-        final Rect r = pageTitleRect();
-        g.drawString(font, SlateDraw.truncate(Fonts.heading(page.title()), r.w()), r.x(), SlateDraw.textY(r.y(), r.h()),
-            t.isVanilla() ? 0xFFFFFFFF : t.palette().text(), t.isVanilla());
+    protected boolean showPageTitle() { return false; }
+
+    @Override
+    public Component getTitle() {
+        final SidebarPage page = pages().isEmpty() ? null : currentPage();
+        return page == null ? super.getTitle() : Component.literal(super.getTitle().getString() + " › " + page.title().getString());
     }
 
     // ------------------------------------------------------------------ navigation

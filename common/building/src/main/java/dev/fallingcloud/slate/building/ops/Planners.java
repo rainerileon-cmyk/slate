@@ -13,7 +13,9 @@ import dev.fallingcloud.slate.building.ops.plan.PlanOverflow;
 import dev.fallingcloud.slate.building.ops.plan.ShapePlanners;
 import dev.fallingcloud.slate.building.toolbox.ToolboxAccess;
 import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.List;
+import net.minecraft.world.level.block.Blocks;
 import java.util.Map;
 import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.Nullable;
@@ -67,7 +69,8 @@ public final class Planners {
             final Component refused = refusal(ctx);
             if (refused != null) return Plan.error(refused);
             try {
-                return planner.plan(ctx);
+                final Plan plan = planner.plan(ctx);
+                return ctx.destructive() ? destructive(plan, ctx) : plan;
             } catch (final PlanOverflow e) {
                 // More positions than the player may change: refused before the whole region was walked.
                 return new Plan(List.of(), e.bounds() != null ? e.bounds() : Plan.EMPTY.bounds(), PlanErrors.tooMany(e.count(), e.max()), e.count());
@@ -76,6 +79,22 @@ public final class Planners {
                 return Plan.error(PlanErrors.failed());
             }
         });
+    }
+
+    /**
+     * A left-click selection: the same geometry, but every place / replace becomes a break of the block standing
+     * there (air is skipped, breaks stay breaks). Fill clears the box, Walls tears them down, Replace removes the
+     * matching blocks, Overlay strips the top layer. Drops and the harvest rules are the executor's, as for Clear.
+     */
+    static Plan destructive(final Plan plan, final PlanContext ctx) {
+        if (plan == null || !plan.ok()) return plan;
+        final List<Change> out = new ArrayList<>(plan.changes().size());
+        for (final Change c : plan.changes()) {
+            if (c.kind() == Change.Kind.BREAK) { out.add(c); continue; }
+            if (ctx.level().getBlockState(c.pos()).isAir()) continue;
+            out.add(new Change(c.pos(), Blocks.AIR.defaultBlockState(), null, Change.Kind.BREAK));
+        }
+        return new Plan(out, plan.bounds(), null, plan.requestedCount());
     }
 
     /** Why {@code ctx.player()} may not use the mode at all (server switch, disabled mode, toolbox lock), or null. */

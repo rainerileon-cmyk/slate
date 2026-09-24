@@ -16,8 +16,9 @@ import org.lwjgl.glfw.GLFW;
  * <ul>
  *   <li>{@link #SWAP} (Left Alt): hold for the quick-swap wheel;</li>
  *   <li>{@link #BUILD_MENU} (R): the build menu;</li>
- *   <li>{@link #UNDO}, {@link #REDO}, {@link #CONFIRM} (apply the pending selection; right-click also confirms),
- *       {@link #CANCEL}, {@link #EXIT_MODE}: unbound by default;</li>
+ *   <li>{@link #CANCEL} (Q): clears the pending selection or stops the running operation;</li>
+ *   <li>{@link #UNDO}, {@link #REDO}, {@link #CONFIRM} (apply the pending selection; the click also confirms),
+ *       {@link #EXIT_MODE}, {@link #TOGGLE_ACCURATE_PLACEMENT}, {@link #TOGGLE_FAST_BREAKING}: unbound by default;</li>
  *   <li>one per building mode, {@code key.slate_building.mode.<id>} ({@link #forMode}), unbound by default.</li>
  * </ul>
  * Both default keys are shared with other mods in the DF pack, so {@code KeyClaims} claims them through
@@ -33,8 +34,12 @@ public final class BuildKeys {
     public static final KeyMapping UNDO = key("undo", InputConstants.UNKNOWN.getValue());
     public static final KeyMapping REDO = key("redo", InputConstants.UNKNOWN.getValue());
     public static final KeyMapping CONFIRM = key("confirm", InputConstants.UNKNOWN.getValue());
-    public static final KeyMapping CANCEL = key("cancel", InputConstants.UNKNOWN.getValue());
+    /** Q, vanilla's drop key: claimed through {@code KeyClaims} only while a selection or an operation is there to cancel. */
+    public static final KeyMapping CANCEL = key("cancel", GLFW.GLFW_KEY_Q);
     public static final KeyMapping EXIT_MODE = key("exit_mode", InputConstants.UNKNOWN.getValue());
+    /** Accurate placement / fast breaking on and off ({@code client.place.AccuratePlacement}). */
+    public static final KeyMapping TOGGLE_ACCURATE_PLACEMENT = key("toggle_accurate_placement", InputConstants.UNKNOWN.getValue());
+    public static final KeyMapping TOGGLE_FAST_BREAKING = key("toggle_fast_breaking", InputConstants.UNKNOWN.getValue());
 
     private static final Map<String, KeyMapping> MODES = new LinkedHashMap<>();
 
@@ -50,7 +55,10 @@ public final class BuildKeys {
     public static synchronized void init() {
         if (registered) return;
         registered = true;
-        for (final KeyMapping k : new KeyMapping[] {SWAP, BUILD_MENU, UNDO, REDO, CONFIRM, CANCEL, EXIT_MODE}) SlateKeys.register(k);
+        for (final KeyMapping k : new KeyMapping[] {SWAP, BUILD_MENU, UNDO, REDO, CONFIRM, CANCEL, EXIT_MODE,
+            TOGGLE_ACCURATE_PLACEMENT, TOGGLE_FAST_BREAKING}) {
+            SlateKeys.register(k);
+        }
         for (final KeyMapping k : MODES.values()) SlateKeys.register(k);
     }
 

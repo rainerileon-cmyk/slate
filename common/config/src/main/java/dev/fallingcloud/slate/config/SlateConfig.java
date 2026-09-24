@@ -39,9 +39,9 @@ public final class SlateConfig implements SlateModule {
     public static final SlateConfig MODULE = new SlateConfig();
 
     /** Choices of the dev action: sidebar pages and the category tabs (any path {@link ConfigHubScreen#open} takes works). */
-    private static final List<String> PAGE_IDS = List.of("video", "audio", "controls", "controls/keys", "gameplay", "interface",
-        "multiplayer", "multiplayer/online", "multiplayer/chat", "customization", "customization/mods", "customization/packs",
-        "customization/shaders", "customization/skin", "language_accessibility", "language_accessibility/language",
+    private static final List<String> PAGE_IDS = List.of("video", "audio", "controls", "controls/keys", "gameplay", "gameplay/building",
+        "multiplayer", "multiplayer/online", "multiplayer/chat", "multiplayer/skin", "customization", "customization/mods", "customization/packs",
+        "customization/shaders", "interface", "language_accessibility", "language_accessibility/language",
         "language_accessibility/accessibility", "favourites", "presets");
 
     private SlateConfig() {}
@@ -70,6 +70,8 @@ public final class SlateConfig implements SlateModule {
         ScreenIds.register(ConfigHubScreen.class, "slate_config:hub", "Slate settings");
         ScreenIds.register(FileEditorScreen.class, "slate_config:editor", "Config file editor");
         CoreActions.SCREEN_FACTORIES.put("slate_config:hub", p -> new ConfigHubScreen(p, null));
+        // slate_config:hub/<path> opens a page directly (screenshot harness: -PautoScreens=slate_config:hub/video,...).
+        for (final String path : PAGE_IDS) CoreActions.SCREEN_FACTORIES.put("slate_config:hub/" + path, p -> new ConfigHubScreen(p, path));
         SlateEvents.CLIENT_TICK_END.register(ApplyQueue::tick);
         installSwaps();
         LOGGER.info("[Slate Config] client init ({} curated page(s))", CuratedPages.load().size());

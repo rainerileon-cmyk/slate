@@ -9,8 +9,10 @@ import dev.fallingcloud.slate.core.gfx.Textures;
 import dev.fallingcloud.slate.core.theme.Colors;
 import dev.fallingcloud.slate.core.theme.Palette;
 import dev.fallingcloud.slate.core.theme.Theme;
+import dev.fallingcloud.slate.core.widget.SlateBadge;
 import dev.fallingcloud.slate.core.widget.SlateButton;
 import dev.fallingcloud.slate.core.widget.SlateCard;
+import dev.fallingcloud.slate.core.widget.SlateIconButton;
 import dev.fallingcloud.slate.core.widget.SlateSpinner;
 import dev.fallingcloud.slate.menu.client.Fmt;
 import dev.fallingcloud.slate.menu.client.LastPlayed;
@@ -52,8 +54,9 @@ public class ContinueCard extends SlateCard {
     public ContinueCard(final int x, final int y, final int w, final int h, @Nullable final Screen parent) {
         super(x, y, w, h);
         this.parent = parent;
-        play = add(new SlateButton(0, 0, 56, 20, Component.translatable("slate_menu.title.play"), this::play)
-            .variant(SlateButton.Variant.PRIMARY).icon(Icon.PLAY), w - 64, h - 27);
+        // Icon-only Play in the bottom-right corner, inset 8 like the account card's edit icon ("Play" is its tooltip).
+        play = add(new SlateIconButton(0, 0, 20, Icon.PLAY, Component.translatable("slate_menu.title.play"), this::play)
+            .variant(SlateButton.Variant.PRIMARY), w - 28, h - 28);
         play.visible = false;
         // Empty state: the CTA sits top-right next to the caption so the two text lines below keep the full width.
         create = add(new SlateButton(0, 0, 104, 18, Component.translatable("slate_menu.title.create_world"), () -> WorldActions.createNew(parent))
@@ -136,11 +139,14 @@ public class ContinueCard extends SlateCard {
             Icons.draw(g, target.kind() == LastPlayed.Kind.WORLD ? Icon.WORLD : Icon.SERVER, ix + 8, iy + 8, 16, Colors.scaleAlpha(muted, a));
         }
         SlateDraw.outline(g, ix, iy, is, is, Colors.scaleAlpha(van ? 0xFF000000 : p.border(), a), t.radius());
-        final int textW = w - 64 - 64;
-        final FormattedCharSequence name = SlateDraw.truncate(Component.literal(target.name() == null || target.name().isBlank() ? target.id() : target.name()), textW);
-        g.drawString(SlateDraw.font(), name, ix + is + 8, y + 22, Colors.scaleAlpha(p.text(), a), van);
-        g.drawString(SlateDraw.font(), SlateDraw.truncate(subtitle(), textW), ix + is + 8, y + 34, Colors.scaleAlpha(muted, a), van);
+        // Every row level with the Play button stops short of it, so text and chips never run under it; the name
+        // row sits above the button and gets the full width.
+        final int tx = ix + is + 8, full = x + w - 10, lh = SlateDraw.lineHeight();
+        final FormattedCharSequence name = SlateDraw.truncate(Component.literal(target.name() == null || target.name().isBlank() ? target.id() : target.name()), rowRight(y + 22, lh, full) - tx);
+        g.drawString(SlateDraw.font(), name, tx, y + 22, Colors.scaleAlpha(p.text(), a), van);
+        g.drawString(SlateDraw.font(), SlateDraw.truncate(subtitle(), rowRight(y + 34, lh, full) - tx), tx, y + 34, Colors.scaleAlpha(muted, a), van);
         // Third line: status dot + detail (server) or mode chips (world)
+        final int right = rowRight(y + 46, 10, full);
         if (target.kind() == LastPlayed.Kind.SERVER && server != null) {
             final int dot;
             final Component detail;
@@ -154,15 +160,26 @@ public class ContinueCard extends SlateCard {
                 case UNREACHABLE -> { dot = p.danger(); detail = Component.translatable("slate_menu.servers.offline"); }
                 default -> { dot = p.warning(); detail = Component.translatable("slate_menu.servers.pinging"); }
             }
-            g.fill(ix + is + 8, y + 48, ix + is + 12, y + 52, Colors.scaleAlpha(dot, a));
-            g.drawString(SlateDraw.font(), SlateDraw.truncate(detail, textW - 8), ix + is + 14, y + 46, Colors.scaleAlpha(muted, a), van);
+            g.fill(tx, y + 48, tx + 4, y + 52, Colors.scaleAlpha(dot, a));
+            g.drawString(SlateDraw.font(), SlateDraw.truncate(detail, right - tx - 6), tx + 6, y + 46, Colors.scaleAlpha(muted, a), van);
         } else if (target.summary() != null) {
             final LevelSummary s = target.summary();
-            int cx = ix + is + 8;
-            cx += dev.fallingcloud.slate.core.widget.SlateBadge.draw(g, s.getGameMode().getShortDisplayName(), cx, y + 46, Colors.scaleAlpha(p.accent(), a)) + 4;
-            if (s.isHardcore()) cx += dev.fallingcloud.slate.core.widget.SlateBadge.draw(g, Component.translatable("slate_menu.worlds.hardcore"), cx, y + 46, Colors.scaleAlpha(p.danger(), a)) + 4;
-            if (s.hasCommands()) dev.fallingcloud.slate.core.widget.SlateBadge.draw(g, Component.translatable("slate_menu.worlds.cheats"), cx, y + 46, Colors.scaleAlpha(p.warning(), a));
+            int cx = chip(g, s.getGameMode().getShortDisplayName(), tx, y + 46, right, Colors.scaleAlpha(p.accent(), a));
+            if (s.isHardcore()) cx = chip(g, Component.translatable("slate_menu.worlds.hardcore"), cx, y + 46, right, Colors.scaleAlpha(p.danger(), a));
+            if (s.hasCommands()) chip(g, Component.translatable("slate_menu.worlds.cheats"), cx, y + 46, right, Colors.scaleAlpha(p.warning(), a));
         }
+    }
+
+    /** Right edge for a row at {@code rowY}, {@code rowH} tall: short of the Play button when level with it, else {@code full}. */
+    private int rowRight(final int rowY, final int rowH, final int full) {
+        final boolean level = play.visible && rowY + rowH > play.getY() && rowY < play.getY() + play.getHeight();
+        return level ? play.getX() - 4 : full;
+    }
+
+    /** A mode chip if it fits before {@code right}; returns the next x, or {@code right} once one did not fit so later chips skip too. */
+    private static int chip(final GuiGraphics g, final Component text, final int x, final int y, final int right, final int color) {
+        if (x + SlateDraw.width(text) + 8 > right) return right;
+        return x + SlateBadge.draw(g, text, x, y, color) + 4;
     }
 
     private Component subtitle() {

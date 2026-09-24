@@ -9,6 +9,7 @@ import dev.fallingcloud.slate.building.config.ModeSettings;
 import dev.fallingcloud.slate.building.net.ApplyOp;
 import dev.fallingcloud.slate.building.net.CancelOp;
 import dev.fallingcloud.slate.building.net.Redo;
+import dev.fallingcloud.slate.building.net.SetReach;
 import dev.fallingcloud.slate.building.net.SetSymmetry;
 import dev.fallingcloud.slate.building.net.Undo;
 import dev.fallingcloud.slate.building.ops.BuildMode;
@@ -51,11 +52,12 @@ import org.lwjgl.glfw.GLFW;
  *   <li><b>TOGGLE</b>: activating centres the symmetry on the targeted block (the confirm key re-centres, arrows move
  *       it); normal placing and breaking stay untouched on the client, the server mirrors them.</li>
  * </ul>
- * Left-click (or Esc, or the cancel key) clears a pending selection; mining works normally otherwise. Ctrl+scroll
- * pushes / pulls the looked-at face (radius / height on round modes), Shift+scroll steps the main parameter
- * (thickness, count, depth, slices; rotation for paste and move, axis for mirror; the radius of spheres and
- * cylinders), plain scroll on air sets the air-corner distance, arrow keys (Shift / Page Up / Page Down for
- * vertical) nudge. Normal right-click use is suppressed while a selection-driven mode is active and the held item is
+ * Left-click drives the same selection in its BREAKING form on the area modes (the plan breaks what it would have
+ * placed); the cancel key (Q) or Esc clears a pending selection and the mode stays on. Ctrl+scroll pushes / pulls the looked-at
+ * face (radius / height on round modes), Shift+scroll steps the main parameter (thickness, count, depth, slices;
+ * rotation for paste and move, axis for mirror; the radius of spheres and cylinders), arrow keys (Shift / Page Up /
+ * Page Down for vertical) nudge; a plain scroll is the hotbar's (the corner distance in the air is a slider in the
+ * build menu). Normal right-click use is suppressed while a selection-driven mode is active and the held item is
  * a block, a building tool or nothing; food, bows and other items with a use animation, containers (with nothing
  * selected) and the toolbox keep their own right-click.
  *
@@ -69,7 +71,11 @@ final class ModeController implements BuildInput.Handler {
     /** Ticks without progress or result after which an apply stops waiting (the server may have refused silently). */
     private static final int APPLY_TIMEOUT_TICKS = 200;
 
-    private enum ScrollAction { RESIZE, PARAM, RADIUS, AIR, NUDGE }
+    /** Extended reach requests without a reply yet, and whether the last one asked for on. */
+    private int reachInFlight;
+    private boolean reachOnSent;
+
+    private enum ScrollAction { RESIZE, PARAM, RADIUS, NUDGE }
 
     private boolean useLatched;
     private boolean swallowAttack;
@@ -102,18 +108,35 @@ final class ModeController implements BuildInput.Handler {
     public boolean onUse() {
         final BuildMode mode = ClientModeState.current();
         final LocalPlayer player = Minecraft.getInstance().player;
-        if (mode == null || player == null || mode.kind() == ModeKind.TOGGLE) return false;
+        if (mode == null || player == null || mode.kind() == ModeKind.TOGGLE || mode.kind() == ModeKind.REACH) return false;
+        // Right-click drives the placing selection; on a left-click (breaking) one it starts over as its own kind.
+        if (ClientModeState.selectionPending() && ClientModeState.destructive()) cancelSelection();
         if (!ClientModeState.selectionPending() && !claimsUse(player)) return false;
         if (useLatched) return true;                    // held: keep vanilla's repeat quiet, act once per press
         useLatched = true;
-        click(player, mode, false);
+        click(player, mode, false, false);
         return true;
     }
 
+    /**
+     * Left-click drives the BREAKING selection of the area modes: the same corners, and the mode then breaks what it
+     * would have placed (Fill clears the box, Walls tears them down, Replace removes the matches). Cancelling is the
+     * cancel key (Q) or Esc, never a click. Point and move modes have no breaking variant: with a selection pending
+     * the click is swallowed (no mining under a preview), otherwise it mines as usual.
+     */
     @Override
     public boolean onAttack() {
-        if (!ClientModeState.selectionPending()) return false;
-        cancelSelection();
+        final BuildMode mode = ClientModeState.current();
+        final LocalPlayer player = Minecraft.getInstance().player;
+        if (mode == null || player == null || mode.kind() == ModeKind.TOGGLE || mode.kind() == ModeKind.REACH) return false;
+        if (mode.kind() != ModeKind.AREA && mode.kind() != ModeKind.MEASURE) {
+            if (!ClientModeState.selectionPending()) return false;
+            swallowAttack = true;
+            return true;
+        }
+        if (ClientModeState.selectionPending() && !ClientModeState.destructive()) cancelSelection();
+        if (!ClientModeState.selectionPending() && !claimsAttack(player)) return false;
+        click(player, mode, false, true);
         swallowAttack = true;                           // do not mine with the same press
         return true;
     }
@@ -147,6 +170,7 @@ final class ModeController implements BuildInput.Handler {
         final BuildMode mode = ClientModeState.current();
         final LocalPlayer player = Minecraft.getInstance().player;
         if (mode == null || player == null || action == GLFW.GLFW_RELEASE) return false;
+        // Esc clears a pending selection (the mode stays on; leaving it is the leave-mode key, its own key or the menu).
         if (key == GLFW.GLFW_KEY_ESCAPE && action == GLFW.GLFW_PRESS && ClientModeState.selectionPending()
             && ClientModeState.settings().escapeCancels) {
             cancelSelection();
@@ -167,6 +191,13 @@ final class ModeController implements BuildInput.Handler {
         return dir != null && nudge(mode, dir);
     }
 
+    /** Whether a left-click with nothing selected starts a breaking selection (instead of mining): same items as {@link #claimsUse}. */
+    private boolean claimsAttack(final LocalPlayer player) {
+        final ItemStack main = player.getMainHandItem();
+        if (main.getItem() instanceof ToolboxItem) return false;
+        return main.isEmpty() || ClientPalette.placeable(player, main) || main.getUseAnimation() == UseAnim.NONE;
+    }
+
     /** Whether a right-click with nothing selected starts a selection (instead of the held item's own use). */
     private boolean claimsUse(final LocalPlayer player) {
         final ItemStack main = player.getMainHandItem();
@@ -182,13 +213,16 @@ final class ModeController implements BuildInput.Handler {
 
     // ======================================================================== the flow
 
-    /** A right-click ({@code confirm = false}) or the confirm key ({@code confirm = true}). */
-    private void click(final LocalPlayer player, final BuildMode mode, final boolean confirm) {
+    /**
+     * A click ({@code confirm = false}) or the confirm key ({@code confirm = true}); {@code destructive} says which
+     * kind a NEW selection is (left-click: breaking), a pending one keeps its own.
+     */
+    private void click(final LocalPlayer player, final BuildMode mode, final boolean confirm, final boolean destructive) {
         final ClientModeState.Pending pending = ClientModeState.pending();
         final List<BlockPos> anchors = ClientModeState.anchors();
         if (pending == ClientModeState.Pending.FIRST_ANCHOR && anchors.isEmpty()
             || pending == ClientModeState.Pending.DESTINATION && anchors.size() < 2) {
-            startSelection(player, mode);                // inconsistent state (set from outside): start over
+            startSelection(player, mode, destructive);   // inconsistent state (set from outside): start over
             return;
         }
         switch (mode.kind()) {
@@ -201,10 +235,10 @@ final class ModeController implements BuildInput.Handler {
                         ModeSounds.selected();
                     }
                     case SELECTED -> {
-                        if (mode.kind() == ModeKind.MEASURE) startSelection(player, mode);
+                        if (mode.kind() == ModeKind.MEASURE) startSelection(player, mode, destructive);
                         else applyOrHint(player, mode, confirm);
                     }
-                    default -> startSelection(player, mode);
+                    default -> startSelection(player, mode, destructive);
                 }
             }
             case POINT -> {
@@ -236,16 +270,18 @@ final class ModeController implements BuildInput.Handler {
                         ModeSounds.selected();
                     }
                     case SELECTED -> applyOrHint(player, mode, confirm);
-                    default -> startSelection(player, mode);
+                    default -> startSelection(player, mode, false);
                 }
             }
             case TOGGLE -> recentre(player, mode);
+            case REACH -> { /* vanilla's own click, farther away */ }
         }
     }
 
-    private void startSelection(final LocalPlayer player, final BuildMode mode) {
+    private void startSelection(final LocalPlayer player, final BuildMode mode, final boolean destructive) {
         final ModeTarget t = targetFor(player, mode, ModeTarget.Role.CORNER, null);
         ModeOverlay.reset();
+        ClientModeState.setDestructive(destructive);
         ClientModeState.setSelection(List.of(t.pos()), t.face(), ClientModeState.Pending.FIRST_ANCHOR);
         ModeSounds.anchor();
     }
@@ -261,7 +297,7 @@ final class ModeController implements BuildInput.Handler {
 
     /** Whether a click on air makes sense for {@code mode} (extend needs a block face to grow from). */
     static boolean airAllowed(final BuildMode mode) {
-        return mode != BuildModes.EXTEND && mode.kind() != ModeKind.TOGGLE;
+        return ClientModeState.airAllowed(mode);
     }
 
     private static boolean confirmsWithRightClick() {
@@ -302,7 +338,7 @@ final class ModeController implements BuildInput.Handler {
             }
         }
         final ModeParams params = ClientModeState.params(mode);
-        SlateNetwork.get().sendToServer(new ApplyOp(mode.id(), params.toTag(), anchors, face, ClientPalette.paySlot(player)));
+        SlateNetwork.get().sendToServer(new ApplyOp(mode.id(), params.toTag(), anchors, face, ClientPalette.paySlot(player), ClientModeState.destructive()));
         final AABB flash = mode == BuildModes.MOVE || mode.kind() == ModeKind.POINT ? ModePreview.placedBounds() : ModePreview.shape().box();
         ModeOverlay.flashApplied(flash != null ? flash : ModePreview.shape().box());
         ModeSounds.apply();
@@ -366,7 +402,7 @@ final class ModeController implements BuildInput.Handler {
         final BuildMode mode = ClientModeState.current();
         final LocalPlayer player = Minecraft.getInstance().player;
         if (mode == null || player == null) return;
-        click(player, mode, true);
+        click(player, mode, true, ClientModeState.destructive());
     }
 
     void undo() { history(true); }
@@ -406,24 +442,13 @@ final class ModeController implements BuildInput.Handler {
             }
             return null;
         }
-        if (!ctrl && !shift && target != null && target.air() && airAllowed(mode)
-            && (pending == ClientModeState.Pending.NONE || pending == ClientModeState.Pending.FIRST_ANCHOR
-                || pending == ClientModeState.Pending.DESTINATION || pending == ClientModeState.Pending.APPLYING)) {
-            return ScrollAction.AIR;
-        }
+        // A plain scroll is the hotbar's. (The corner distance in the air used to ride on it, which read as the hotbar
+        // "sometimes" refusing to scroll; it is a slider in the build menu now.)
         return null;
     }
 
     private void scroll(final LocalPlayer player, final BuildMode mode, final ScrollAction action, final int steps) {
         switch (action) {
-            case AIR -> {
-                final int max = (int) Math.floor(ModeRules.reach(player));
-                final int next = Math.max(1, Math.min(max, ClientModeState.airDistance() + steps));
-                if (next == ClientModeState.airDistance()) { ModeSounds.refused(); return; }
-                ClientModeState.setAirDistance(next);
-                ModeSounds.step(1.0F + 0.04F * next);
-                ClientModeState.notice(Component.translatable("slate_building.notice.air_distance", next), ClientModeState.Severity.INFO);
-            }
             case PARAM -> stepParam(mode, steps);
             case RADIUS, RESIZE -> {
                 final List<BlockPos> anchors = ClientModeState.anchors();
@@ -549,6 +574,14 @@ final class ModeController implements BuildInput.Handler {
         final ClientModeState.Pending pending = ClientModeState.pending();
         final List<BlockPos> anchors = ClientModeState.anchors();
         final BlockPos planeAnchor = pending == ClientModeState.Pending.FIRST_ANCHOR && !anchors.isEmpty() ? anchors.get(0) : null;
+        if (mode.kind() == ModeKind.REACH) {
+            // Nothing to target or draw: vanilla's own crosshair, now with a longer arm. The chip shows the bonus.
+            target = null;
+            ClientModeState.setStats(ClientModeState.Stats.EMPTY);
+            ModeOverlay.drawFlashOnly();
+            updateHints(mode, pending);
+            return;
+        }
         target = ModeTarget.compute(player, mode, ClientModeState.params(mode), roleFor(mode, pending), planeAnchor, partialTick);
 
         if (mode.kind() == ModeKind.TOGGLE) {
@@ -668,6 +701,7 @@ final class ModeController implements BuildInput.Handler {
             case PROGRESS -> applyingTicks = 0;
             case HISTORY -> historyKnown = true;
             case SYMMETRY -> onServerSymmetry();
+            case REACH -> onServerReach();
             default -> {}
         }
     }
@@ -684,6 +718,8 @@ final class ModeController implements BuildInput.Handler {
             // Leaving the world: nothing to send, nothing to hear.
             symmetryOnSent = false;
             symmetryInFlight = 0;
+            reachOnSent = false;
+            reachInFlight = 0;
             symmetryResendIn = -1;
             historyKnown = false;
             applied = null;
@@ -692,6 +728,9 @@ final class ModeController implements BuildInput.Handler {
         // Mirror → radial just replaces the symmetry; anything else turns it off.
         if (before != null && before.kind() == ModeKind.TOGGLE && symmetryOnSent && (now == null || now.kind() != ModeKind.TOGGLE)) {
             sendSymmetry(false);
+        }
+        if (before != null && before.kind() == ModeKind.REACH && reachOnSent && (now == null || now.kind() != ModeKind.REACH)) {
+            sendReach(false);
         }
         final LocalPlayer player = Minecraft.getInstance().player;
         if (now == null) {
@@ -703,6 +742,7 @@ final class ModeController implements BuildInput.Handler {
             ClientModeState.setSelection(List.of(centreTarget(player, now)), Direction.UP, ClientModeState.Pending.NONE);
             sendSymmetry(true);
         }
+        if (now.kind() == ModeKind.REACH) sendReach(true);
         final HudSettings hud = SlateBuilding.config().hud;
         if (hud != null && !hud.enabled) {
             ClientModeState.notice(Component.translatable("slate_building.notice.mode_on", now.name()), ClientModeState.Severity.INFO);
@@ -744,13 +784,43 @@ final class ModeController implements BuildInput.Handler {
         }
     }
 
+    // ---- extended reach (kind REACH): the server adds the toolbox reach bonus to the block reach while it is on
+
+    private void sendReach(final boolean on) {
+        if (Minecraft.getInstance().getConnection() == null || !SlateNetwork.get().serverHasChannel(SetReach.TYPE)) return;
+        SlateNetwork.get().sendToServer(new SetReach(on));
+        reachInFlight++;
+        reachOnSent = on;
+    }
+
+    /** The server reported the reach it applies: reconcile with what the client wants (same dance as symmetry). */
+    private void onServerReach() {
+        if (reachInFlight > 0) reachInFlight--;
+        if (reachInFlight > 0) return;              // a reply to an older request; the newest is on its way
+        final BuildMode mode = ClientModeState.current();
+        final boolean wantOn = mode != null && mode.kind() == ModeKind.REACH;
+        final int bonus = ClientModeState.reachBonus();
+        if (wantOn && bonus <= 0 && reachOnSent) {
+            reachOnSent = false;
+            ClientModeState.deactivate();
+            ClientModeState.notice(Component.translatable("slate_building.notice.reach_off"), ClientModeState.Severity.WARNING);
+        } else if (!wantOn && bonus > 0) {
+            sendReach(false);
+        }
+    }
+
     // ======================================================================== hints
 
     private void updateHints(final BuildMode mode, final ClientModeState.Pending pending) {
         final List<ClientModeState.Hint> h = new ArrayList<>(5);
         final Component rmb = Component.translatable("slate_building.hint.key.rmb");
         final Component lmb = Component.translatable("slate_building.hint.key.lmb");
-        final Component applyKey = confirmsWithRightClick() ? rmb : BuildKeys.CONFIRM.getTranslatedKeyMessage();
+        // A breaking (left-click) selection is driven by the left button; cancelling is the cancel key (Q) or Esc.
+        final boolean breaking = ClientModeState.selectionPending() && ClientModeState.destructive();
+        final Component clickKey = breaking ? lmb : rmb;
+        final Component applyKey = confirmsWithRightClick() ? clickKey : BuildKeys.CONFIRM.getTranslatedKeyMessage();
+        final Component cancelKey = BuildKeys.CANCEL.isUnbound() ? Component.translatable("slate_building.hint.key.esc") : BuildKeys.CANCEL.getTranslatedKeyMessage();
+        final String applyAction = breaking ? "break" : "apply";
         final boolean air = target != null && target.air();
         final ModeParam main = mainParam(mode);
         switch (mode.kind()) {
@@ -760,10 +830,13 @@ final class ModeController implements BuildInput.Handler {
                 if (main != null) h.add(new ClientModeState.Hint(Component.translatable("slate_building.hint.key.shift_scroll"), main.displayName()));
                 if (!BuildKeys.EXIT_MODE.isUnbound()) h.add(hint(BuildKeys.EXIT_MODE.getTranslatedKeyMessage(), "turn_off"));
             }
+            case REACH -> {
+                if (!BuildKeys.EXIT_MODE.isUnbound()) h.add(hint(BuildKeys.EXIT_MODE.getTranslatedKeyMessage(), "turn_off"));
+            }
             case POINT -> {
                 if (pending == ClientModeState.Pending.PREVIEW) {
                     h.add(hint(applyKey, "apply"));
-                    h.add(hint(lmb, "cancel"));
+                    h.add(hint(cancelKey, "cancel"));
                     if (ClientModeState.settings().arrowNudge) h.add(hint(Component.translatable("slate_building.hint.key.arrows"), "move"));
                     if (main != null) h.add(new ClientModeState.Hint(Component.translatable("slate_building.hint.key.shift_scroll"), main.displayName()));
                 } else {
@@ -773,11 +846,11 @@ final class ModeController implements BuildInput.Handler {
             }
             case MOVE -> {
                 switch (pending) {
-                    case FIRST_ANCHOR -> { h.add(hint(rmb, "corner_b")); h.add(hint(lmb, "cancel")); }
-                    case DESTINATION -> { h.add(hint(rmb, "destination")); h.add(hint(lmb, "cancel")); }
+                    case FIRST_ANCHOR -> { h.add(hint(rmb, "corner_b")); h.add(hint(cancelKey, "cancel")); }
+                    case DESTINATION -> { h.add(hint(rmb, "destination")); h.add(hint(cancelKey, "cancel")); }
                     case SELECTED -> {
                         h.add(hint(applyKey, "move_here"));
-                        h.add(hint(lmb, "cancel"));
+                        h.add(hint(cancelKey, "cancel"));
                         if (main != null) h.add(new ClientModeState.Hint(Component.translatable("slate_building.hint.key.shift_scroll"), main.displayName()));
                     }
                     default -> h.add(hint(rmb, "corner_a"));
@@ -785,14 +858,14 @@ final class ModeController implements BuildInput.Handler {
             }
             case AREA, MEASURE -> {
                 switch (pending) {
-                    case FIRST_ANCHOR -> { h.add(hint(rmb, "corner_b")); h.add(hint(lmb, "cancel")); }
+                    case FIRST_ANCHOR -> { h.add(hint(clickKey, "corner_b")); h.add(hint(cancelKey, "cancel")); }
                     case SELECTED -> {
                         if (mode.kind() == ModeKind.MEASURE) {
-                            h.add(hint(rmb, "new_measure"));
-                            h.add(hint(lmb, "clear"));
+                            h.add(hint(clickKey, "new_measure"));
+                            h.add(hint(cancelKey, "clear"));
                         } else {
-                            h.add(hint(applyKey, "apply"));
-                            h.add(hint(lmb, "cancel"));
+                            h.add(hint(applyKey, applyAction));
+                            h.add(hint(cancelKey, "cancel"));
                         }
                         h.add(hint(Component.translatable("slate_building.hint.key.ctrl_scroll"), "resize"));
                         if (main != null) {
@@ -802,13 +875,12 @@ final class ModeController implements BuildInput.Handler {
                         }
                         if (ClientModeState.settings().arrowNudge) h.add(hint(Component.translatable("slate_building.hint.key.arrows"), "move"));
                     }
-                    default -> h.add(hint(rmb, "corner_a"));
+                    default -> {
+                        h.add(hint(rmb, "corner_a"));
+                        if (mode.kind() == ModeKind.AREA) h.add(hint(lmb, "break_corner_a"));
+                    }
                 }
             }
-        }
-        if (air && pending != ClientModeState.Pending.SELECTED && pending != ClientModeState.Pending.PREVIEW && airAllowed(mode)) {
-            h.add(new ClientModeState.Hint(Component.translatable("slate_building.hint.key.scroll"),
-                Component.translatable("slate_building.hint.air_distance", ClientModeState.airDistance())));
         }
         ClientModeState.setHints(h);
     }
@@ -831,7 +903,7 @@ final class ModeController implements BuildInput.Handler {
         if (player == null || mode == null) return;
         forcedTarget = new ModeTarget(pos, face, false, pos);
         try {
-            click(player, mode, false);
+            click(player, mode, false, false);
         } finally {
             forcedTarget = null;
         }

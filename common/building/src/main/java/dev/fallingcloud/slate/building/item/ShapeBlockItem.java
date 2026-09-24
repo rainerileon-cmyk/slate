@@ -4,6 +4,7 @@ import dev.fallingcloud.slate.building.block.ShapeBlockEntity;
 import dev.fallingcloud.slate.building.registry.BuildingComponents;
 import dev.fallingcloud.slate.building.variant.Shape;
 import dev.fallingcloud.slate.building.variant.ShapeBlock;
+import dev.fallingcloud.slate.building.variant.VariantNames;
 import dev.fallingcloud.slate.building.variant.VariantRegistry;
 import java.util.List;
 import net.minecraft.ChatFormatting;
@@ -115,7 +116,7 @@ public class ShapeBlockItem extends BlockItem {
     public Component getName(final ItemStack stack) {
         final Block material = material(stack);
         if (material == null) return shape().displayName();
-        return Component.translatable("slate_building.variant_name", material.getName(), shape().displayName());
+        return VariantNames.of(material, shape());
     }
 
     @Override

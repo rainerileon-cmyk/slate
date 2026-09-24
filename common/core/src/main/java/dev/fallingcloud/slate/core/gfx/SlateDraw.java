@@ -247,11 +247,16 @@ public final class SlateDraw {
         g.drawString(font(), seq, rightX - font().width(seq), y, color, shadow);
     }
 
-    /** Text with an ellipsis if wider than {@code width}; inner styles (colours, fonts) survive the cut. */
+    /**
+     * Text with an ellipsis if wider than {@code width}; inner styles (colours, fonts) survive the cut.
+     * Empty when not even the ellipsis fits: a bare "..." would spill over whatever sits next to the box
+     * (label-less switches have a negative label width and used to draw one over their track).
+     */
     public static FormattedCharSequence truncate(final Component text, final int width) {
         final Font f = font();
         if (f.width(text) <= width) return text.getVisualOrderText();
-        final FormattedText cut = f.substrByWidth(text, Math.max(0, width - f.width(ELLIPSIS)));
+        if (width < f.width(ELLIPSIS)) return FormattedCharSequence.EMPTY;
+        final FormattedText cut = f.substrByWidth(text, width - f.width(ELLIPSIS));
         return Language.getInstance().getVisualOrder(FormattedText.composite(cut, FormattedText.of(ELLIPSIS, text.getStyle())));
     }
 

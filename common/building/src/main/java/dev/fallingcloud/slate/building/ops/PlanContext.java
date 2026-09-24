@@ -34,9 +34,11 @@ import org.jetbrains.annotations.Nullable;
  * @param palette   what to place
  * @param clipboard the player's clipboard (paste / move), else null
  * @param limits    the player's limits (volume/span caps)
+ * @param destructive a left-click selection: the plan's places and replaces become breaks of what stands there
+ *                    ({@link Planners}); the palette is then only a stand-in for the planner's geometry
  */
 public record PlanContext(Level level, Player player, BuildMode mode, ModeParams params, List<BlockPos> anchors,
-                          Direction face, Palette palette, @Nullable Clipboard clipboard, Limits limits) {
+                          Direction face, Palette palette, @Nullable Clipboard clipboard, Limits limits, boolean destructive) {
 
     public PlanContext {
         anchors = List.copyOf(anchors);
@@ -44,13 +46,15 @@ public record PlanContext(Level level, Player player, BuildMode mode, ModeParams
 
     /**
      * The context both sides use: palette from hotbar {@code slot} ({@link Palette#resolve}), limits from the
-     * player's toolbox under the rules of the player's side ({@link BuildingServerSettings#effective}).
+     * player's toolbox under the rules of the player's side ({@link BuildingServerSettings#effective}). A destructive
+     * run needs no block in hand: an empty palette is replaced by a stand-in, since only the geometry is used.
      */
     public static PlanContext create(final Player player, final BuildMode mode, final ModeParams params, final List<BlockPos> anchors,
-                                     final Direction face, final int slot, final @Nullable Clipboard clipboard) {
+                                     final Direction face, final int slot, final @Nullable Clipboard clipboard, final boolean destructive) {
         final Limits limits = ToolboxAccess.of(player).limits(BuildingServerSettings.effective(player));
-        return new PlanContext(player.level(), player, mode, params, anchors, face, Palette.resolve(player, mode, params, slot),
-            clipboard, limits);
+        Palette palette = Palette.resolve(player, mode, params, slot);
+        if (destructive && palette.isEmpty()) palette = Palette.standIn();
+        return new PlanContext(player.level(), player, mode, params, anchors, face, palette, clipboard, limits, destructive);
     }
 
     /** Anchor {@code i}, or the last anchor when there are fewer (so a one-click selection is a single block). */

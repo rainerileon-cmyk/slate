@@ -24,6 +24,7 @@ def harnessProperties = { run, File gameDir ->
         run.systemProperty 'slate.autoQuit', project.hasProperty('autoQuit') ? project.autoQuit.toString() : 'true'
         if (project.hasProperty('autoSkin')) run.systemProperty 'slate.autoSkin', project.autoSkin.toString()
         if (project.hasProperty('autoWorld')) run.systemProperty 'slate.autoWorld', project.autoWorld.toString()
+        if (project.hasProperty('autoWorldScreens')) run.systemProperty 'slate.autoWorldScreens', project.autoWorldScreens.toString()
         if (project.hasProperty('autoFrames')) run.systemProperty 'slate.autoFrames', project.autoFrames.toString()
     }
 }

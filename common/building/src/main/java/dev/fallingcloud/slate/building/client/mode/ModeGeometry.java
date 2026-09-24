@@ -51,7 +51,7 @@ final class ModeGeometry {
     }
 
     static Kind kind(final BuildMode mode) {
-        if (mode.kind() == ModeKind.TOGGLE) return Kind.NONE;
+        if (mode.kind() == ModeKind.TOGGLE || mode.kind() == ModeKind.REACH) return Kind.NONE;
         if (mode.kind() == ModeKind.POINT) return Kind.POINT;
         if (mode == BuildModes.LINE) return Kind.LINE;
         if (mode == BuildModes.SPHERE) return Kind.SPHERE;

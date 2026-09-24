@@ -2,6 +2,7 @@ package dev.fallingcloud.slate.building.neoforge.compat;
 
 import com.mojang.blaze3d.platform.InputConstants;
 import dev.fallingcloud.slate.building.SlateBuilding;
+import dev.fallingcloud.slate.building.block.DiagonalShapes;
 import dev.fallingcloud.slate.building.block.VerticalSlabBlock;
 import dev.fallingcloud.slate.building.client.BuildingHarness;
 import dev.fallingcloud.slate.building.client.input.BuildKeys;
@@ -405,6 +406,30 @@ final class DfCompatHarness {
             placeItem(level, new ItemStack(Items.OAK_FENCE), new BlockPos(-20, -60, 6));
             placeItem(level, new ItemStack(Items.OAK_FENCE), new BlockPos(-19, -60, 7));
 
+            // Our own shapes take diagonal arms too (kept in the block entity), with each other and with the twins both ways.
+            final ItemStack stoneFence = VariantRegistry.get().stackFor(Blocks.STONE, Shape.FENCE, 1);
+            final BlockPos fa = new BlockPos(-24, -60, 6), fb = new BlockPos(-23, -60, 5), ft = new BlockPos(-25, -60, 7);
+            placeItem(level, stoneFence.copy(), fa);   // place() consumes the stack
+            placeItem(level, stoneFence.copy(), fb);
+            check("our fence is registered as the library bridge (implements DiagonalBlock)", isLibDiagonal(level.getBlockState(fa).getBlock()),
+                level.getBlockState(fa).getBlock().getClass().getName());
+            check("our stone fences connect diagonally to each other (NE / SW)",
+                DiagonalShapes.has(level, fa, DiagonalShapes.Diagonal.NORTH_EAST) && DiagonalShapes.has(level, fb, DiagonalShapes.Diagonal.SOUTH_WEST),
+                DiagonalShapes.mask(level, fa) + "/" + DiagonalShapes.mask(level, fb));
+            placeItem(level, new ItemStack(Items.OAK_FENCE), ft);
+            check("our fence takes an arm towards a vanilla (twin) fence placed diagonally", DiagonalShapes.has(level, fa, DiagonalShapes.Diagonal.SOUTH_WEST),
+                DiagonalShapes.mask(level, fa));
+            check("the vanilla twin takes an arm towards our fence", DiagonalShapes.has(level, ft, DiagonalShapes.Diagonal.NORTH_EAST), level.getBlockState(ft));
+            final ItemStack stoneWall = VariantRegistry.get().stackFor(Blocks.STONE, Shape.WALL, 1);
+            final BlockPos wa = new BlockPos(-24, -60, 10), wb = new BlockPos(-23, -60, 9);
+            placeItem(level, stoneWall.copy(), wa);
+            placeItem(level, stoneWall.copy(), wb);
+            check("our stone walls connect diagonally to each other",
+                DiagonalShapes.has(level, wa, DiagonalShapes.Diagonal.NORTH_EAST) && DiagonalShapes.has(level, wb, DiagonalShapes.Diagonal.SOUTH_WEST),
+                DiagonalShapes.mask(level, wa) + "/" + DiagonalShapes.mask(level, wb));
+            check("a diagonal arm is part of the collision shape", !level.getBlockState(fa).getCollisionShape(level, fa).isEmpty()
+                && level.getBlockState(fa).getCollisionShape(level, fa).bounds().maxX > 0.75, level.getBlockState(fa).getCollisionShape(level, fa).bounds());
+
             // Reshape a twin in the world, and reshape planks into a fence: which block comes out?
             final BlockPos r = new BlockPos(-30, -60, 9);
             placeItem(level, new ItemStack(Items.OAK_FENCE), r);
@@ -443,9 +468,10 @@ final class DfCompatHarness {
         check("placed " + what + " twin identifies as (" + name(material) + ", " + shape.id() + ")",
             inWorld.isPresent() && inWorld.get().material() == material && inWorld.get().shape() == shape, inWorld);
         final List<ItemStack> drops = Block.getDrops(state, level, pos, level.getBlockEntity(pos), c.player(), tool);
-        check(what + " twin loot = 1 " + name(material), drops.size() == 1 && drops.get(0).is(material.asItem()) && drops.get(0).getCount() == 1, drops);
+        // Shapes drop themselves: the twin's loot is the re-pointed item, which identifies as the same variant.
+        check(what + " twin loot = 1 " + what, drops.size() == 1 && drops.get(0).is(item) && drops.get(0).getCount() == 1, drops);
         final Map<Item, Integer> dropped = survivalBreak(c, pos, tool);
-        check(what + " twin broken in survival drops 1 " + name(material), dropped.size() == 1 && Objects.equals(dropped.get(material.asItem()), 1), dropped);
+        check(what + " twin broken in survival drops 1 " + what, dropped.size() == 1 && Objects.equals(dropped.get(item), 1), dropped);
         placeItem(level, new ItemStack(item), pos);
     }
 
@@ -496,7 +522,8 @@ final class DfCompatHarness {
             check("KleeSlabs: looking at the top half of our double slab leaves the bottom half",
                 after.getBlock() == before.getBlock() && after.getValue(SlabBlock.TYPE) == SlabType.BOTTOM, after);
             check("KleeSlabs: the remaining half keeps its material", isMaterial(level, a, Blocks.TERRACOTTA), ShapeBlock.material(level, a));
-            check("KleeSlabs: the broken half drops 1 terracotta", dropped.size() == 1 && Objects.equals(dropped.get(Items.TERRACOTTA), 1), dropped);
+            final Item terracottaSlab = VariantRegistry.get().stackFor(Blocks.TERRACOTTA, Shape.SLAB, 1).getItem();
+            check("KleeSlabs: the broken half drops 1 terracotta slab", dropped.size() == 1 && Objects.equals(dropped.get(terracottaSlab), 1), dropped);
 
             // By hand: terracotta needs a pickaxe, so nothing may drop (KleeSlabs asks our block, which has no tool rule).
             final BlockPos b = new BlockPos(-28, -60, 22);
@@ -525,7 +552,8 @@ final class DfCompatHarness {
             check("KleeSlabs: the remaining vertical half is the far (south) one",
                 vAfter.getBlock() instanceof VerticalSlabBlock && vAfter.getValue(VerticalSlabBlock.FACING) == Direction.SOUTH, vAfter);
             check("KleeSlabs: the remaining vertical half keeps its material", isMaterial(level, v, Blocks.TERRACOTTA), ShapeBlock.material(level, v));
-            check("KleeSlabs: the broken vertical half drops 1 terracotta", dropped.size() == 1 && Objects.equals(dropped.get(Items.TERRACOTTA), 1), dropped);
+            final Item terracottaVSlab = VariantRegistry.get().stackFor(Blocks.TERRACOTTA, Shape.VERTICAL_SLAB, 1).getItem();
+            check("KleeSlabs: the broken vertical half drops 1 terracotta vertical slab", dropped.size() == 1 && Objects.equals(dropped.get(terracottaVSlab), 1), dropped);
 
             // A native double oak slab: the half should come out as the material, like any broken variant.
             final BlockPos n = new BlockPos(-19, -60, 22);
@@ -976,7 +1004,7 @@ final class DfCompatHarness {
             VariantActions.reshapeTarget(new ReshapeTarget(outside, "stairs"), player);
             check("outside the claim: in-world reshape works", level.getBlockState(outside).is(Blocks.STONE_STAIRS), level.getBlockState(outside));
             NOTES.put("opacBefore", Optional.ofNullable(OpsServer.lastResult(player)).map(OpResult::op).orElse(-1));
-            OpsServer.apply(player, "fill", new CompoundTag(), List.of(new BlockPos(86, -60, 84), new BlockPos(90, -58, 84)), Direction.UP, 0);
+            OpsServer.apply(player, "fill", new CompoundTag(), List.of(new BlockPos(86, -60, 84), new BlockPos(90, -58, 84)), Direction.UP, 0, false);
         });
         s.waitUntil(() -> opResultAfter("opacBefore") != null, 400).wait(20);   // ops.minTicksBetweenOps
         onServer(s, c -> {
@@ -987,7 +1015,7 @@ final class DfCompatHarness {
             for (final BlockPos p : BlockPos.betweenClosed(new BlockPos(86, -60, 84), new BlockPos(90, -58, 84))) if (!c.level().getBlockState(p).isAir()) changed++;
             check("claim: no block changed inside the claim", changed == 0, changed);
             NOTES.put("opacBefore2", r == null ? -1 : r.op());
-            OpsServer.apply(c.player(), "fill", new CompoundTag(), List.of(new BlockPos(98, -60, 84), new BlockPos(100, -58, 84)), Direction.UP, 0);
+            OpsServer.apply(c.player(), "fill", new CompoundTag(), List.of(new BlockPos(98, -60, 84), new BlockPos(100, -58, 84)), Direction.UP, 0, false);
         });
         s.waitUntil(() -> opResultAfter("opacBefore2") != null, 400);
         onServer(s, c -> {
@@ -1107,6 +1135,15 @@ final class DfCompatHarness {
     /** Places ({@code material}, {@code shape}) at {@code pos} through its item, as clicking the floor below would. */
     private static @Nullable BlockPos placeVariant(final ServerLevel level, final Block material, final Shape shape, final BlockPos pos) {
         return placeItem(level, VariantRegistry.get().stackFor(material, shape, 1), pos);
+    }
+
+    /** Whether {@code block} implements the DiagonalBlocks API interface (reflective: this class must load without the library). */
+    private static boolean isLibDiagonal(final Block block) {
+        try {
+            return Class.forName("fuzs.diagonalblocks.api.v2.DiagonalBlock").isInstance(block);
+        } catch (final ClassNotFoundException e) {
+            return false;
+        }
     }
 
     private static @Nullable BlockPos placeItem(final ServerLevel level, final ItemStack stack, final BlockPos pos) {

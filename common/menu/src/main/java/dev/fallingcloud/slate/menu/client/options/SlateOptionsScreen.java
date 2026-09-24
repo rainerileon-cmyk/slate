@@ -381,6 +381,8 @@ public final class SlateOptionsScreen extends SidebarScreen {
                 c.add(cfgToggle(c.w, "friends_panel", m.showFriendsPanel, v -> m.showFriendsPanel = v));
                 c.add(cfgToggle(c.w, "mods_button", m.showModsButton, v -> m.showModsButton = v));
                 c.add(cfgToggle(c.w, "footer", m.showFooter, v -> m.showFooter = v));
+                c.add(cfgToggle(c.w, "confirm_quit_game", m.confirmQuitGame, v -> m.confirmQuitGame = v));
+                c.add(cfgToggle(c.w, "skip_onboarding", m.skipOnboarding, v -> m.skipOnboarding = v));
                 c.section(Component.translatable("slate_menu.options.menu.section.lists"));
                 c.add(cfgToggle(c.w, "world_details", m.worldsShowDetails, v -> m.worldsShowDetails = v));
                 c.add(cfgToggle(c.w, "auto_refresh", m.serverAutoRefresh, v -> m.serverAutoRefresh = v));

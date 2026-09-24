@@ -43,6 +43,24 @@ public final class CoreActions {
         SCREEN_FACTORIES.put("minecraft:select_world", SelectWorldScreen::new);
         SCREEN_FACTORIES.put("minecraft:multiplayer", JoinMultiplayerScreen::new);
         SCREEN_FACTORIES.put("minecraft:options", p -> new OptionsScreen(p, Minecraft.getInstance().options));
+        // In a world only (the screenshot harness' world pass): the survival inventory, for the container restyle. A
+        // creative player is switched to survival first (vanilla would open the creative screen instead), so list the
+        // id twice to capture it: the first opens nothing, the second the inventory.
+        SCREEN_FACTORIES.put("minecraft:inventory", p -> {
+            final Minecraft mc = Minecraft.getInstance();
+            if (mc.player == null) return p;
+            if (mc.gameMode != null && mc.gameMode.hasInfiniteItems()) {
+                mc.player.connection.sendCommand("gamemode survival");
+                return p;
+            }
+            return new net.minecraft.client.gui.screens.inventory.InventoryScreen(mc.player);
+        });
+        SCREEN_FACTORIES.put("minecraft:creative_inventory", p -> {
+            final Minecraft mc = Minecraft.getInstance();
+            if (mc.player == null || mc.player.connection == null) return p;
+            return new net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen(mc.player,
+                mc.player.connection.enabledFeatures(), mc.options.operatorItemsTab().get());
+        });
         SCREEN_FACTORIES.put("slate:hub", SlateHubScreen::new);
         SCREEN_FACTORIES.put("slate:settings", CoreSettingsScreen::new);
     }

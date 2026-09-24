@@ -50,15 +50,34 @@ import org.jetbrains.annotations.Nullable;
 public class ShapeBlockEntity extends BlockEntity {
 
     private static final String TAG_MATERIAL = "material";
+    private static final String TAG_DIAGONALS = "diagonals";
     /** {@code Block.UPDATE_IMMEDIATE}: the client rebuilds the section on this frame instead of queueing it. */
     private static final int RERENDER_NOW = Block.UPDATE_IMMEDIATE;
 
     private static volatile boolean warnedInvalid;
 
     private @Nullable BlockState material;
+    /** Diagonal arms of a fence / wall / pane ({@link DiagonalShapes.Diagonal} bits); 0 for every other shape. */
+    private int diagonals;
 
     public ShapeBlockEntity(final BlockPos pos, final BlockState state) {
         super(BuildingBlockEntities.SHAPE.get(), pos, state);
+    }
+
+    /** The diagonal arms, a mask of {@link DiagonalShapes.Diagonal#bit()}s. */
+    public int diagonals() {
+        return diagonals;
+    }
+
+    /** Stores the arms ({@link DiagonalShapes#refresh}); a change is saved, sent to clients and re-meshed. */
+    public void setDiagonals(final int mask) {
+        if (mask == diagonals) return;
+        diagonals = mask;
+        setChanged();
+        if (level != null) {
+            final BlockState state = getBlockState();
+            level.sendBlockUpdated(worldPosition, state, state, Block.UPDATE_CLIENTS | RERENDER_NOW);
+        }
     }
 
     /**
@@ -132,6 +151,7 @@ public class ShapeBlockEntity extends BlockEntity {
     protected void saveAdditional(final CompoundTag tag, final HolderLookup.Provider registries) {
         super.saveAdditional(tag, registries);
         if (material != null) tag.put(TAG_MATERIAL, NbtUtils.writeBlockState(material));
+        if (diagonals != 0) tag.putInt(TAG_DIAGONALS, diagonals);
     }
 
     @Override
@@ -142,7 +162,10 @@ public class ShapeBlockEntity extends BlockEntity {
             ? NbtUtils.readBlockState(registries.lookupOrThrow(Registries.BLOCK), tag.getCompound(TAG_MATERIAL))
             : null;
         final boolean known = material != null;
-        if (replaceMaterial(loaded)) rerenderIfClient(known);
+        final int arms = tag.getInt(TAG_DIAGONALS) & 0xF;
+        final boolean armsChanged = arms != diagonals;
+        diagonals = arms;
+        if (replaceMaterial(loaded) || armsChanged) rerenderIfClient(known);
     }
 
     @Override
@@ -178,6 +201,7 @@ public class ShapeBlockEntity extends BlockEntity {
     public void removeComponentsFromTag(final CompoundTag tag) {
         super.removeComponentsFromTag(tag);
         tag.remove(TAG_MATERIAL);
+        tag.remove(TAG_DIAGONALS);       // arms depend on the neighbours, never on the item
     }
 
     /**

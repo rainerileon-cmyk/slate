@@ -1,5 +1,6 @@
 package dev.fallingcloud.slate.building.registry;
 
+import dev.fallingcloud.slate.building.block.DiagonalShapes;
 import dev.fallingcloud.slate.building.block.LayerBlock;
 import dev.fallingcloud.slate.building.block.PanelBlock;
 import dev.fallingcloud.slate.building.block.PostBlock;
@@ -38,15 +39,20 @@ public final class BuildingBlocks {
     public static final RegistryRef<ShapeSlabBlock> SLAB = shape(Shape.SLAB, ShapeSlabBlock::new);
     public static final RegistryRef<VerticalSlabBlock> VERTICAL_SLAB = shape(Shape.VERTICAL_SLAB, VerticalSlabBlock::new);
     public static final RegistryRef<VerticalStairsBlock> VERTICAL_STAIRS = shape(Shape.VERTICAL_STAIRS, VerticalStairsBlock::new);
-    public static final RegistryRef<ShapeWallBlock> WALL = shape(Shape.WALL, ShapeWallBlock::new);
-    public static final RegistryRef<ShapeFenceBlock> FENCE = shape(Shape.FENCE, ShapeFenceBlock::new);
+    // With DiagonalBlocks loaded the fence, wall and pane are the bridge subclasses that implement its interface
+    // (block.diagonal, only loaded then); the blocks themselves are the same otherwise.
+    public static final RegistryRef<ShapeWallBlock> WALL = shape(Shape.WALL,
+        DiagonalShapes.libPresent() ? dev.fallingcloud.slate.building.block.diagonal.LibDiagonalBlocks::wall : ShapeWallBlock::new);
+    public static final RegistryRef<ShapeFenceBlock> FENCE = shape(Shape.FENCE,
+        DiagonalShapes.libPresent() ? dev.fallingcloud.slate.building.block.diagonal.LibDiagonalBlocks::fence : ShapeFenceBlock::new);
     public static final RegistryRef<StepBlock> STEP = shape(Shape.STEP, StepBlock::new);
     public static final RegistryRef<PanelBlock> PANEL = shape(Shape.PANEL, PanelBlock::new);
     public static final RegistryRef<ShapeFenceGateBlock> FENCE_GATE = shape(Shape.FENCE_GATE, ShapeFenceGateBlock::new);
     public static final RegistryRef<VerticalStepBlock> VERTICAL_STEP = shape(Shape.VERTICAL_STEP, VerticalStepBlock::new);
     public static final RegistryRef<PostBlock> POST = shape(Shape.POST, PostBlock::new);
     public static final RegistryRef<LayerBlock> LAYER = shape(Shape.LAYER, LayerBlock::new);
-    public static final RegistryRef<ShapePaneBlock> PANE = shape(Shape.PANE, ShapePaneBlock::new);
+    public static final RegistryRef<ShapePaneBlock> PANE = shape(Shape.PANE,
+        DiagonalShapes.libPresent() ? dev.fallingcloud.slate.building.block.diagonal.LibDiagonalBlocks::pane : ShapePaneBlock::new);
 
     /**
      * Base properties every shape block starts from (a fresh copy per block). They describe a generic material;

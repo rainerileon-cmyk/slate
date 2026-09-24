@@ -1,9 +1,6 @@
 package dev.fallingcloud.slate.config.page;
 
-import dev.fallingcloud.slate.config.ConfigSettings;
-import dev.fallingcloud.slate.config.option.Binding;
 import dev.fallingcloud.slate.config.option.OptionBinding;
-import dev.fallingcloud.slate.config.option.OptionType;
 import dev.fallingcloud.slate.config.resolver.VanillaOptions;
 import dev.fallingcloud.slate.config.sodium.SodiumBridge;
 import dev.fallingcloud.slate.config.ui.OptionPageBase;
@@ -11,22 +8,27 @@ import dev.fallingcloud.slate.config.ui.Section;
 import dev.fallingcloud.slate.core.gfx.Icon;
 import dev.fallingcloud.slate.core.platform.SlatePlatform;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import net.minecraft.network.chat.Component;
 
 /**
- * Video: one top tab per mod in Sodium's option model (Sodium, Sodium Extra, Reese's, Iris...) with that
- * mod's pages as secondary tabs, and a "Vanilla" tab with Display / World / Effects under headers (minus the
- * rows Sodium already shows, unless "show duplicates" is on). Without Sodium, Display / World / Effects are
- * the tabs. Shaders live under Customization.
+ * Video: tabs by topic (Display, Graphics, Performance, Animations &amp; effects, HUD &amp; extras), never by mod.
+ * Each tab lists vanilla's rows first and then, under a header per mod page ("Sodium › Quality"), the rows of
+ * every mod on Sodium's config API that {@link VideoTopics} sorts there. Vanilla rows Sodium lists itself
+ * (render distance, graphics, clouds, ...) are left to Sodium's row. Without Sodium the tabs hold vanilla alone.
+ * Shaders live under Customization.
  */
 public final class VideoPage extends OptionPageBase {
 
-    public static final String VANILLA_TAB = "vanilla";
+    /** The tab the old {@code video/vanilla} path meant: vanilla's rows now sit on every topic, starting here. */
+    public static final String VANILLA_TAB = VideoTopics.DISPLAY;
 
     private static final String[] DISPLAY = { "fullscreen", "enableVsync", "maxFps", "guiScale", "gamma", "menuBackgroundBlurriness" };
-    private static final String[] WORLD = { "renderDistance", "simulationDistance", "graphicsMode", "renderClouds", "particles", "ao",
-        "biomeBlendRadius", "entityDistanceScaling", "entityShadows", "mipmapLevels", "prioritizeChunkUpdates" };
+    private static final String[] GRAPHICS = { "renderDistance", "simulationDistance", "graphicsMode", "renderClouds", "particles", "ao",
+        "biomeBlendRadius", "entityDistanceScaling", "entityShadows", "mipmapLevels" };
+    private static final String[] PERFORMANCE = { "prioritizeChunkUpdates" };
     private static final String[] EFFECTS = { "fov", "screenEffectScale", "fovEffectScale", "darknessEffectScale", "damageTiltStrength",
         "glintSpeed", "glintStrength", "hideLightningFlashes", "bobView", "attackIndicator", "showAutosaveIndicator" };
 
@@ -38,39 +40,53 @@ public final class VideoPage extends OptionPageBase {
         return SlatePlatform.get().isModLoaded("sodium") && SodiumBridge.available();
     }
 
+    /** Every topic is a scrolling list under collapsible headers; there is nothing to page through. */
     @Override
-    protected boolean pills(final String tabKey) {
-        // Sodium's mods: one page at a time. Vanilla next to them: a short list under headers.
-        return !VANILLA_TAB.equals(tabKey) || !sodium();
-    }
+    protected boolean pills(final String tabKey) { return false; }
 
     @Override
     protected List<Section> sections() {
         final List<Section> out = new ArrayList<>();
         final boolean sodium = sodium();
-        if (sodium) out.addAll(SodiumBridge.sections());
-        final Component vanillaTitle = Component.translatable("slate_config.video.vanilla");
-        if (sodium) {
-            final Section dupes = Section.of("duplicates", Component.empty()).fixed().tab(VANILLA_TAB, vanillaTitle);
-            dupes.add(Binding.of("video:show_duplicates", OptionType.BOOLEAN, Component.translatable("slate_config.video.show_duplicates"))
-                .tooltip(Component.translatable("slate_config.video.show_duplicates.tip"))
-                .getter(() -> ConfigSettings.get().showDuplicateRows)
-                .setter(v -> { ConfigSettings.file().update(c -> c.showDuplicateRows = Boolean.TRUE.equals(v)); rebuild(); })
-                .def(Boolean.FALSE)
-                .searchWords("sodium duplicate vanilla rows"));
-            out.add(dupes);
+        // Vanilla first on every topic, in topic order (which also fixes the order of the tabs).
+        out.add(vanilla("display", DISPLAY, sodium).tab(VideoTopics.DISPLAY, VideoTopics.title(VideoTopics.DISPLAY)));
+        out.add(vanilla("world", GRAPHICS, sodium).tab(VideoTopics.GRAPHICS, VideoTopics.title(VideoTopics.GRAPHICS)));
+        out.add(vanilla("performance", PERFORMANCE, sodium).tab(VideoTopics.PERFORMANCE, VideoTopics.title(VideoTopics.PERFORMANCE)));
+        out.add(vanilla("effects", EFFECTS, sodium).tab(VideoTopics.EFFECTS, VideoTopics.title(VideoTopics.EFFECTS)));
+        if (!sodium) return out;
+        // Then each mod page, split by what its options are about; a header names the mod and its page.
+        for (final SodiumBridge.ModPage page : SodiumBridge.pages()) {
+            final Component header = Component.literal(page.mod() + " › " + page.title().getString());
+            final String base = "sodium." + page.configId() + "." + page.index();
+            if (page.external() != null) {
+                final String topic = VideoTopics.topicOf("", page.title().getString(), page.title().getString());
+                out.add(Section.of(base, header).add(page.external()).tab(topic, VideoTopics.title(topic)));
+                continue;
+            }
+            final Map<String, Section> byTopic = new LinkedHashMap<>();
+            for (final OptionBinding b : page.options()) {
+                final String topic = VideoTopics.topicOf(idPath(b.id()), b.label().getString(), page.title().getString());
+                byTopic.computeIfAbsent(topic, t -> Section.of(base + "." + t, header).tab(t, VideoTopics.title(t))).add(b);
+            }
+            // Topic order, so a page split in two lists its parts where the tabs are.
+            for (final String topic : VideoTopics.ALL) {
+                final Section s = byTopic.get(topic);
+                if (s != null) out.add(s);
+            }
         }
-        final boolean hideDupes = sodium && !ConfigSettings.get().showDuplicateRows;
-        out.add(vanilla("display", "slate_config.video.display", DISPLAY, hideDupes).tab(VANILLA_TAB, vanillaTitle));
-        out.add(vanilla("world", "slate_config.video.world", WORLD, hideDupes).tab(VANILLA_TAB, vanillaTitle));
-        out.add(vanilla("effects", "slate_config.video.effects", EFFECTS, hideDupes).tab(VANILLA_TAB, vanillaTitle));
         return out;
     }
 
-    private static Section vanilla(final String id, final String titleKey, final String[] keys, final boolean hideDupes) {
-        final Section s = Section.of(id, Component.translatable(titleKey));
+    /** {@code sodium:sodium:render_distance} → {@code render_distance}. */
+    private static String idPath(final String bindingId) {
+        final int i = bindingId.lastIndexOf(':');
+        return i < 0 ? bindingId : bindingId.substring(i + 1);
+    }
+
+    private static Section vanilla(final String id, final String[] keys, final boolean sodium) {
+        final Section s = Section.of(id, Component.translatable("slate_config.video.vanilla"));
         for (final String k : keys) {
-            if (hideDupes && VanillaOptions.COVERED_BY_SODIUM.contains(k)) continue;
+            if (sodium && VanillaOptions.COVERED_BY_SODIUM.contains(k)) continue;
             VanillaOptions.get(k).ifPresent(s::add);
         }
         return s;
@@ -80,7 +96,8 @@ public final class VideoPage extends OptionPageBase {
     public static List<OptionBinding> presetBindings() {
         final List<OptionBinding> out = new ArrayList<>();
         out.addAll(VanillaOptions.all(DISPLAY));
-        out.addAll(VanillaOptions.all(WORLD));
+        out.addAll(VanillaOptions.all(GRAPHICS));
+        out.addAll(VanillaOptions.all(PERFORMANCE));
         out.addAll(VanillaOptions.all(EFFECTS));
         if (sodium()) for (final Section s : SodiumBridge.sections()) out.addAll(s.bindings());
         return out;
