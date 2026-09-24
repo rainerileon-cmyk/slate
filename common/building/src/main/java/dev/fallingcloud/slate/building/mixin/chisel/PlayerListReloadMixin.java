@@ -1,6 +1,7 @@
 package dev.fallingcloud.slate.building.mixin.chisel;
 
 import dev.fallingcloud.slate.building.chisel.ChiselSystem;
+import dev.fallingcloud.slate.building.variant.VariantSystem;
 import net.minecraft.server.players.PlayerList;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -18,5 +19,6 @@ public abstract class PlayerListReloadMixin {
     @Inject(method = "reloadResources", at = @At("TAIL"))
     private void slateBuilding$rebuildChiselGroups(final CallbackInfo ci) {
         ChiselSystem.onDatapackReload(((PlayerList) (Object) this).getServer());
+        VariantSystem.onDatapackReload(((PlayerList) (Object) this).getServer());   // loot tables may have changed
     }
 }

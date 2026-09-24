@@ -50,7 +50,9 @@ import org.joml.Matrix4f;
  * Slate accent for placements) and a gentle alpha pulse. Above {@code preview.maxBlocks} a set is drawn as its flat
  * hull with merged hull edges instead of textured blocks. With an Iris shader pack active the vanilla translucent
  * block sheet is used instead (alpha and style tint only, since a custom core shader would bypass the pack); cached
- * plans then replay a mesh recorded when they changed, and keep their outlines and hulls.
+ * plans then replay a mesh recorded when they changed, and keep their outlines and hulls. Packs composite translucent
+ * geometry their own way and wash a ghost out, so that path lifts the opacity ({@link #fallbackOpacity}) and always
+ * draws a bright outline, whatever {@code preview.outline} says.
  *
  * <p><b>Depth.</b> Ghosts are depth-tested against the world (hidden behind walls, never drawn through them) and drawn
  * in two passes: depth only, then colour where the depth matches. Only the ghost surface nearest to the camera
@@ -228,7 +230,7 @@ public final class GhostRenderer {
             drawShaded(level, cam, modelView, projection, shader, settings, time, pulse, ghosts, alphas, origin, immediateHull, plans);
         }
         drawHulls(cam, modelView, projection, pulse, ghosts, origin, immediateHull, plans);
-        drawOutlines(level, cam, modelView, projection, settings, pulse, ghosts, alphas, origin, immediateHull, plans);
+        drawOutlines(level, cam, modelView, projection, settings, vanillaPath, pulse, ghosts, alphas, origin, immediateHull, plans);
     }
 
     /** Textured ghosts through the ghost shader: depth pre-pass, then colour where the depth matches. */
@@ -302,7 +304,7 @@ public final class GhostRenderer {
         final MultiBufferSource.BufferSource source = Minecraft.getInstance().renderBuffers().bufferSource();
         final RenderType type = Sheets.translucentCullBlockSheet();
         final VertexConsumer consumer = source.getBuffer(type);
-        final float opacity = settings.opacity() * pulse;
+        final float opacity = fallbackOpacity(settings.opacity()) * pulse;
         final int danger = Theme.current().palette().danger();
         if (!ghosts.isEmpty() && !immediateHull) {
             // Positions relative to the camera block (float precision far from the world origin), then camera-relative.
@@ -322,21 +324,23 @@ public final class GhostRenderer {
 
     /** Outlines (and, above the limit, merged hull edges): a soft wide glow under a crisp core line. */
     private static void drawOutlines(final Level level, final Vec3 cam, final Matrix4f modelView, final Matrix4f projection,
-                                     final PreviewSettings settings, final float pulse, final List<Ghost> ghosts, final float[] alphas,
-                                     final BlockPos origin, final boolean immediateHull, final List<CachedPlan> plans) {
+                                     final PreviewSettings settings, final boolean fallback, final float pulse, final List<Ghost> ghosts,
+                                     final float[] alphas, final BlockPos origin, final boolean immediateHull, final List<CachedPlan> plans) {
         boolean immediateLines = false;
+        final boolean outline = settings.outline || fallback;
         if (!ghosts.isEmpty()) {
             final List<Ghost> invalid = new ArrayList<>();
             for (final Ghost g : ghosts) if (g.style() == Style.INVALID) invalid.add(g);
-            if (settings.outline || immediateHull || !invalid.isEmpty()) {
+            if (outline || immediateHull || !invalid.isEmpty()) {
                 final BufferBuilder lines = RenderKit.begin(bytes(), VertexFormat.Mode.LINES, RenderKit.linesFormat());
-                final List<Ghost> outlined = settings.outline || immediateHull ? ghosts : invalid;
+                final List<Ghost> outlined = outline || immediateHull ? ghosts : invalid;
                 GhostMesher.outlines(lines, outlined, outlined == ghosts ? alphas : null, origin, level, immediateHull);
                 immediateLines = IMMEDIATE_LINES.fill(lines);
             }
         }
         RenderKit.translucentState();
-        final float glow = 0.22F * pulse, core = 0.85F * pulse;
+        // Brighter on the shader-pack path: the outline is what keeps a washed-out ghost readable there.
+        final float glow = (fallback ? 0.4F : 0.22F) * pulse, core = (fallback ? 1F : 0.85F) * pulse;
         if (immediateLines) {
             final Matrix4f mv = translated(modelView, origin, cam);
             RenderKit.drawLines(IMMEDIATE_LINES.get(), mv, projection, RenderKit.px(5F), glow, true);
@@ -351,6 +355,15 @@ public final class GhostRenderer {
     }
 
     // ======================================================================== helpers
+
+    /**
+     * Opacity on the shader-pack path: packs composite translucent geometry through their own lighting, fog and
+     * blending, which left a ghost at the default 0.45 barely visible (MakeUp in the DF pack). Lifted into 0.35..1, so
+     * the setting still orders faint to solid but a ghost never disappears.
+     */
+    static float fallbackOpacity(final float opacity) {
+        return Math.min(1F, 0.35F + 0.65F * Math.max(0F, opacity));
+    }
 
     static Matrix4f translated(final Matrix4f modelView, final BlockPos origin, final Vec3 cam) {
         return new Matrix4f(modelView).translate((float) (origin.getX() - cam.x), (float) (origin.getY() - cam.y), (float) (origin.getZ() - cam.z));
@@ -409,10 +422,11 @@ public final class GhostRenderer {
          */
         void ensureBuilt(final Level level, final PreviewSettings settings, final boolean shaded) {
             if (ghosts == null) return;
-            if (!dirty && builtMax == settings.maxBlocks() && builtOutline == settings.outline && builtShaded == shaded) return;
+            final boolean outline = settings.outline || !shaded;   // the fallback path always outlines
+            if (!dirty && builtMax == settings.maxBlocks() && builtOutline == outline && builtShaded == shaded) return;
             dirty = false;
             builtMax = settings.maxBlocks();
-            builtOutline = settings.outline;
+            builtOutline = outline;
             builtShaded = shaded;
             closeBuffers();
             if (ghosts.isEmpty()) return;

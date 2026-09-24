@@ -3,6 +3,7 @@ package dev.fallingcloud.slate.building.config;
 import com.google.gson.JsonParseException;
 import dev.fallingcloud.slate.building.SlateBuilding;
 import dev.fallingcloud.slate.building.net.ServerSettingsSync;
+import dev.fallingcloud.slate.building.variant.LootGuard;
 import dev.fallingcloud.slate.core.config.JsonConfig;
 import dev.fallingcloud.slate.core.net.SlateNetwork;
 import java.nio.charset.StandardCharsets;
@@ -85,13 +86,18 @@ public record BuildingServerSettings(BuildingServerConfig config, boolean remote
 
     /** Sends the local rules to {@code player} (no-op when their client lacks Slate Building). */
     public static void sendTo(final ServerPlayer player) {
-        SlateNetwork.get().sendToPlayer(player, new ServerSettingsSync(toTag(SlateBuilding.serverConfig())));
+        SlateNetwork.get().sendToPlayer(player, new ServerSettingsSync(syncTag()));
     }
 
     /** Sends the local rules to everyone online, e.g. after the file was reloaded. */
     public static void broadcast(final MinecraftServer server) {
-        final ServerSettingsSync payload = new ServerSettingsSync(toTag(SlateBuilding.serverConfig()));
+        final ServerSettingsSync payload = new ServerSettingsSync(syncTag());
         for (final ServerPlayer p : server.getPlayerList().getPlayers()) SlateNetwork.get().sendToPlayer(p, payload);
+    }
+
+    /** The rules plus the loot guard list the build preview reads ({@link LootGuard}). */
+    private static CompoundTag syncTag() {
+        return LootGuard.write(toTag(SlateBuilding.serverConfig()));
     }
 
     /** Client-only references live here so a dedicated server never resolves them. */

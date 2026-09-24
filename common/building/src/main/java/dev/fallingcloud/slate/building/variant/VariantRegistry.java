@@ -154,6 +154,20 @@ public final class VariantRegistry {
         return ShapeBlockItem.withMaterial(new ItemStack(item.get(), count), material);
     }
 
+    /**
+     * The entry that stands in for a HIDDEN native in listings (creative tabs, JEI) while {@code deleteNativeVariants}
+     * is on: our shape item carrying the material, so "Oak Planks Stairs" stays findable once oak_stairs is hidden.
+     * Placing it still places the native ({@link ShapeBlockItem}); everything else keeps using {@link #stackFor}.
+     * Empty when our shape cannot stand in (custom shapes off, or not an eligible material).
+     */
+    public ItemStack listingStackFor(final Block material, final Shape shape) {
+        if (shape == Shape.FULL) return ItemStack.EMPTY;
+        final VariantIndex idx = index();
+        final RegistryRef<ShapeBlockItem> item = BuildingItems.forShape(shape);
+        if (item == null || !idx.customShapes || !idx.isMaterial(material)) return ItemStack.EMPTY;
+        return ShapeBlockItem.withMaterial(new ItemStack(item.get()), material);
+    }
+
     /** Material units the block at hand is worth: 1, 2 for double slabs, n for layers. */
     public int units(final BlockState state, final @Nullable BlockEntity be) {
         if (state.getBlock() instanceof ShapeBlock shape) return shape.units(state);

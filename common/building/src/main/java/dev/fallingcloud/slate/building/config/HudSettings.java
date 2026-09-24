@@ -17,4 +17,8 @@ public final class HudSettings {
     public boolean actionBar = true;
     /** UI sounds for selections, applies and undo. */
     public boolean sounds = true;
+    /** Short tips for new players (the first times a block that can change shape is held). */
+    public boolean hints = true;
+    /** How many times the "hold Alt / press R" tip was shown; it stops at {@code OnboardingHints.MAX_SHOWN}. */
+    public int onboardingShown = 0;
 }

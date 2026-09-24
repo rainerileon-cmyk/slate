@@ -296,7 +296,16 @@ final class VariantIndex {
         for (final Block block : BuiltInRegistries.BLOCK) {
             if (!(block instanceof StairBlock) || block instanceof ShapeBlock) continue;
             final BlockState base = ((StairBlockAccessor) block).slateBuilding$baseState();
-            if (base != null) claim(claims, block, base.getBlock(), Shape.STAIRS, CLAIM_STAIRS);
+            if (base != null && !base.isAir()) {
+                claim(claims, block, base.getBlock(), Shape.STAIRS, CLAIM_STAIRS);
+                continue;
+            }
+            // Create 6's copper stairs (CreateCopperStairBlock / CreateWeatheringCopperStairBlock) pass AIR as their base
+            // state: fall back to the name, like slabs do ("copper_shingle_stairs" -> "copper_shingles").
+            final ResourceLocation id = BuiltInRegistries.BLOCK.getKey(block);
+            if (!id.getPath().endsWith("_stairs")) continue;
+            final Block material = nameCandidate(id.getNamespace(), id.getPath().substring(0, id.getPath().length() - "_stairs".length()));
+            if (material != null) claim(claims, block, material, Shape.STAIRS, CLAIM_NAME);
         }
     }
 

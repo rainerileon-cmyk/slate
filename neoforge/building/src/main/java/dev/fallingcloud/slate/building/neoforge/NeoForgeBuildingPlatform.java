@@ -1,5 +1,6 @@
 package dev.fallingcloud.slate.building.neoforge;
 
+import dev.fallingcloud.slate.building.block.VerticalSlabBlock;
 import dev.fallingcloud.slate.building.platform.BuildingPlatform;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -10,7 +11,9 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.GameMasterBlock;
+import net.minecraft.world.level.block.SlabBlock;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.SlabType;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.common.util.BlockSnapshot;
 import net.neoforged.neoforge.common.util.FakePlayer;
@@ -30,7 +33,16 @@ public final class NeoForgeBuildingPlatform implements BuildingPlatform {
         // applies the held item's canAttackBlock (a creative player holding a sword could clear nothing) and sends
         // block updates to the client for a break that has not happened yet. Game-master blocks keep vanilla's rule.
         if (state.getBlock() instanceof GameMasterBlock && !p.canUseGameMasterBlocks()) return false;
-        return !NeoForge.EVENT_BUS.post(new BlockEvent.BreakEvent(level, pos, state, p)).isCanceled();
+        // KleeSlabs (DF pack) performs its half-slab break INSIDE this event (sets the single state, drops the half,
+        // cancels), so posting a double slab would split it. This is a permission probe, not the break: listeners see
+        // a single slab (claim mods only look at the position and the player).
+        return !NeoForge.EVENT_BUS.post(new BlockEvent.BreakEvent(level, pos, probeState(state), p)).isCanceled();
+    }
+
+    private static BlockState probeState(final BlockState state) {
+        if (state.hasProperty(SlabBlock.TYPE) && state.getValue(SlabBlock.TYPE) == SlabType.DOUBLE) return state.setValue(SlabBlock.TYPE, SlabType.BOTTOM);
+        if (state.getBlock() instanceof VerticalSlabBlock && !state.getValue(VerticalSlabBlock.SINGLE)) return state.setValue(VerticalSlabBlock.SINGLE, true);
+        return state;
     }
 
     @Override

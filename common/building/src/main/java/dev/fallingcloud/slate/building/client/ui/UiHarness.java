@@ -2,6 +2,7 @@ package dev.fallingcloud.slate.building.client.ui;
 
 import dev.fallingcloud.slate.building.client.BuildingHarness;
 import dev.fallingcloud.slate.building.client.hud.ModeHud;
+import dev.fallingcloud.slate.building.client.hud.OnboardingHints;
 import dev.fallingcloud.slate.building.client.input.BuildInput;
 import dev.fallingcloud.slate.building.client.input.BuildKeys;
 import dev.fallingcloud.slate.building.client.input.ExclusiveKeys;
@@ -19,6 +20,7 @@ import dev.fallingcloud.slate.building.net.OpResult;
 import dev.fallingcloud.slate.building.ops.BuildModes;
 import dev.fallingcloud.slate.building.ops.OpMessages;
 import dev.fallingcloud.slate.building.variant.Shape;
+import dev.fallingcloud.slate.core.widget.SlateToasts;
 import java.util.List;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.KeyMapping;
@@ -152,6 +154,18 @@ final class UiHarness {
             // Survival reach is 4.5 blocks: pick a stair right in front of the player.
             .command("setblock 0 -60 3 minecraft:stone_brick_stairs")
             .command("tp @s 0.5 -60 0.5 0 30")
+            // The in-world reshape wheel needs the toolbox or a building tool in hand: an empty hand leaves Alt to
+            // free look / Relics / Create (DF pack), one rule for the wheel and the claim.
+            .command("item replace entity @s hotbar.3 with minecraft:air")
+            .run(() -> Minecraft.getInstance().player.getInventory().selected = 3).wait(5)
+            .run(() -> check("empty hand on a stair: no in-world wheel, Alt not claimed", WheelTarget.resolve() == null && !KeyClaims.swapWanted()))
+            .command("item replace entity @s hotbar.3 with slate_building:copper_hammer").wait(5)
+            .run(() -> {
+                final WheelTarget t = WheelTarget.resolve();
+                check("hammer in hand on a stair: in-world wheel, Alt claimed", t != null && !t.held() && KeyClaims.swapWanted());
+            })
+            .command("item replace entity @s hotbar.3 with minecraft:air")
+            .run(() -> Minecraft.getInstance().player.getInventory().selected = 0).wait(3)
             .command("gamemode survival").wait(10)
             .run(() -> BuildInput.firePickBlock())
             .run(() -> check("pick block selects the stone bricks slot", Minecraft.getInstance().player.getInventory().selected == 1))
@@ -301,7 +315,19 @@ final class UiHarness {
                     ClientModeState.setProgress(null);
                     ClientModeState.clearSelection();
                     ClientModeState.setMode(null);
-                }).wait(10);
+                }).wait(10)
+                // The first-time building tip: a Slate toast naming the keys as they are bound.
+                .run(() -> {
+                    Minecraft.getInstance().getToasts().clear();
+                    SlateToasts.clear();
+                    final Component tip = OnboardingHints.message();
+                    check("the building tip names both keys as bound", tip != null
+                        && tip.getString().contains(BuildKeys.SWAP.getTranslatedKeyMessage().getString())
+                        && tip.getString().contains(BuildKeys.BUILD_MENU.getTranslatedKeyMessage().getString()));
+                    OnboardingHints.debugShow();
+                })
+                .wait(30).screenshot("hint-" + k)
+                .run(SlateToasts::clear).wait(5);
         }
         s.skin("DARK");
     }

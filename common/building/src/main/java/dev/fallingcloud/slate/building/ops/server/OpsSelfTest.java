@@ -389,6 +389,23 @@ public final class OpsSelfTest {
         s.add(new Stage("survival undo puts the unlanded block back", OpsServer::undo,
             p -> firstProblem(is(p.serverLevel(), budAt, Blocks.BUDDING_AMETHYST), expect(items(p, Items.BUDDING_AMETHYST), 0, "budding amethyst items"))));
 
+        // Reshape changes blocks in place: natural stone (drops cobblestone) must not come back as stone stairs.
+        final BlockPos rsA = new BlockPos(24, Y, 30), rsB = rsA.east();
+        s.add(new Stage("survival reshape skips natural stone, reshapes stone bricks", p -> {
+            final ServerLevel level = p.serverLevel();
+            level.setBlockAndUpdate(rsA, Blocks.STONE.defaultBlockState());
+            level.setBlockAndUpdate(rsB, Blocks.STONE_BRICKS.defaultBlockState());
+            p.getInventory().clearContent();
+            p.getInventory().setItem(0, new ItemStack(Items.STONE_BRICK_STAIRS, 1));
+            p.getInventory().selected = 0;
+            apply(p, BuildModes.RESHAPE, params(BuildModes.RESHAPE), Direction.UP, rsA, rsB);
+        }, p -> {
+            final OpResult r = OpsServer.lastResult(p);
+            return firstProblem(is(p.serverLevel(), rsA, Blocks.STONE), is(p.serverLevel(), rsB, Blocks.STONE_BRICK_STAIRS),
+                r != null && r.skipped() >= 1 ? null : "the stone should count as skipped, got " + r,
+                expect(items(p, Items.COBBLESTONE) + items(p, Items.STONE), 0, "stone / cobblestone handed out"));
+        }));
+
         s.add(new Stage("back to creative", p -> {
             p.setGameMode(GameType.CREATIVE);
             p.getInventory().setItem(0, new ItemStack(Items.STONE, 64));

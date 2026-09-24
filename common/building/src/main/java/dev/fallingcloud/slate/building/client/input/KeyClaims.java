@@ -14,8 +14,9 @@ import net.minecraft.world.item.ItemStack;
  * When Slate Building takes its shared default keys for itself (design §4), through {@link ExclusiveKeys}:
  * <ul>
  *   <li>{@link BuildKeys#SWAP} (Left Alt) exactly while the wheel would open ({@link WheelTarget#resolve()}): the
- *       main-hand stack identifies as a variant, or the hand is empty / holds a building tool, the crosshair is on a
- *       variant block and the player has a hammer (in-world reshape wheel). Never in spectator, with a screen open, or
+ *       main-hand stack identifies as a variant, or the hand holds the Builder's Toolbox / a building tool, the
+ *       crosshair is on a variant block and the player has a hammer (in-world reshape wheel). Never with an empty hand
+ *       (Shoulder Surfing's free look, Relics and Create keep Alt there), never in spectator, with a screen open, or
  *       when {@code wheel.swapEnabled} or {@code wheel.exclusiveSwapKey} is off.</li>
  *   <li>{@link BuildKeys#BUILD_MENU} (R): {@code wheel.menuKeyContext = ALWAYS}, or ({@code SMART}) while holding a
  *       block, a variant, the toolbox or a building tool, or while a building mode is active. In spectator (no mode

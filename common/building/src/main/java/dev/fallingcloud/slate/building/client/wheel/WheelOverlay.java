@@ -32,8 +32,8 @@ import org.lwjgl.glfw.GLFW;
 
 /**
  * The Alt quick-swap wheel (design §5): a HUD overlay, not a screen, so the player keeps walking while it is open.
- * Hold the swap key with a variant in hand (or, with a hammer, an empty hand / building tool while looking at a
- * variant block) and it opens around a virtual cursor fed by mouse movement (the camera stays still).
+ * Hold the swap key with a variant in hand (or, with a hammer in the toolbox, the Builder's Toolbox / a building tool in
+ * hand while looking at a variant block) and it opens around a virtual cursor fed by mouse movement (the camera stays still).
  * <ul>
  *   <li>Release the key: apply the hovered slice ({@code SwapHeld} / {@code ChiselHeld}, or {@code ReshapeTarget} /
  *       {@code ChiselTarget} in the world). Tapping without moving does nothing (dead zone around the centre);

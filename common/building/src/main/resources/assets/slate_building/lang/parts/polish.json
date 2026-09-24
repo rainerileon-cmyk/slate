@@ -1,0 +1,15 @@
+{
+  "slate_building.settings.general.hints": "Tips for new players",
+  "slate_building.settings.general.hints.desc": "The first times you hold a block that can change shape, a short tip shows the keys for the swap wheel and the build menu",
+  "slate_building.hint.title": "Building tip",
+  "slate_building.hint.shape_and_menu": "Hold %s to change a block's shape. %s opens the build menu.",
+  "slate_building.hint.shape": "Hold %s to change a block's shape.",
+  "slate_building.hint.menu": "%s opens the build menu.",
+  "slate_building.settings.server.max_undo_blocks": "Undo memory (blocks)",
+  "slate_building.settings.server.max_undo_blocks.desc": "Blocks remembered in one player's undo history; the oldest steps go first, and a larger operation cannot be undone",
+  "slate_building.settings.server.max_undo_data_kib": "Undo memory (contents)",
+  "slate_building.settings.server.max_undo_data_kib.desc": "Container contents remembered in one player's undo history, so creative undo can put them back. An operation over this cannot be undone",
+  "slate_building.settings.server.mib": "%s MiB",
+  "slate_building.settings.server.creative_max_volume": "Creative volume limit",
+  "slate_building.settings.server.creative_max_volume.desc": "Largest selection a creative player may apply at once; also the most Capacity upgrades can raise a survival limit to"
+}

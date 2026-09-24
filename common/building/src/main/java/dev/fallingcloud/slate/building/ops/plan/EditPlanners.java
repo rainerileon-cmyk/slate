@@ -188,7 +188,9 @@ public final class EditPlanners {
     /**
      * Reshape: every variant / material block in the box ({@code filter} ALL, or CLICKED_MATERIAL = only the
      * material at corner A) takes the held item's shape, keeping its material and, where the shapes share them, its
-     * orientation. Units are settled by the server (a double slab turned into stairs refunds one).
+     * orientation. Units are settled by the server (a double slab turned into stairs refunds one). In survival the
+     * executor leaves blocks alone whose loot a change in place would skip (natural stone, glass, ores: {@code LootGuard}),
+     * and the preview marks them invalid; they stay in the plan so they show.
      */
     public static Plan reshape(final PlanContext ctx) {
         final Box box = Plans.box(ctx);

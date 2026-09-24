@@ -17,7 +17,7 @@ import org.jetbrains.annotations.Nullable;
  * player's hammer tier (copper = stone, iron, diamond, netherite), the right kind for the block (pickaxe, axe, shovel
  * or hoe). No enchantments, so no free silk touch or fortune. Blocks that tool cannot harvest are not broken at all.
  */
-final class Drops {
+public final class Drops {
 
     private static final Item[][] TOOLS = {
         {Items.STONE_PICKAXE, Items.STONE_AXE, Items.STONE_SHOVEL, Items.STONE_HOE},
@@ -27,7 +27,7 @@ final class Drops {
     };
 
     /** The tool a hammer of {@code tier} (0 = no hammer: bare hands) breaks {@code state} with. */
-    static ItemStack tool(final int tier, final BlockState state) {
+    public static ItemStack tool(final int tier, final BlockState state) {
         if (tier <= 0) return ItemStack.EMPTY;
         final Item[] set = TOOLS[Math.min(tier, TOOLS.length) - 1];
         for (final Item item : set) {
@@ -38,7 +38,7 @@ final class Drops {
     }
 
     /** Whether breaking {@code state} with {@code tool} yields its drops (blocks that need the right tool). */
-    static boolean canHarvest(final BlockState state, final ItemStack tool) {
+    public static boolean canHarvest(final BlockState state, final ItemStack tool) {
         return !state.requiresCorrectToolForDrops() || tool.isCorrectToolForDrops(state);
     }
 

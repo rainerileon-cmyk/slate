@@ -492,7 +492,7 @@ confirmWithRightClick true.
 materialDenylist [], materialAllowlist [], variantOverrides {}, ignoredVariants [], swapNeedsTool false;
 `ops` (D1): enabled true, requireToolbox true, creativeBypass true, maxVolume [256,2048,16384,65536],
 maxSpan [16,32,64,128], reachBonus [0,8,16,32], blocksPerTick [8,24,64,160], globalBlocksPerTick 2048,
-creativeMaxVolume 262144, undoDepth 10, undoPerMemory 10, maxUndoBlocks 200000, durabilityPerBlocks 4,
+creativeMaxVolume 262144, undoDepth 10, undoPerMemory 10, maxUndoBlocks 200000, maxUndoDataKiB 65536, durabilityPerBlocks 4,
 placeWhatYouCan true, respectClaims true, allowBlockEntities false, disabledModes [], pasteOpLevel 0;
 `toolbox` (E): durability per tier, allowPouch true, supplyLinkRange 64; `chisel` (I): enabled true,
 stonecutterGroups true, blockFamilies true, modCompat true, inWorld true.

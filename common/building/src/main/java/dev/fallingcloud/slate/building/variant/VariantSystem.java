@@ -1,6 +1,8 @@
 package dev.fallingcloud.slate.building.variant;
 
+import dev.fallingcloud.slate.building.config.BuildingServerSettings;
 import dev.fallingcloud.slate.core.event.SlateEvents;
+import net.minecraft.server.MinecraftServer;
 
 /**
  * Common (both sides) init of the variant system. The unify rules themselves live in mixins (drops, recipes,
@@ -14,7 +16,17 @@ public final class VariantSystem {
     public static synchronized void init() {
         if (initialised) return;
         initialised = true;
-        SlateEvents.SERVER_STARTED.register(server -> VariantRegistry.invalidate());
+        SlateEvents.SERVER_STARTED.register(server -> {
+            VariantRegistry.invalidate();
+            LootGuard.rebuild(server);
+        });
+        SlateEvents.SERVER_STOPPING.register(server -> LootGuard.forget());
+    }
+
+    /** Datapacks were reloaded ({@code /reload}): loot tables may have changed, so the loot guard list is redone and resent. */
+    public static void onDatapackReload(final MinecraftServer server) {
+        LootGuard.rebuild(server);
+        BuildingServerSettings.broadcast(server);
     }
 
     /** Called by the loader glue after tags were (re)bound, on the server and on the client. */

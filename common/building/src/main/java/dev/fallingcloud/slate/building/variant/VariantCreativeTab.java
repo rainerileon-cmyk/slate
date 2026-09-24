@@ -25,11 +25,14 @@ public final class VariantCreativeTab {
 
     public static void fill(final CreativeModeTab.ItemDisplayParameters params, final CreativeModeTab.Output output) {
         final VariantRegistry registry = VariantRegistry.get();
+        final boolean deleting = registry.deletesNatives();
         final Set<ItemStack> added = ItemStackLinkedSet.createTypeAndComponentsSet();
         for (final Block material : SHOWCASE) {
             for (final Shape shape : Shape.values()) {
                 if (!shape.custom()) continue;
-                final ItemStack stack = registry.stackFor(material, shape, 1);
+                ItemStack stack = registry.stackFor(material, shape, 1);
+                // stripNatives would drop oak stairs from the showcase: show our stand-in entry instead (as JEI does).
+                if (deleting && !stack.isEmpty() && registry.nativeVariantItems().contains(stack.getItem())) stack = registry.listingStackFor(material, shape);
                 if (!stack.isEmpty() && stack.getItem().isEnabled(params.enabledFeatures()) && added.add(stack)) output.accept(stack);
             }
         }

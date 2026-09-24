@@ -3,12 +3,14 @@ package dev.fallingcloud.slate.building.ops.server;
 import dev.fallingcloud.slate.building.block.ShapeBlockEntity;
 import dev.fallingcloud.slate.building.config.ServerOps;
 import dev.fallingcloud.slate.building.ops.BuildMode;
+import dev.fallingcloud.slate.building.ops.BuildModes;
 import dev.fallingcloud.slate.building.ops.Change;
 import dev.fallingcloud.slate.building.ops.StateWorth;
 import dev.fallingcloud.slate.building.ops.plan.PlanBuilder;
 import dev.fallingcloud.slate.building.ops.plan.Placement;
 import dev.fallingcloud.slate.building.platform.BuildingPlatform;
 import dev.fallingcloud.slate.building.toolbox.ToolboxAccess;
+import dev.fallingcloud.slate.building.variant.LootGuard;
 import dev.fallingcloud.slate.building.variant.ShapeBlock;
 import dev.fallingcloud.slate.building.variant.Variant;
 import dev.fallingcloud.slate.building.variant.VariantRegistry;
@@ -270,8 +272,15 @@ final class RunningOp {
                 // A moving source (lifted, or overwritten by another moved block): its block is carried, not harvested.
                 final boolean carriedHere = !existing.isAir() && carried != null && carried.contains(pos.asLong());
                 final Variant existingVariant = breaking ? Placement.variantOf(existing, existingMaterial) : null;
-                final boolean reshaping = breaking && placing && !carriedHere && st.variant() != null && existingVariant != null
+                boolean reshaping = breaking && placing && !carriedHere && st.variant() != null && existingVariant != null
                     && existingVariant.material() == st.variant().material();
+                // Changing a block in place must not skip its loot (natural stone -> cobblestone, glass, ores, grass:
+                // a free silk touch), the hammer's in-world rule. Reshape leaves such a block alone; any other mode
+                // breaks it for real (loot with the hammer tier) and pays the full placement.
+                if (reshaping && !LootGuard.keepsLoot(level, pos, existing, existingBe)) {
+                    if (mode == BuildModes.RESHAPE) return Outcome.SKIPPED;
+                    reshaping = false;
+                }
                 if (reshaping) {
                     // Same material, other shape: only the unit difference moves (double slab → stairs refunds one).
                     final CostKey key = new CostKey.Material(st.variant().material());

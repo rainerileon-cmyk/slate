@@ -3,6 +3,7 @@ package dev.fallingcloud.slate.building.client;
 import dev.fallingcloud.slate.building.SlateBuilding;
 import dev.fallingcloud.slate.building.config.BuildingServerSettings;
 import dev.fallingcloud.slate.building.net.ServerSettingsSync;
+import dev.fallingcloud.slate.building.variant.LootGuard;
 import dev.fallingcloud.slate.core.event.SlateEvents;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.List;
@@ -25,6 +26,7 @@ public final class ServerSettingsClient {
         initialised = true;
         SlateEvents.CLIENT_LEFT_SERVER.register(() -> {
             synced = null;
+            LootGuard.clearRemote();
             fire();
         });
     }
@@ -48,6 +50,7 @@ public final class ServerSettingsClient {
     /** {@link ServerSettingsSync} handler (render thread). */
     public static void accept(final ServerSettingsSync payload) {
         synced = new BuildingServerSettings(BuildingServerSettings.fromTag(payload.tag()), true);
+        LootGuard.accept(payload.tag());
         SlateBuilding.LOGGER.debug("[Slate Building] received server settings");
         fire();
     }

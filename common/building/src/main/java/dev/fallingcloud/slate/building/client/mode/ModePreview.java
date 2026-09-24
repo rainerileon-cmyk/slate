@@ -3,6 +3,7 @@ package dev.fallingcloud.slate.building.client.mode;
 import dev.fallingcloud.slate.building.SlateBuilding;
 import dev.fallingcloud.slate.building.client.render.GhostRenderer;
 import dev.fallingcloud.slate.building.client.render.WorldChanges;
+import dev.fallingcloud.slate.building.config.BuildingServerSettings;
 import dev.fallingcloud.slate.building.config.PreviewSettings;
 import dev.fallingcloud.slate.building.ops.BuildMode;
 import dev.fallingcloud.slate.building.ops.BuildModes;
@@ -16,8 +17,13 @@ import dev.fallingcloud.slate.building.ops.Plan;
 import dev.fallingcloud.slate.building.ops.PlanContext;
 import dev.fallingcloud.slate.building.ops.Planners;
 import dev.fallingcloud.slate.building.ops.ToolType;
+import dev.fallingcloud.slate.building.ops.plan.Placement;
+import dev.fallingcloud.slate.building.ops.server.Drops;
+import dev.fallingcloud.slate.building.toolbox.ToolboxAccess;
 import dev.fallingcloud.slate.building.toolbox.UpgradeType;
+import dev.fallingcloud.slate.building.variant.LootGuard;
 import dev.fallingcloud.slate.building.variant.ShapeBlock;
+import dev.fallingcloud.slate.building.variant.Variant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -43,8 +49,8 @@ import org.jetbrains.annotations.Nullable;
 /**
  * The live preview of the current selection: runs {@code Planners.of(mode).plan(ctx)} on the client level with the
  * same inputs the server will use, keeps the plan until an input changes, colours every planned change (placement,
- * replacement, removal, or invalid: not affordable with the carried materials, outside the world border / build
- * height, unbreakable), counts what the operation needs against what the player carries, and hands the ghosts to
+ * replacement, removal, or invalid: not affordable with the carried materials, or skipped by the server whatever the
+ * player carries: see {@link Blocker}), counts what the operation needs against what the player carries, and hands the ghosts to
  * {@link GhostRenderer#submitCached} (only up to {@code preview.maxBlocks}; above that the box alone is drawn).
  *
  * <p>When it re-plans: at once when the selection itself changes (mode, parameters, anchors, face, the held
@@ -87,6 +93,8 @@ final class ModePreview {
     private static long worldSeen;
     private static @Nullable Plan plan;
     private static GhostRenderer.Style[] styles = new GhostRenderer.Style[0];
+    /** Per change: INVALID because the server will skip it whatever the player carries (not for lack of materials). */
+    private static boolean[] blockedAt = new boolean[0];
     private static Map<Block, Integer> needs = Map.of();
     private static ModeGeometry.Shape shape = ModeGeometry.Shape.NONE;
     private static @Nullable Component preError;
@@ -359,14 +367,15 @@ final class ModePreview {
      */
     private static void recolour(final Player player) {
         if (plan == null) return;
-        final Level level = player.level();
         final boolean creative = player.isCreative();
+        final Blocker blocker = new Blocker(player, key == null ? null : BuildModes.byId(key.mode()));
         final Map<Block, Integer> left = new HashMap<>(available);
         final List<Change> changes = plan.changes();
         final GhostRenderer.Style[] next = new GhostRenderer.Style[changes.size()];
+        final boolean[] nextBlocked = new boolean[changes.size()];
         for (int i = 0; i < changes.size(); i++) {
             final Change c = changes.get(i);
-            if (blocked(level, c)) { next[i] = GhostRenderer.Style.INVALID; continue; }
+            if (blocker.blocked(c)) { next[i] = GhostRenderer.Style.INVALID; nextBlocked[i] = true; continue; }
             if (c.kind() == Change.Kind.BREAK) { next[i] = GhostRenderer.Style.REMOVE; continue; }
             if (!creative) {
                 final Block m = ModeMaterials.materialOf(c);
@@ -379,19 +388,62 @@ final class ModePreview {
             }
             next[i] = c.kind() == Change.Kind.REPLACE ? GhostRenderer.Style.REPLACE : GhostRenderer.Style.PLACE;
         }
+        blockedAt = nextBlocked;
         if (Arrays.equals(next, styles)) return;
         styles = next;
         ghosts = null;
         version++;
     }
 
-    /** A position the server will skip whatever the player carries. */
-    private static boolean blocked(final Level level, final Change c) {
-        final BlockPos pos = c.pos();
-        if (level.isOutsideBuildHeight(pos) || !level.getWorldBorder().isWithinBounds(pos)) return true;
-        if (c.kind() == Change.Kind.PLACE) return false;
-        final BlockState existing = level.getBlockState(pos);
-        return !existing.isAir() && existing.getDestroySpeed(level, pos) < 0;
+    /**
+     * Positions the server's executor ({@code RunningOp}) skips whatever the player carries: outside the world or the
+     * border, unbreakable. Without the creative bypass also: what the hammer tier cannot harvest (for Slate shapes:
+     * their stored material, as the server decides), containers when the server does not allow block entities, and,
+     * for Reshape, blocks whose own loot a change in place would skip ({@link LootGuard}: natural stone, glass, ores).
+     */
+    private static final class Blocker {
+        private final Level level;
+        private final @Nullable BuildMode mode;
+        private final boolean free;
+        private final int hammer;
+        private final boolean allowBlockEntities;
+        private final Map<BlockState, Boolean> harvestable = new HashMap<>();
+
+        Blocker(final Player player, final @Nullable BuildMode mode) {
+            this.level = player.level();
+            this.mode = mode;
+            final ToolboxAccess.Capabilities caps = ModeRules.capabilities(player);
+            this.free = caps.creative();
+            this.hammer = caps.tier(ToolType.HAMMER);
+            this.allowBlockEntities = BuildingServerSettings.effective(player).ops().allowBlockEntities;
+        }
+
+        boolean blocked(final Change c) {
+            final BlockPos pos = c.pos();
+            if (level.isOutsideBuildHeight(pos) || !level.getWorldBorder().isWithinBounds(pos)) return true;
+            if (c.kind() == Change.Kind.PLACE) return false;
+            final BlockState existing = level.getBlockState(pos);
+            if (existing.isAir()) return false;
+            if (existing.getDestroySpeed(level, pos) < 0) return true;
+            // Creative costs nothing and harvests nothing; a move carries its blocks instead of harvesting them.
+            if (free || mode == BuildModes.MOVE) return false;
+            // Replacing grass tufts or snow layers is a placement: nothing is broken.
+            if (c.kind() == Change.Kind.REPLACE && existing.canBeReplaced()) return false;
+            final boolean shape = existing.getBlock() instanceof ShapeBlock;
+            if (existing.hasBlockEntity() && !shape && !allowBlockEntities) return true;
+            final BlockState material = shape ? ShapeBlock.material(level, pos) : null;
+            if (c.kind() == Change.Kind.REPLACE && c.targetVariant() != null) {
+                final Variant was = Placement.variantOf(existing, material);
+                if (was != null && was.material() == c.targetVariant().material()) {
+                    // Same material, new shape: changed in place, nothing harvested, unless that would skip its loot.
+                    if (LootGuard.keepsLoot(level, pos, existing, null)) return false;
+                    if (mode == BuildModes.RESHAPE) return true;
+                    // Any other mode breaks it for real: the harvest rule below applies.
+                }
+            }
+            final BlockState harvest = material != null ? material : existing;
+            return !harvestable.computeIfAbsent(harvest, s -> Drops.canHarvest(s, Drops.tool(hammer, s)));
+        }
     }
 
     private static List<GhostRenderer.Ghost> buildGhosts() {
@@ -444,7 +496,7 @@ final class ModePreview {
                     case BREAK -> remove++;
                 }
                 if (i < styles.length && styles[i] == GhostRenderer.Style.INVALID) {
-                    if (blocked(player.level(), c)) blocked++;
+                    if (i < blockedAt.length && blockedAt[i]) blocked++;
                     else missing++;
                 }
             }

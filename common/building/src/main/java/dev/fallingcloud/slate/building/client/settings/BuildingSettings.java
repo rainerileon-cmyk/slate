@@ -90,6 +90,7 @@ public final class BuildingSettings {
             List.of("SMART", "ALWAYS")));
         s.add(bool("general.pick_block_swaps", () -> cfg().wheel.pickBlockSwaps, v -> cfg().wheel.pickBlockSwaps = v, d.pickBlockSwaps));
         s.add(bool("general.sounds", () -> cfg().hud.sounds, v -> cfg().hud.sounds = v, hd.sounds));
+        s.add(bool("general.hints", () -> cfg().hud.hints, v -> cfg().hud.hints = v, hd.hints));
         return new Group("general", group("general"), null, s, false);
     }
 
@@ -228,12 +229,18 @@ public final class BuildingSettings {
     private static Setting ruleInt(final String id, final Function<BuildingServerConfig, Integer> read,
                                    final BiConsumer<BuildingServerConfig, Integer> write, final int def, final int min, final int max,
                                    final int step) {
+        return ruleInt(id, read, write, def, min, max, step, null);
+    }
+
+    private static Setting ruleInt(final String id, final Function<BuildingServerConfig, Integer> read,
+                                   final BiConsumer<BuildingServerConfig, Integer> write, final int def, final int min, final int max,
+                                   final int step, final @Nullable Function<Object, Component> format) {
         return new Setting("server." + id, Type.INT, label("server." + id), tooltip("server." + id),
             () -> read.apply(rules()), v -> {
                 if (serverReadOnly()) return;
                 write.accept(local(), (int) Math.max(min, Math.min(max, Math.round(((Number) v).doubleValue()))));
                 saveServer(false);
-            }, def, min, max, step, List.of(), Component::literal, () -> !serverReadOnly(), null, false);
+            }, def, min, max, step, List.of(), Component::literal, () -> !serverReadOnly(), format, false);
     }
 
     /**
@@ -318,6 +325,10 @@ public final class BuildingSettings {
         s.add(ruleInt("min_ticks_between_ops", c -> c.ops.minTicksBetweenOps, (c, n) -> c.ops.minTicksBetweenOps = n, o.minTicksBetweenOps, 0, 100));
         s.add(ruleInt("undo_depth", c -> c.ops.undoDepth, (c, n) -> c.ops.undoDepth = n, o.undoDepth, 1, 100));
         s.add(ruleInt("undo_per_memory", c -> c.ops.undoPerMemory, (c, n) -> c.ops.undoPerMemory = n, o.undoPerMemory, 0, 100));
+        s.add(ruleInt("max_undo_blocks", c -> c.ops.maxUndoBlocks, (c, n) -> c.ops.maxUndoBlocks = n, o.maxUndoBlocks, 1000, 2_000_000, 1000));
+        s.add(ruleInt("max_undo_data_kib", c -> c.ops.maxUndoDataKiB, (c, n) -> c.ops.maxUndoDataKiB = n, o.maxUndoDataKiB, 1024, 1_048_576, 1024,
+            v -> Component.translatable("slate_building.settings.server.mib", Math.round(((Number) v).doubleValue() / 1024D))));
+        s.add(ruleInt("creative_max_volume", c -> c.ops.creativeMaxVolume, (c, n) -> c.ops.creativeMaxVolume = n, o.creativeMaxVolume, 4096, 4_194_304, 4096));
         s.add(ruleInt("durability_per_blocks", c -> c.ops.durabilityPerBlocks, (c, n) -> c.ops.durabilityPerBlocks = n, o.durabilityPerBlocks, 1, 64));
         s.add(ruleInt("paste_op_level", c -> c.ops.pasteOpLevel, (c, n) -> c.ops.pasteOpLevel = n, o.pasteOpLevel, 0, 4));
         return new Group("server_ops", group("server_ops"), Component.translatable("slate_building.settings.group.server.desc"), s, false);

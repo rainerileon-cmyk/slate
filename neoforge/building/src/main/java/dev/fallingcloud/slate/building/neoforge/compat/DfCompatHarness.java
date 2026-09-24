@@ -769,16 +769,30 @@ final class DfCompatHarness {
             .run(() -> check("Alt released (empty hand): nothing stuck down", !down("key.shouldersurfing.free_look")
                 && !down("key.relics.active_abilities_list") && !down("create.keyinfo.toolbelt"), altState()));
         logArea(s, "keys after step 1 (sky)");
-        // 1b. Empty hand looking at a block: the in-world reshape wheel claims Alt whenever the player may reshape (always
-        // in creative; in survival with any hammer in the toolbox), so free look / Relics lose Alt there too.
+        // 1b. Empty hand looking at a variant-able block: the in-world reshape wheel needs the toolbox or a building tool
+        // in hand, so free look / Relics / Create keep Alt here.
         s.command("tp @s 0.5 -60 -21.5 0 30").wait(6)
-            .run(() -> key(GLFW.GLFW_KEY_LEFT_ALT, GLFW.GLFW_PRESS)).waitUntil(WheelOverlay.INSTANCE::isOpen, 40)
+            .run(() -> key(GLFW.GLFW_KEY_LEFT_ALT, GLFW.GLFW_PRESS)).wait(8)
             .run(() -> {
                 info("Alt with an empty hand, crosshair on " + describe(Minecraft.getInstance().hitResult) + ": " + altState());
+                check("Alt + empty hand looking at a block: not claimed by us, wheel shut", !ExclusiveKeys.isHeldExclusively(BuildKeys.SWAP) && !WheelOverlay.INSTANCE.isOpen(), altState());
                 check("Alt + empty hand looking at a block: Shoulder Surfing free look still gets Alt", down("key.shouldersurfing.free_look"), altState());
             })
             .run(() -> key(GLFW.GLFW_KEY_LEFT_ALT, GLFW.GLFW_RELEASE)).wait(6);
-        logArea(s, "keys after step 1b (reshape wheel)");
+        logArea(s, "keys after step 1b (empty hand on a block)");
+        // 1c. A building tool in hand, same block: the in-world reshape wheel opens and takes Alt for itself.
+        s.command("item replace entity @s hotbar.3 with slate_building:copper_hammer")
+            .run(() -> Minecraft.getInstance().player.getInventory().selected = 3).wait(6)
+            .run(() -> key(GLFW.GLFW_KEY_LEFT_ALT, GLFW.GLFW_PRESS)).waitUntil(WheelOverlay.INSTANCE::isOpen, 40)
+            .run(() -> {
+                info("Alt with a hammer in hand, crosshair on " + describe(Minecraft.getInstance().hitResult) + ": " + altState());
+                check("Alt + hammer looking at a block: the reshape wheel opens and holds Alt", WheelOverlay.INSTANCE.isOpen() && ExclusiveKeys.isHeldExclusively(BuildKeys.SWAP), altState());
+                check("Alt + hammer looking at a block: Shoulder Surfing free look not down", !down("key.shouldersurfing.free_look"), altState());
+            })
+            .run(() -> key(GLFW.GLFW_KEY_LEFT_ALT, GLFW.GLFW_RELEASE)).wait(6)
+            .command("item replace entity @s hotbar.3 with minecraft:air")
+            .run(() -> Minecraft.getInstance().player.getInventory().selected = 2).wait(4);
+        logArea(s, "keys after step 1c (reshape wheel)");
         probeReshape(s, new BlockPos(0, -61, -19), "stairs");
         logArea(s, "keys after the reshape probe");
         // 2. Holding a block: ours only.

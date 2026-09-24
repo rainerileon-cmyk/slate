@@ -2,6 +2,7 @@ package dev.fallingcloud.slate.building.client.ui;
 
 import dev.fallingcloud.slate.building.client.BuildingClient;
 import dev.fallingcloud.slate.building.client.hud.ModeHud;
+import dev.fallingcloud.slate.building.client.hud.OnboardingHints;
 import dev.fallingcloud.slate.building.client.menu.BuildMenuScreen;
 import dev.fallingcloud.slate.building.client.menu.MenuKeys;
 import dev.fallingcloud.slate.building.client.menu.WheelEditorScreen;
@@ -36,6 +37,7 @@ public final class BuildingUi {
         WheelOverlay.init();
         PickBlockSwap.init();
         ModeHud.init();
+        OnboardingHints.init();
         MenuKeys.init();
         onRenderThread(BuildingUi::registerScreens);
         ScreenIds.register(BuildMenuScreen.class, BuildingClient.BUILD_MENU_SCREEN, "Build menu");
@@ -46,10 +48,10 @@ public final class BuildingUi {
     }
 
     /**
-     * {@code CoreActions.SCREEN_FACTORIES} is a plain map that other Slate modules (chat, menu, multiplayer, config)
-     * fill from their own mod constructors, and NeoForge constructs mods in parallel on worker threads, where this
-     * init runs too. So our entries go in from the render thread's task queue (thread-safe), which runs them on the
-     * first frame, after every mod has been constructed and long before anything can open these screens.
+     * Other Slate modules (chat, menu, multiplayer, config) fill {@code CoreActions.SCREEN_FACTORIES} from their mod
+     * constructors, which NeoForge runs in parallel on worker threads (the map is synchronized for that). Ours go in
+     * from the render thread's task queue on the first frame, after every mod has been constructed and long before
+     * anything can open these screens.
      */
     private static void registerScreens() {
         CoreActions.SCREEN_FACTORIES.put(BuildingClient.BUILD_MENU_SCREEN, BuildMenuScreen::new);

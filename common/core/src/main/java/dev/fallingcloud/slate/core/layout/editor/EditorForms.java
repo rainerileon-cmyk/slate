@@ -68,7 +68,9 @@ final class EditorForms {
     static List<String> screenIds(final String include) {
         final Set<String> ids = new LinkedHashSet<>();
         if (include != null && !include.isBlank()) ids.add(include);
-        try { ids.addAll(CoreActions.SCREEN_FACTORIES.keySet()); } catch (final Exception ignored) {}
+        try {
+            synchronized (CoreActions.SCREEN_FACTORIES) { ids.addAll(CoreActions.SCREEN_FACTORIES.keySet()); }
+        } catch (final Exception ignored) {}
         for (final String c : customScreens()) ids.add("custom:" + c);
         try { ids.addAll(ScreenIds.known()); } catch (final Exception ignored) {}
         ids.remove("slate:custom");                       // the class id of custom screens; never a target
