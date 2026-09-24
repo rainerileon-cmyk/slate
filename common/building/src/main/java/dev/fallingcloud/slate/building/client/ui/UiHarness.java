@@ -151,7 +151,9 @@ final class UiHarness {
             .run(() -> KeyMapping.set(alt, false))
             .run(() -> check("spectator: R is not claimed while holding a block", !KeyClaims.menuWanted()))
             .command("gamemode creative").wait(10)
-            // Survival reach is 4.5 blocks: pick a stair right in front of the player.
+            // Survival reach is 4.5 blocks: pick a stair right in front of the player. First person: a third-person or
+            // Shoulder Surfing camera (the DF pack default) aims the crosshair from elsewhere.
+            .run(UiHarness::firstPerson)
             .command("setblock 0 -60 3 minecraft:stone_brick_stairs")
             .command("tp @s 0.5 -60 0.5 0 30")
             // The in-world reshape wheel needs the toolbox or a building tool in hand: an empty hand leaves Alt to
@@ -172,6 +174,23 @@ final class UiHarness {
             .command("gamemode creative")
             .command("setblock 0 -60 3 minecraft:air")
             .command("tp @s 0.5 -60 0.5 0 12");
+    }
+
+    /** First-person camera, through Shoulder Surfing's API when it is installed (it keeps its own perspective state). */
+    private static void firstPerson() {
+        final Minecraft mc = Minecraft.getInstance();
+        if (dev.fallingcloud.slate.core.platform.SlatePlatform.get().isModLoaded("shouldersurfing")) {
+            try {
+                final Class<?> persp = Class.forName("com.github.exopandora.shouldersurfing.api.client.Perspective");
+                final Object instance = Class.forName("com.github.exopandora.shouldersurfing.api.client.ShoulderSurfing").getMethod("getInstance").invoke(null);
+                Class.forName("com.github.exopandora.shouldersurfing.api.client.IShoulderSurfing").getMethod("changePerspective", persp)
+                    .invoke(instance, persp.getMethod("valueOf", String.class).invoke(null, "FIRST_PERSON"));
+                return;
+            } catch (final ReflectiveOperationException | LinkageError e) {
+                dev.fallingcloud.slate.building.SlateBuilding.LOGGER.warn("[BuildingHarness] Shoulder Surfing perspective switch failed: {}", e.toString());
+            }
+        }
+        mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
     }
 
     private static void check(final String what, final boolean ok) {

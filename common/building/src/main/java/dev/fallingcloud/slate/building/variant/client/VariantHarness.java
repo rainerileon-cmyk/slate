@@ -318,7 +318,25 @@ final class VariantHarness {
         try {
             final BlockPos nativeDouble = new BlockPos(9, Y, DEMO_Z);
             level.setBlock(nativeDouble, Blocks.OAK_SLAB.defaultBlockState().setValue(SlabBlock.TYPE, SlabType.DOUBLE), 3);
-            survivalBreak(c, nativeDouble, new ItemStack(Items.DIAMOND_AXE), Items.OAK_PLANKS, 2, "native double oak slab");
+            if (dev.fallingcloud.slate.core.platform.SlatePlatform.get().isModLoaded("kleeslabs")) {
+                // KleeSlabs (DF pack) breaks one half of a double slab by design: one unit, and a single slab stays.
+                clearItems(level, nativeDouble);
+                c.player().setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.DIAMOND_AXE));
+                c.player().gameMode.destroyBlock(nativeDouble);
+                int planks = 0;
+                for (final ItemEntity e : level.getEntitiesOfClass(ItemEntity.class, new AABB(nativeDouble).inflate(1.0))) {
+                    if (e.getItem().is(Items.OAK_PLANKS)) planks += e.getItem().getCount();
+                    e.discard();
+                }
+                // Whichever half it takes (or the whole block, if its ray misses), nothing is lost or made: 2 units in all.
+                final BlockState left = level.getBlockState(nativeDouble);
+                final int stays = left.is(Blocks.OAK_SLAB) ? VariantRegistry.get().units(left, null) : left.isAir() ? 0 : 99;
+                check("survival break with KleeSlabs: a native double oak slab keeps its 2 units (planks dropped + slab left)",
+                    planks >= 1 && planks + stays == 2, planks + " planks, " + left);
+                level.setBlock(nativeDouble, Blocks.AIR.defaultBlockState(), 3);
+            } else {
+                survivalBreak(c, nativeDouble, new ItemStack(Items.DIAMOND_AXE), Items.OAK_PLANKS, 2, "native double oak slab");
+            }
             survivalBreak(c, gridPos(7, Shape.VERTICAL_STAIRS), pickaxe.copy(), Items.DEEPSLATE_TILES, 1, "deepslate tile vertical stairs");
             survivalBreak(c, gridPos(6, Shape.STAIRS), ItemStack.EMPTY, Items.DIRT, 1, "dirt stairs by hand");
             survivalBreak(c, gridPos(0, Shape.STAIRS), pickaxe.copy(), Items.STONE, 1, "native stone stairs");

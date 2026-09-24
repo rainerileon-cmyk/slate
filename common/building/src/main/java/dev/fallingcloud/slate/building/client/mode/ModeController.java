@@ -80,6 +80,8 @@ final class ModeController implements BuildInput.Handler {
     private @Nullable ModeTarget forcedTarget;
     private @Nullable BuildMode previousMode;
     private @Nullable Level lastLevel;
+    /** The dimension of the last tick with a level (kept through a loading gap, unlike {@link #lastLevel}). */
+    private @Nullable net.minecraft.resources.ResourceKey<Level> lastDimension;
     private int applyingTicks;
     private int tickCount;
     private int inventoryStamp = -1;
@@ -593,7 +595,7 @@ final class ModeController implements BuildInput.Handler {
         }
         final BuildMode mode = ClientModeState.current();
         if (mode != null) {
-            if (lastLevel != null && lastLevel != mc.level) {
+            if ((lastLevel != null && lastLevel != mc.level) || (lastDimension != null && lastDimension != mc.level.dimension())) {
                 ClientModeState.deactivate();
                 ClientModeState.notice(Component.translatable("slate_building.notice.left_dimension"), ClientModeState.Severity.INFO);
             } else if (player.isDeadOrDying()) {
@@ -604,6 +606,7 @@ final class ModeController implements BuildInput.Handler {
             }
         }
         lastLevel = mc.level;
+        lastDimension = mc.level.dimension();
 
         if (!mc.options.keyUse.isDown()) useLatched = false;
         if (!mc.options.keyAttack.isDown()) swallowAttack = false;
@@ -728,7 +731,14 @@ final class ModeController implements BuildInput.Handler {
         if (wantOn && s == null && symmetryOnSent) {
             symmetryOnSent = false;
             ClientModeState.deactivate();
-            ClientModeState.notice(Component.translatable("slate_building.notice.symmetry_off"), ClientModeState.Severity.WARNING);
+            // The server ends symmetry when the player changes dimension, and that reply can arrive before tick() sees the
+            // new level: say why in the same words as tick() would.
+            final Level level = Minecraft.getInstance().level;
+            if (level != null && lastDimension != null && level.dimension() != lastDimension) {
+                ClientModeState.notice(Component.translatable("slate_building.notice.left_dimension"), ClientModeState.Severity.INFO);
+            } else {
+                ClientModeState.notice(Component.translatable("slate_building.notice.symmetry_off"), ClientModeState.Severity.WARNING);
+            }
         } else if (!wantOn && s != null) {
             sendSymmetry(false);
         }

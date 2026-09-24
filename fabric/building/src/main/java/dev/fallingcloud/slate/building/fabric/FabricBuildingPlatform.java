@@ -44,7 +44,8 @@ public final class FabricBuildingPlatform implements BuildingPlatform {
     public boolean canBreak(final ServerPlayer p, final ServerLevel level, final BlockPos pos, final BlockState state) {
         if (state.getBlock() instanceof GameMasterBlock && !p.canUseGameMasterBlocks()) return false;   // vanilla's rule, as on NeoForge
         if (!CommonProtection.allows(CommonProtection.BREAK, level, pos, p)) return false;
-        return PlayerBlockBreakEvents.BEFORE.invoker().beforeBlockBreak(level, p, pos, state, level.getBlockEntity(pos));
+        // A double slab is shown as a single one: KleeSlabs (through Balm) splits it inside this event otherwise.
+        return PlayerBlockBreakEvents.BEFORE.invoker().beforeBlockBreak(level, p, pos, BuildingPlatform.permissionProbe(state), level.getBlockEntity(pos));
     }
 
     @Override

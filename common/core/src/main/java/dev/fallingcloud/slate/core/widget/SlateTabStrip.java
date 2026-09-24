@@ -318,11 +318,29 @@ public class SlateTabStrip extends SlateWidget {
         if (overflows()) {
             final int s = Math.round(scroll.get());
             final int shade = Colors.scaleAlpha(Colors.withAlpha(p.bg(), 0xC0), a);
-            if (s > 0) SlateDraw.hgradient(g, viewX0(), y, 12, h - (pills ? 0 : 1), shade, 0);
-            if (s < maxScroll()) SlateDraw.hgradient(g, viewX1() - 12, y, 12, h - (pills ? 0 : 1), 0, shade);
+            if (s > 0) fadeEdge(g, viewX0(), y, h - (pills ? 0 : 1), shade, true);
+            if (s < maxScroll()) fadeEdge(g, viewX1() - FADE_W, y, h - (pills ? 0 : 1), shade, false);
             darkButton(g, getX(), y, ARROW_W, h, Icon.CHEVRON_LEFT, leftHover, overLeft(mouseX) && isHovered(), s > 0, a, p, t);
             darkButton(g, rightArrowX(), y, ARROW_W, h, Icon.CHEVRON_RIGHT, rightHover, overRight(mouseX) && isHovered(), s < maxScroll(), a, p, t);
             darkButton(g, moreX(), y, MORE_W, h, Icon.CHEVRON_DOWN, moreHover, overMore(mouseX) && isHovered(), true, a, p, t);
+        }
+    }
+
+    /** Width of the soft edge where scrolled-away tabs fade out. */
+    private static final int FADE_W = 14;
+
+    /**
+     * A soft fade over the tabs at a scrolled edge: 1 px columns of {@code color} whose alpha eases out away from the edge
+     * ({@code fromLeft}: strongest at x). Per column and eased, so it reads as a fade over a translucent page instead of a
+     * dark band.
+     */
+    private static void fadeEdge(final GuiGraphics g, final int x, final int y, final int h, final int color, final boolean fromLeft) {
+        final int alpha = (color >>> 24) & 0xFF;
+        for (int i = 0; i < FADE_W; i++) {
+            final float t = 1f - (i + 0.5f) / FADE_W;          // 1 at the edge, 0 inside
+            final int col = Colors.withAlpha(color, Math.round(alpha * t * t));
+            final int cx = fromLeft ? x + i : x + FADE_W - 1 - i;
+            g.fill(cx, y, cx + 1, y + h, col);
         }
     }
 

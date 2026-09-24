@@ -104,8 +104,7 @@ final class WheelPanel {
     void visible(final boolean on) {
         search.visible = on;
         wheel.visible = on;
-        prev.visible = on;
-        next.visible = on;
+        updateArrows();
     }
 
     boolean isVisible() { return wheel.visible; }
@@ -197,10 +196,11 @@ final class WheelPanel {
         return true;
     }
 
+    /** Arrows only where there is something to page through (a single page or none shows no dead arrows). */
     private void updateArrows() {
-        final boolean many = pages.size() > 1 && lock == null;
-        prev.active = many;
-        next.active = many;
+        final boolean pageable = pages.size() > 1;
+        prev.visible = next.visible = wheel.visible && pageable;
+        prev.active = next.active = pageable && lock == null;
     }
 
     private void setQuery(final String q) {

@@ -9,11 +9,11 @@
   "slate_building.tool.hint": "Works from a Builder's Toolbox",
 
   "slate_building.ability.reshape_in_world": "Reshape in place",
-  "slate_building.ability.reshape_in_world.desc": "Hold the swap key while looking at a placed block to change its shape",
+  "slate_building.ability.reshape_in_world.desc": "With the toolbox or a building tool in hand, hold the swap key while looking at a placed block to change its shape",
   "slate_building.ability.chisel_wheel": "Chisel wheel",
   "slate_building.ability.chisel_wheel.desc": "Swap held blocks between their texture variants",
   "slate_building.ability.chisel_in_world": "Chisel in place",
-  "slate_building.ability.chisel_in_world.desc": "Change placed blocks to another texture variant",
+  "slate_building.ability.chisel_in_world.desc": "With the toolbox or a building tool in hand, hold the swap key on a placed block to change it to another texture variant",
 
   "slate_building.upgrade.reach.desc": "Pick corners from further away",
   "slate_building.upgrade.reach.effect": "Corner reach ×2 per upgrade (at least +8 blocks)",
