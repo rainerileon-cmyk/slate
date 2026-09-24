@@ -4,7 +4,11 @@
   "package": "dev.fallingcloud.slate.building.mixin.render",
   "compatibilityLevel": "JAVA_21",
   "mixins": [],
-  "client": [],
+  "client": [
+    "BlockItemInvoker",
+    "MinecraftTickMixin",
+    "TerrainParticleMixin"
+  ],
   "injectors": {
     "defaultRequire": 1
   }
