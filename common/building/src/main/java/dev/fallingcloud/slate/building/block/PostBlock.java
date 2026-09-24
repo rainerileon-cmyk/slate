@@ -1,28 +1,44 @@
 package dev.fallingcloud.slate.building.block;
 
+import com.mojang.serialization.MapCodec;
 import dev.fallingcloud.slate.building.variant.Shape;
-import dev.fallingcloud.slate.building.variant.ShapeBlock;
 import java.util.List;
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.block.EntityBlock;
-import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.core.Direction;
+import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.RotatedPillarBlock;
+import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.phys.AABB;
-import net.minecraft.world.level.block.Block;
+import org.jetbrains.annotations.Nullable;
 
 /**
- * The POST shape block (an 8 x 8 beam centred on its axis). One instance serves every material; the material lives in {@link ShapeBlockEntity}.
- *
- * <p>Owner: A (variants). Skeleton placeholder: registered, has the block entity, and reports a full cube with one
- * unit so everything downstream compiles and runs; A adds states, geometry, placement, merging and material
- * delegation (design §2). Keep the constructor signature: {@code BuildingBlocks} constructs it with shared base
- * properties that the constructor may refine.
+ * POST: an 8 x 8 beam through the middle of the block along {@link #AXIS} (the axis of the clicked face). A log
+ * material is stored turned to the same axis, so the bark runs along the beam.
  */
-public class PostBlock extends Block implements ShapeBlock, EntityBlock {
+public class PostBlock extends CustomShapeBlock {
+
+    public static final MapCodec<PostBlock> CODEC = simpleCodec(PostBlock::new);
+    public static final EnumProperty<Direction.Axis> AXIS = BlockStateProperties.AXIS;
 
     public PostBlock(final BlockBehaviour.Properties properties) {
         super(properties);
+        registerDefaultState(defaultBlockState().setValue(AXIS, Direction.Axis.Y));
+    }
+
+    @Override
+    protected MapCodec<PostBlock> codec() {
+        return CODEC;
+    }
+
+    @Override
+    protected void createBlockStateDefinition(final StateDefinition.Builder<Block, BlockState> builder) {
+        super.createBlockStateDefinition(builder);
+        builder.add(AXIS);
     }
 
     @Override
@@ -31,17 +47,21 @@ public class PostBlock extends Block implements ShapeBlock, EntityBlock {
     }
 
     @Override
-    public List<AABB> renderBoxes(final BlockState state) {
-        return FULL_CUBE;
+    protected List<AABB> computeBoxes(final BlockState state) {
+        return List.of(switch (state.getValue(AXIS)) {
+            case X -> ShapeBoxes.box(0, 4, 4, 16, 12, 12);
+            case Y -> ShapeBoxes.box(4, 0, 4, 12, 16, 12);
+            case Z -> ShapeBoxes.box(4, 4, 0, 12, 12, 16);
+        });
     }
 
     @Override
-    public int units(final BlockState state) {
-        return 1;
+    protected @Nullable BlockState placementShape(final BlockPlaceContext ctx) {
+        return defaultBlockState().setValue(AXIS, ctx.getClickedFace().getAxis());
     }
 
     @Override
-    public BlockEntity newBlockEntity(final BlockPos pos, final BlockState state) {
-        return new ShapeBlockEntity(pos, state);
+    protected BlockState rotate(final BlockState state, final Rotation rotation) {
+        return RotatedPillarBlock.rotatePillar(state, rotation);
     }
 }

@@ -65,9 +65,24 @@ public class ShapeBlockEntity extends BlockEntity {
         if (!replaceMaterial(newMaterial)) return;
         setChanged();
         if (level != null) {
-            final BlockState state = getBlockState();
+            final BlockState state = syncStateToMaterial();
             level.sendBlockUpdated(worldPosition, state, state, Block.UPDATE_CLIENTS | RERENDER_NOW);
         }
+    }
+
+    /**
+     * Server side: the block state mirrors the material's light and opacity ({@link ShapeBehaviour#LIGHT},
+     * {@link ShapeBehaviour#OPAQUE}; light engines and face culling read them without the block entity), so a material
+     * change that did not come with a matching state updates the state too. Same block, so this entity stays.
+     * Returns the (possibly new) state.
+     */
+    private BlockState syncStateToMaterial() {
+        final BlockState state = getBlockState();
+        if (level == null || level.isClientSide()) return state;
+        final BlockState synced = ShapeBehaviour.withMaterial(state, material);
+        if (synced == state || level.getBlockState(worldPosition) != state) return state;
+        level.setBlock(worldPosition, synced, Block.UPDATE_CLIENTS);
+        return synced;
     }
 
     /** Stores the material; returns whether it changed. Also re-checks light (both sides). */
@@ -111,7 +126,10 @@ public class ShapeBlockEntity extends BlockEntity {
         final ResourceLocation id = input.get(BuildingComponents.MATERIAL.get());
         if (id == null) return;
         final Block block = BuiltInRegistries.BLOCK.getOptional(id).orElse(null);
-        if (block != null && replaceMaterial(block.defaultBlockState())) rerenderIfClient();
+        if (block != null && replaceMaterial(block.defaultBlockState())) {
+            rerenderIfClient();
+            syncStateToMaterial();
+        }
     }
 
     @Override

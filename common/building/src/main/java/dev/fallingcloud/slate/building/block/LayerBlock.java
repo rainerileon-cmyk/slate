@@ -1,28 +1,51 @@
 package dev.fallingcloud.slate.building.block;
 
+import com.mojang.serialization.MapCodec;
 import dev.fallingcloud.slate.building.variant.Shape;
-import dev.fallingcloud.slate.building.variant.ShapeBlock;
 import java.util.List;
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.block.EntityBlock;
-import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.core.Direction;
+import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Mirror;
+import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.DirectionProperty;
+import net.minecraft.world.level.block.state.properties.IntegerProperty;
+import net.minecraft.world.level.pathfinder.PathComputationType;
 import net.minecraft.world.phys.AABB;
-import net.minecraft.world.level.block.Block;
+import org.jetbrains.annotations.Nullable;
 
 /**
- * The LAYER shape block (1 to 8 layers of 2 px growing from a face; n layers = n units). One instance serves every material; the material lives in {@link ShapeBlockEntity}.
- *
- * <p>Owner: A (variants). Skeleton placeholder: registered, has the block entity, and reports a full cube with one
- * unit so everything downstream compiles and runs; A adds states, geometry, placement, merging and material
- * delegation (design §2). Keep the constructor signature: {@code BuildingBlocks} constructs it with shared base
- * properties that the constructor may refine.
+ * LAYER: 1..8 layers of 2 px growing in the {@link #FACING} direction from the opposite side (UP = lying on the
+ * floor, like snow); n layers are worth n units. Placed against the clicked face; clicking the growing face with the
+ * same material adds a layer.
  */
-public class LayerBlock extends Block implements ShapeBlock, EntityBlock {
+public class LayerBlock extends CustomShapeBlock {
+
+    public static final MapCodec<LayerBlock> CODEC = simpleCodec(LayerBlock::new);
+    public static final IntegerProperty LAYERS = BlockStateProperties.LAYERS;
+    public static final DirectionProperty FACING = BlockStateProperties.FACING;
+    /** Pixels per layer. */
+    public static final int LAYER_HEIGHT = 2;
+    public static final int MAX_LAYERS = 8;
 
     public LayerBlock(final BlockBehaviour.Properties properties) {
         super(properties);
+        registerDefaultState(defaultBlockState().setValue(LAYERS, 1).setValue(FACING, Direction.UP));
+    }
+
+    @Override
+    protected MapCodec<LayerBlock> codec() {
+        return CODEC;
+    }
+
+    @Override
+    protected void createBlockStateDefinition(final StateDefinition.Builder<Block, BlockState> builder) {
+        super.createBlockStateDefinition(builder);
+        builder.add(LAYERS, FACING);
     }
 
     @Override
@@ -31,17 +54,43 @@ public class LayerBlock extends Block implements ShapeBlock, EntityBlock {
     }
 
     @Override
-    public List<AABB> renderBoxes(final BlockState state) {
-        return FULL_CUBE;
-    }
-
-    @Override
     public int units(final BlockState state) {
-        return 1;
+        return state.getValue(LAYERS);
     }
 
     @Override
-    public BlockEntity newBlockEntity(final BlockPos pos, final BlockState state) {
-        return new ShapeBlockEntity(pos, state);
+    protected List<AABB> computeBoxes(final BlockState state) {
+        return List.of(ShapeBoxes.plate(state.getValue(FACING), LAYER_HEIGHT * state.getValue(LAYERS)));
+    }
+
+    @Override
+    protected @Nullable BlockState placementShape(final BlockPlaceContext ctx) {
+        final BlockState existing = ctx.getLevel().getBlockState(ctx.getClickedPos());
+        if (existing.is(this)) return existing.setValue(LAYERS, Math.min(MAX_LAYERS, existing.getValue(LAYERS) + 1));
+        return defaultBlockState().setValue(FACING, ctx.getClickedFace());
+    }
+
+    @Override
+    protected boolean canBeReplaced(final BlockState state, final BlockPlaceContext ctx) {
+        return state.getValue(LAYERS) < MAX_LAYERS
+            && ctx.getItemInHand().is(asItem())
+            && ctx.getClickedFace() == state.getValue(FACING)
+            && ShapeBehaviour.sameMaterial(ctx, ctx.getClickedPos());
+    }
+
+    @Override
+    protected boolean isPathfindable(final BlockState state, final PathComputationType type) {
+        if (type == PathComputationType.LAND) return state.getValue(FACING) == Direction.UP && state.getValue(LAYERS) < 5;
+        return super.isPathfindable(state, type);
+    }
+
+    @Override
+    protected BlockState rotate(final BlockState state, final Rotation rotation) {
+        return state.setValue(FACING, rotation.rotate(state.getValue(FACING)));
+    }
+
+    @Override
+    protected BlockState mirror(final BlockState state, final Mirror mirror) {
+        return state.setValue(FACING, mirror.mirror(state.getValue(FACING)));
     }
 }
