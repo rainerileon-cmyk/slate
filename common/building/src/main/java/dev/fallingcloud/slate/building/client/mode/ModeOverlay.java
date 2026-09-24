@@ -42,6 +42,12 @@ final class ModeOverlay {
     private static long lastFrameNanos;
     private static final Anim BOX_IN = new Anim(0F, 160, Ease.OUT_CUBIC);
     private static final Anim TOGGLE_IN = new Anim(0F, 320, Ease.OUT_CUBIC);
+    /**
+     * Strength of the selection box's face fill: full on an empty box, almost none while planned ghost blocks sit
+     * inside it, so they read as clearly as the placement ghost (the edges stay crisp either way).
+     */
+    private static final Anim FACES = new Anim(1F, 220, Ease.OUT_CUBIC);
+    private static final float GHOSTED_FACES = 0.15F;
     private static @Nullable AABB flashBox;
     private static long flashAtMs;
     private static boolean flashSuccess;
@@ -66,6 +72,7 @@ final class ModeOverlay {
         shown = null;
         BOX_IN.snap(0F);
         TOGGLE_IN.snap(0F);
+        FACES.snap(1F);
     }
 
     /** Draws only the running flash (used when no mode is active any more). */
@@ -109,15 +116,17 @@ final class ModeOverlay {
             || pending == ClientModeState.Pending.NONE;
         final int alpha = (int) ((live ? 0xB8 : 0xFF) * in);
 
+        FACES.set(ModePreview.ghostsShown() ? GHOSTED_FACES : 1F);
+        final float faces = FACES.get();
         final boolean moveTarget = f.mode() == BuildModes.MOVE && f.anchors().size() >= 2 && pending != ClientModeState.Pending.FIRST_ANCHOR;
         if (moveTarget) {
             // The source stays put and dim; the (smoothed) destination follows the crosshair, joined by a guide line.
             final AABB src = ModeGeometry.boxOf(f.anchors().get(0), f.anchors().get(1));
-            OverlayRenderer.box(src, Colors.withAlpha(colour, (int) (0x68 * in)), false);
-            OverlayRenderer.box(shown, Colors.withAlpha(colour, alpha), true);
+            OverlayRenderer.box(src, Colors.withAlpha(colour, (int) (0x68 * in)), false, faces);
+            OverlayRenderer.box(shown, Colors.withAlpha(colour, alpha), true, faces);
             OverlayRenderer.line(src.getCenter(), shown.getCenter(), Colors.withAlpha(colour, (int) (0x90 * in)));
         } else {
-            OverlayRenderer.box(shown, Colors.withAlpha(colour, alpha), true);
+            OverlayRenderer.box(shown, Colors.withAlpha(colour, alpha), true, faces);
         }
 
         // Guides of round modes and lines.

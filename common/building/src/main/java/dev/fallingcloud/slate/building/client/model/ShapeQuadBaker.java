@@ -2,12 +2,14 @@ package dev.fallingcloud.slate.building.client.model;
 
 import dev.fallingcloud.slate.building.variant.ShapeBlock;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 import net.minecraft.client.renderer.block.model.BakedQuad;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.state.BlockState;
@@ -28,11 +30,16 @@ import org.jetbrains.annotations.Nullable;
  *       a stair's riser) and any of the material's own unculled quads.</li>
  * </ul>
  *
- * <p>Caches: face regions per shape state (unbounded, a few hundred states), cropped quads in a bounded LRU keyed by
- * shape state, material key, render layer, bucket and the IDENTITY of the source quad lists (a weighted model such
- * as stone's random rotations hands out one list per variant, so each variant gets its own entry without knowing
- * the seed). Both are cleared on resource reload ({@link #clearCaches()}, called by the loader glue). Thread-safe:
- * chunk meshing calls this from worker threads.
+ * <p>Caches: face regions per shape state (unbounded, a few hundred states), and cropped quads in a bounded LRU keyed
+ * by shape state, material key, render layer, bucket and the CONTENT of the source quads the bucket is cut from
+ * (vertex data, sprite, tint, direction, shade). Keying by content rather than by list identity keeps the hit rate
+ * for every kind of material model: a weighted model (stone's mirrored variants) hands out different quads per
+ * variant, so each variant gets its own entry; a multipart model builds a fresh list of the same quads on every call
+ * and a connected-texture style model may build fresh but identical quads, and both still hit. Only the source lists
+ * a bucket actually uses are requested from the model (a side bucket: that side; the unculled bucket: the unculled
+ * quads plus the directions that have internal faces). The LRU is split into shards with their own locks, so chunk
+ * builder threads rarely wait on each other. Both caches are cleared on resource reload ({@link #clearCaches()},
+ * called by the loader glue). Thread-safe: chunk meshing calls this from worker threads.
  */
 public final class ShapeQuadBaker {
 
@@ -44,15 +51,27 @@ public final class ShapeQuadBaker {
 
     private static final Direction[] DIRECTIONS = Direction.values();
     private static final int MAX_CACHED = 8192;
+    private static final int SHARDS = 16;
+    private static final int PER_SHARD = MAX_CACHED / SHARDS;
     private static final Object NO_LAYER = new Object();
+    private static final List<BakedQuad> NONE = List.of();
 
     private static final Map<BlockState, ShapeFaces> FACES = new ConcurrentHashMap<>();
-    private static final Map<Key, List<BakedQuad>> QUADS = new LinkedHashMap<>(1024, 0.75F, true) {
-        @Override
-        protected boolean removeEldestEntry(final Map.Entry<Key, List<BakedQuad>> eldest) {
-            return size() > MAX_CACHED;
+    @SuppressWarnings("unchecked")
+    private static final Map<Key, List<BakedQuad>>[] QUADS = new Map[SHARDS];
+    private static final AtomicLong HITS = new AtomicLong();
+    private static final AtomicLong MISSES = new AtomicLong();
+
+    static {
+        for (int i = 0; i < SHARDS; i++) {
+            QUADS[i] = new LinkedHashMap<>(64, 0.75F, true) {
+                @Override
+                protected boolean removeEldestEntry(final Map.Entry<Key, List<BakedQuad>> eldest) {
+                    return size() > PER_SHARD;
+                }
+            };
         }
-    };
+    }
 
     /**
      * The quads of {@code shape} made of the source model, for one bucket.
@@ -68,20 +87,27 @@ public final class ShapeQuadBaker {
         final ShapeFaces faces = faces(shape);
         final List<?>[] lists = new List<?>[7];
         if (side != null) {
-            if (faces.facing(side).isEmpty()) return List.of();
+            if (!faces.hasBoundary(side)) return NONE;   // only internal faces (or none) point this way
             lists[side.ordinal()] = source.quads(side);
         } else {
-            for (final Direction d : DIRECTIONS) lists[d.ordinal()] = source.quads(d);
+            // Internal faces are cut from the material's quads of their own direction; everything else only needs
+            // the unculled quads. Directions without an internal face are never asked for.
+            for (final Direction d : DIRECTIONS) if (faces.hasInternal(d)) lists[d.ordinal()] = source.quads(d);
             lists[6] = source.quads(null);
         }
         final Key key = new Key(shape, materialKey, side == null ? 6 : side.ordinal(), layer == null ? NO_LAYER : layer, lists);
-        synchronized (QUADS) {
-            final List<BakedQuad> hit = QUADS.get(key);
-            if (hit != null) return hit;
+        final Map<Key, List<BakedQuad>> shard = QUADS[Math.floorMod(key.hash ^ (key.hash >>> 16), SHARDS)];
+        synchronized (shard) {
+            final List<BakedQuad> hit = shard.get(key);
+            if (hit != null) {
+                HITS.incrementAndGet();
+                return hit;
+            }
         }
+        MISSES.incrementAndGet();
         final List<BakedQuad> built = build(faces, side, lists);
-        synchronized (QUADS) {
-            QUADS.put(key, built);
+        synchronized (shard) {
+            shard.put(key, built);
         }
         return built;
     }
@@ -100,9 +126,16 @@ public final class ShapeQuadBaker {
     public static void clearCaches() {
         FACES.clear();
         ShapeGeometry.clear();
-        synchronized (QUADS) {
-            QUADS.clear();
+        for (final Map<Key, List<BakedQuad>> shard : QUADS) {
+            synchronized (shard) {
+                shard.clear();
+            }
         }
+    }
+
+    /** Cache lookups since start-up: {hits, misses} (dev harness and diagnostics). */
+    public static long[] cacheStats() {
+        return new long[] {HITS.get(), MISSES.get()};
     }
 
     @SuppressWarnings("unchecked")
@@ -125,7 +158,7 @@ public final class ShapeQuadBaker {
                 }
             }
         }
-        return out.isEmpty() ? List.of() : Collections.unmodifiableList(out);
+        return out.isEmpty() ? NONE : Collections.unmodifiableList(out);
     }
 
     private static void crop(final @Nullable List<BakedQuad> source, final ShapeFaces.Region region, final Direction dir,
@@ -139,25 +172,41 @@ public final class ShapeQuadBaker {
     }
 
     /**
-     * Cache key. The source lists are compared by identity: models hand out the same list objects for the same
-     * variant, and a model that builds fresh lists every call simply never hits (the LRU bounds the cost).
+     * Cache key. The source quads are compared by content: the same quad object (a multipart model's fresh list of
+     * shared quads) matches at once, and a different object with the same vertex data, sprite, tint, direction and
+     * shade (a model that builds its quads per call) matches too. The source lists are copied into arrays, so a
+     * model's throwaway lists are not kept alive by the cache.
      */
     private static final class Key {
         private final BlockState shape;
         private final Object material;
         private final int bucket;
         private final Object layer;
-        private final Object[] lists;
+        private final BakedQuad[][] quads;
         private final int hash;
 
-        Key(final BlockState shape, final Object material, final int bucket, final Object layer, final Object[] lists) {
+        Key(final BlockState shape, final Object material, final int bucket, final Object layer, final List<?>[] lists) {
             this.shape = shape;
             this.material = material;
             this.bucket = bucket;
             this.layer = layer;
-            this.lists = lists;
+            this.quads = new BakedQuad[lists.length][];
             int h = Objects.hash(shape, material, bucket, layer);
-            for (final Object l : lists) h = 31 * h + System.identityHashCode(l);
+            for (int i = 0; i < lists.length; i++) {
+                final List<?> list = lists[i];
+                if (list == null) {
+                    h = 31 * h;
+                    continue;
+                }
+                final BakedQuad[] arr = new BakedQuad[list.size()];
+                int lh = 1;
+                for (int j = 0; j < arr.length; j++) {
+                    arr[j] = (BakedQuad) list.get(j);
+                    lh = 31 * lh + contentHash(arr[j]);
+                }
+                this.quads[i] = arr;
+                h = 31 * h + lh;
+            }
             this.hash = h;
         }
 
@@ -166,7 +215,12 @@ public final class ShapeQuadBaker {
             if (this == o) return true;
             if (!(o instanceof Key k) || k.hash != hash || k.bucket != bucket || k.shape != shape || k.layer != layer
                 || !k.material.equals(material)) return false;
-            for (int i = 0; i < lists.length; i++) if (k.lists[i] != lists[i]) return false;
+            for (int i = 0; i < quads.length; i++) {
+                final BakedQuad[] a = quads[i], b = k.quads[i];
+                if (a == b) continue;
+                if (a == null || b == null || a.length != b.length) return false;
+                for (int j = 0; j < a.length; j++) if (!sameContent(a[j], b[j])) return false;
+            }
             return true;
         }
 
@@ -174,6 +228,20 @@ public final class ShapeQuadBaker {
         public int hashCode() {
             return hash;
         }
+    }
+
+    private static int contentHash(final BakedQuad q) {
+        int h = Arrays.hashCode(q.getVertices());
+        h = 31 * h + q.getTintIndex();
+        h = 31 * h + q.getDirection().ordinal();
+        h = 31 * h + (q.isShade() ? 1 : 0);
+        return 31 * h + System.identityHashCode(q.getSprite());
+    }
+
+    private static boolean sameContent(final BakedQuad a, final BakedQuad b) {
+        if (a == b) return true;
+        return a.getDirection() == b.getDirection() && a.getTintIndex() == b.getTintIndex() && a.isShade() == b.isShade()
+            && a.getSprite() == b.getSprite() && Arrays.equals(a.getVertices(), b.getVertices());
     }
 
     /** Whether {@code state} is one of our shape blocks. */

@@ -2,6 +2,7 @@ package dev.fallingcloud.slate.building.client.mode;
 
 import dev.fallingcloud.slate.building.SlateBuilding;
 import dev.fallingcloud.slate.building.client.render.GhostRenderer;
+import dev.fallingcloud.slate.building.client.render.WorldChanges;
 import dev.fallingcloud.slate.building.config.PreviewSettings;
 import dev.fallingcloud.slate.building.ops.BuildMode;
 import dev.fallingcloud.slate.building.ops.BuildModes;
@@ -14,9 +15,11 @@ import dev.fallingcloud.slate.building.ops.Palette;
 import dev.fallingcloud.slate.building.ops.Plan;
 import dev.fallingcloud.slate.building.ops.PlanContext;
 import dev.fallingcloud.slate.building.ops.Planners;
+import dev.fallingcloud.slate.building.ops.ToolType;
 import dev.fallingcloud.slate.building.toolbox.UpgradeType;
 import dev.fallingcloud.slate.building.variant.ShapeBlock;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -28,10 +31,12 @@ import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.RotationSegment;
 import net.minecraft.world.phys.AABB;
 import org.jetbrains.annotations.Nullable;
 
@@ -42,24 +47,44 @@ import org.jetbrains.annotations.Nullable;
  * height, unbreakable), counts what the operation needs against what the player carries, and hands the ghosts to
  * {@link GhostRenderer#submitCached} (only up to {@code preview.maxBlocks}; above that the box alone is drawn).
  *
- * <p>Cost control: a selection is never planned when its estimated size exceeds the player's limits (the error says
- * so instead); while the box still follows the crosshair only small selections are planned, at most every
- * {@value #LIVE_INTERVAL_MS} ms; a fixed selection is re-planned when an input changes and otherwise at a slow,
- * self-adjusting interval so the preview follows world changes without re-planning every frame. Stats are rebuilt
- * only when the plan, its colours or the selection's geometry change.
+ * <p>When it re-plans: at once when the selection itself changes (mode, parameters, anchors, face, the held
+ * palette, clipboard, limits, dimension, game mode); and, paced by what planning this selection costs, when
+ * something the planners read beside the selection changed: the player's stance (facing, view direction, rotation
+ * segment, sneaking: they orient stairs, logs and the stack direction), the off-hand block (the replace filter), the
+ * tool tiers, or a block in or next to the planned region ({@link WorldChanges}). Nothing is re-planned while none of
+ * these change. A re-plan that comes out identical keeps the plan, its colours and the renderer's cached buffers.
+ * A selection is never planned when its estimated size exceeds the player's limits (the error says so instead);
+ * while the box still follows the crosshair only small selections are planned, at most every
+ * {@value #LIVE_INTERVAL_MS} ms. Stats are rebuilt only when the plan, its colours, the carried materials or the
+ * selection's geometry change.
  */
 final class ModePreview {
 
     /** Largest estimated selection planned while it still follows the crosshair. */
     static final int LIVE_LIMIT = 4096;
     static final long LIVE_INTERVAL_MS = 90;
+    /** Planners read neighbours of the planned blocks (connections, flood-fill borders): watch this far around. */
+    private static final int WATCH_MARGIN = 2;
     private static final Object GHOST_KEY = "slate_building:mode_preview";
 
-    /** Everything a plan depends on. */
+    /** Everything a plan depends on that the player changes on purpose (re-planned at once). */
     private record Key(String mode, ModeParams params, List<BlockPos> anchors, Direction face, ClientPalette.Signature palette,
                        int clipboard, Limits limits, ResourceKey<Level> dimension, boolean creative) {}
 
+    /** What planners read from the player besides the selection (re-planned at a pace the plan's cost allows). */
+    private record Stance(Direction facing, Direction view, int rotation, boolean secondary, Item offhand, int offhandComponents,
+                          Map<ToolType, Integer> tiers) {
+        static Stance of(final Player player) {
+            final ItemStack off = player.getOffhandItem();
+            return new Stance(player.getDirection(), player.getNearestViewDirection(), RotationSegment.convertToSegment(player.getYRot()),
+                player.isSecondaryUseActive(), off.getItem(), off.isEmpty() ? 0 : ItemStack.hashItemAndComponents(off),
+                ModeRules.capabilities(player).tiers());
+        }
+    }
+
     private static @Nullable Key key;
+    private static @Nullable Stance stance;
+    private static long worldSeen;
     private static @Nullable Plan plan;
     private static GhostRenderer.Style[] styles = new GhostRenderer.Style[0];
     private static Map<Block, Integer> needs = Map.of();
@@ -71,16 +96,25 @@ final class ModePreview {
     private static @Nullable List<GhostRenderer.Ghost> ghosts;
     private static int ghostsVersion = -1;
     private static Map<Block, Integer> available = Map.of();
+    private static int availableStamp;
     private static final Map<Block, ItemStack> ICONS = new HashMap<>();
     private static ClientModeState.Stats stats = ClientModeState.Stats.EMPTY;
     private static int statsVersion = -1;
+    private static int statsAvailable = -1;
     private static ModeGeometry.Shape statsShape = ModeGeometry.Shape.NONE;
+    private static @Nullable Plan placedFor;
+    private static @Nullable AABB placed;
+    /** Dev harness: how many times the planner ran. */
+    static int planRuns;
 
     /** The plan being previewed (null: nothing planned). */
     static @Nullable Plan plan() { return plan; }
 
     /** The selection's geometry as last computed. */
     static ModeGeometry.Shape shape() { return shape; }
+
+    /** Changes whenever the ghosts (plan or colours) change; the renderer rebuilds its buffers only then. */
+    static int version() { return version; }
 
     /** Why the selection cannot be applied (pre-checks first, then the planner's error), or null. */
     static @Nullable Component error() {
@@ -97,6 +131,7 @@ final class ModePreview {
     /** Drops the plan (mode left, selection cleared). */
     static void clear() {
         key = null;
+        stance = null;
         preError = null;
         shape = ModeGeometry.Shape.NONE;
         setPlan(null, 0);
@@ -130,29 +165,60 @@ final class ModePreview {
         final boolean creative = player.isCreative();
         final Key next = new Key(mode.id(), params.copy(), List.copyOf(anchors), face, ClientPalette.signature(palette),
             ClientModeState.clipboardVersion(), limits, level.dimension(), creative);
+        final Stance nextStance = Stance.of(player);
 
-        final long now = Util.getMillis();
         final boolean changed = !next.equals(key);
-        final boolean stale = !live && plan != null && now - plannedAtMs > Math.max(1000L, planCostMs * 40L);
-        if (changed || stale) {
-            final Component pre = precheck(player, mode, anchors, palette, clipboard, limits);
-            if (pre != null || anchors.isEmpty()) {
-                preError = pre;
-                setPlan(null, now);
-                key = next;
-            } else if (live && (!ClientModeState.settings().livePreview || shape.estimate() > LIVE_LIMIT)) {
-                preError = null;
-                setPlan(null, now);           // the box alone until the selection is fixed
-                key = next;
-            } else if (!live || plan == null || now - plannedAtMs >= LIVE_INTERVAL_MS) {
-                preError = null;
-                setPlan(runPlanner(player, mode, params, anchors, face, palette, clipboard, limits), now);
-                key = next;
+        final boolean drifted = plan != null && (!nextStance.equals(stance) || WorldChanges.count() != worldSeen);
+        if (!changed && !drifted) return stats(player, mode);
+        final long now = Util.getMillis();
+        if (!changed) {
+            // Only the player's stance or the blocks around the selection changed: follow them at a pace the plan's
+            // cost allows (turning on the spot next to a big fill must not re-plan it every few frames). A skipped
+            // frame keeps the change pending, so the last state is planned once the interval has passed.
+            final long interval = heavy() ? Math.max(1000L, planCostMs * 40L) : Math.max(LIVE_INTERVAL_MS, planCostMs * 8L);
+            if (now - plannedAtMs < interval) return stats(player, mode);
+        }
+        final Component pre = precheck(player, mode, anchors, palette, clipboard, limits);
+        if (pre != null || anchors.isEmpty()) {
+            preError = pre;
+            setPlan(null, now);
+            accept(next, nextStance, null);
+        } else if (live && (!ClientModeState.settings().livePreview || shape.estimate() > LIVE_LIMIT)) {
+            preError = null;
+            setPlan(null, now);               // the box alone until the selection is fixed
+            accept(next, nextStance, null);
+        } else if (!live || plan == null || now - plannedAtMs >= LIVE_INTERVAL_MS) {
+            preError = null;
+            final Plan fresh = runPlanner(player, mode, params, anchors, face, palette, clipboard, limits);
+            accept(next, nextStance, fresh);
+            if (plan != null && fresh.equals(plan)) {
+                // Same result: keep the plan object, its colours and the renderer's buffers.
+                plannedAtMs = now;
+                recolour(player);             // bumps the version only if a colour actually changed
+            } else {
+                setPlan(fresh, now);
                 refreshAvailability(player, true);
             }
-            // else: a throttled live update; the previous plan stays up and the next frame retries.
         }
+        // else: a throttled live update; the previous plan stays up and the next frame retries.
         return stats(player, mode);
+    }
+
+    /** Records the inputs a plan was made from and watches the blocks it read. */
+    private static void accept(final Key next, final Stance nextStance, final @Nullable Plan planned) {
+        key = next;
+        stance = nextStance;
+        AABB region = shape.box();
+        if (planned != null && !planned.isEmpty() && planned.bounds() != null) {
+            region = region == null ? planned.bounds() : region.minmax(planned.bounds());
+        }
+        WorldChanges.watch(planned == null ? null : region, WATCH_MARGIN);
+        worldSeen = WorldChanges.count();
+    }
+
+    /** A plan too costly to follow the player's every move: above the live limit, or drawn as its box only. */
+    private static boolean heavy() {
+        return plan != null && (plan.changes().size() > LIVE_LIMIT || ghostsHidden());
     }
 
     /** Re-counts carried materials (called every few ticks) and re-colours the ghosts when something changed. */
@@ -160,13 +226,14 @@ final class ModePreview {
         if (plan == null || plan.isEmpty()) return;
         final Map<Block, Integer> now = ModeMaterials.available(player, needs.keySet());
         if (!force && now.equals(available)) return;
+        if (!now.equals(available)) availableStamp++;
         available = now;
         recolour(player);
     }
 
     /** Hands this frame's ghosts to the renderer (cached by version; nothing above {@code preview.maxBlocks}). */
     static void submitGhosts() {
-        if (plan == null || plan.isEmpty() || ghostsHidden()) return;
+        if (!ghostsShown()) return;
         final int v = version;
         GhostRenderer.submitCached(GHOST_KEY, v, () -> {
             if (ghosts == null || ghostsVersion != v) {
@@ -177,18 +244,42 @@ final class ModePreview {
         });
     }
 
+    /** Whether the plan is drawn as ghost blocks (planned, not empty, within {@code preview.maxBlocks}). */
+    static boolean ghostsShown() {
+        return plan != null && !plan.isEmpty() && !ghostsHidden();
+    }
+
     static boolean ghostsHidden() {
         final PreviewSettings preview = SlateBuilding.config().preview;
         final int max = preview == null ? 4096 : Math.max(0, preview.maxBlocks);
         return plan != null && plan.changes().size() > max;
     }
 
-    /** Bounds of the planned placements and replacements (where a paste or move lands), or null. */
+    /**
+     * Bounds of the planned placements and replacements (where a paste or move lands), or null. The overlay asks
+     * every frame; it is computed once per plan.
+     */
     static @Nullable AABB placedBounds() {
-        if (plan == null || plan.isEmpty()) return null;
-        final List<BlockPos> positions = new ArrayList<>();
-        for (final Change c : plan.changes()) if (c.kind() != Change.Kind.BREAK) positions.add(c.pos());
-        return ModeGeometry.boundsOf(positions);
+        final Plan p = plan;
+        if (p != placedFor) {
+            placedFor = p;
+            placed = p == null ? null : placedBoundsOf(p);
+        }
+        return placed;
+    }
+
+    private static @Nullable AABB placedBoundsOf(final Plan p) {
+        int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE;
+        int maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
+        boolean any = false;
+        for (final Change c : p.changes()) {
+            if (c.kind() == Change.Kind.BREAK) continue;
+            final BlockPos pos = c.pos();
+            any = true;
+            minX = Math.min(minX, pos.getX()); minY = Math.min(minY, pos.getY()); minZ = Math.min(minZ, pos.getZ());
+            maxX = Math.max(maxX, pos.getX()); maxY = Math.max(maxY, pos.getY()); maxZ = Math.max(maxZ, pos.getZ());
+        }
+        return any ? new AABB(minX, minY, minZ, maxX + 1, maxY + 1, maxZ + 1) : null;
     }
 
     // ---- internals ----
@@ -196,6 +287,7 @@ final class ModePreview {
     private static Plan runPlanner(final Player player, final BuildMode mode, final ModeParams params, final List<BlockPos> anchors,
                                    final Direction face, final Palette palette, final @Nullable Clipboard clipboard, final Limits limits) {
         final long t0 = System.nanoTime();
+        planRuns++;
         Plan p;
         try {
             p = Planners.of(mode).plan(new PlanContext(player.level(), player, mode, params.copy(), anchors, face, palette, clipboard, limits));
@@ -215,7 +307,10 @@ final class ModePreview {
     private static void setPlan(final @Nullable Plan p, final long now) {
         plan = p;
         plannedAtMs = now;
-        if (p == null) planCostMs = 0;
+        if (p == null) {
+            planCostMs = 0;
+            WorldChanges.watch(null, 0);
+        }
         available = Map.of();
         needs = p == null ? Map.of() : needsOf(p);
         styles = new GhostRenderer.Style[p == null ? 0 : p.changes().size()];
@@ -258,29 +353,34 @@ final class ModePreview {
         return out;
     }
 
-    /** Styles every change: invalid (blocked / unaffordable) first, then by kind. Bumps the ghost version. */
+    /**
+     * Styles every change: invalid (blocked / unaffordable) first, then by kind. Bumps the ghost version only when a
+     * style actually changed (a plan just installed always counts: its styles start empty).
+     */
     private static void recolour(final Player player) {
         if (plan == null) return;
         final Level level = player.level();
         final boolean creative = player.isCreative();
         final Map<Block, Integer> left = new HashMap<>(available);
         final List<Change> changes = plan.changes();
-        if (styles.length != changes.size()) styles = new GhostRenderer.Style[changes.size()];
+        final GhostRenderer.Style[] next = new GhostRenderer.Style[changes.size()];
         for (int i = 0; i < changes.size(); i++) {
             final Change c = changes.get(i);
-            if (blocked(level, c)) { styles[i] = GhostRenderer.Style.INVALID; continue; }
-            if (c.kind() == Change.Kind.BREAK) { styles[i] = GhostRenderer.Style.REMOVE; continue; }
+            if (blocked(level, c)) { next[i] = GhostRenderer.Style.INVALID; continue; }
+            if (c.kind() == Change.Kind.BREAK) { next[i] = GhostRenderer.Style.REMOVE; continue; }
             if (!creative) {
                 final Block m = ModeMaterials.materialOf(c);
                 if (m != null) {
                     final int units = ModeMaterials.unitsOf(c);
                     final int have = left.getOrDefault(m, 0);
-                    if (have < units) { styles[i] = GhostRenderer.Style.INVALID; continue; }
+                    if (have < units) { next[i] = GhostRenderer.Style.INVALID; continue; }
                     left.put(m, have - units);
                 }
             }
-            styles[i] = c.kind() == Change.Kind.REPLACE ? GhostRenderer.Style.REPLACE : GhostRenderer.Style.PLACE;
+            next[i] = c.kind() == Change.Kind.REPLACE ? GhostRenderer.Style.REPLACE : GhostRenderer.Style.PLACE;
         }
+        if (Arrays.equals(next, styles)) return;
+        styles = next;
         ghosts = null;
         version++;
     }
@@ -326,8 +426,9 @@ final class ModePreview {
     }
 
     private static ClientModeState.Stats stats(final Player player, final BuildMode mode) {
-        if (statsVersion == version && shape.equals(statsShape)) return stats;
+        if (statsVersion == version && statsAvailable == availableStamp && shape.equals(statsShape)) return stats;
         statsVersion = version;
+        statsAvailable = availableStamp;
         statsShape = shape;
         final boolean creative = player.isCreative();
         int place = 0, replace = 0, remove = 0, missing = 0, blocked = 0;
