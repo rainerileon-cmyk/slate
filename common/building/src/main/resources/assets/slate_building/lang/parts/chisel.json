@@ -1,0 +1,37 @@
+{
+  "slate_building.chisel.source.overrides": "Custom",
+  "slate_building.chisel.source.rechiseled": "Rechiseled",
+  "slate_building.chisel.source.chipped": "Chipped",
+  "slate_building.chisel.source.chisel": "Chisel",
+  "slate_building.chisel.source.stonecutter": "Stonecutter",
+  "slate_building.chisel.source.families": "Block family",
+
+  "slate_building.chisel.group.stone": "Stone",
+  "slate_building.chisel.group.granite": "Granite",
+  "slate_building.chisel.group.diorite": "Diorite",
+  "slate_building.chisel.group.andesite": "Andesite",
+  "slate_building.chisel.group.deepslate": "Deepslate",
+  "slate_building.chisel.group.tuff": "Tuff",
+  "slate_building.chisel.group.sandstone": "Sandstone",
+  "slate_building.chisel.group.red_sandstone": "Red Sandstone",
+  "slate_building.chisel.group.quartz": "Quartz",
+  "slate_building.chisel.group.blackstone": "Blackstone",
+  "slate_building.chisel.group.basalt": "Basalt",
+  "slate_building.chisel.group.nether_bricks": "Nether Bricks",
+  "slate_building.chisel.group.end_stone": "End Stone",
+  "slate_building.chisel.group.purpur": "Purpur",
+  "slate_building.chisel.group.mud": "Mud Bricks",
+  "slate_building.chisel.group.copper": "Copper",
+
+  "slate_building.chisel.lock.disabled": "Chiseling is turned off on this server",
+  "slate_building.chisel.lock.in_world_disabled": "Chiseling placed blocks is turned off on this server",
+
+  "slate_building.chisel.fail.nothing": "Nothing to chisel in that slot",
+  "slate_building.chisel.fail.not_chiselable": "%s has no chisel variants",
+  "slate_building.chisel.fail.not_in_group": "%s can't be chiseled into %s",
+  "slate_building.chisel.fail.no_shape": "%s has no %s variant",
+  "slate_building.chisel.fail.too_far": "Too far away to chisel",
+  "slate_building.chisel.fail.protected": "You can't change blocks here",
+  "slate_building.chisel.fail.drops": "%s doesn't drop itself, so it can't be chiseled in place",
+  "slate_building.chisel.fail.target_drops": "%s doesn't drop itself, so nothing can be chiseled into it in place"
+}

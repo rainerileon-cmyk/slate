@@ -1,20 +1,19 @@
 package dev.fallingcloud.slate.building.fabric.chisel;
 
 /**
- * Fabric glue for chisel groups: datapack reload / sync hooks.
+ * Fabric glue for chisel groups: nothing loader-specific is needed. Rebuild, reload and sync are common code (Core
+ * events + the {@code PlayerList.reloadResources} mixin), and Fabric API's {@code OxidizableBlocksRegistry} registers
+ * modded copper into the vanilla weathering / waxing maps the copper rule already reads.
  *
- * <p>Owner: I (chisel). Skeleton stub; the loader entries call both methods, owners fill them and never edit the entries.
+ * <p>Owner: I (chisel).
  */
 public final class FabricChiselGlue {
 
-    /** Both environments, from {@code SlateBuildingFabric.onInitialize} (after the registries were flushed). */
+    /** Both environments, from {@code SlateBuildingFabric.onInitialize}. */
     public static void init() {
     }
 
-    /**
-     * Client only, from {@code SlateBuildingFabricClient.onInitializeClient}. Put client-class references in a
-     * nested class so {@link #init} stays loadable on a dedicated server.
-     */
+    /** Client only, from {@code SlateBuildingFabricClient.onInitializeClient}. */
     public static void initClient() {
     }
 
