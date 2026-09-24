@@ -24,11 +24,10 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Dev harness scenarios for the building-mode client (run with {@code -PbuildingHarness=selection,mirror,paste}; {@code dimension} separately).
- * Each one drives the real state machine (clicks go through {@link ModeController}, left-click through
- * {@link BuildInput}), logs {@code [BuildingHarness] CHECK ok|FAILED ...} lines for the state it expects, and takes
- * screenshots of the preview in both skins. Without the ops server's planners the plans are errors ("not available
- * yet"): the checks on the state machine, geometry and stats still hold, the apply is then refused.
+ * Dev harness scenarios for the building-mode client (run with {@code -PbuildingHarness=selection,mirror,paste,move};
+ * {@code dimension} separately). Each one drives the real state machine (clicks go through {@link ModeController},
+ * left-click through {@link BuildInput}) against the real ops server, logs {@code [BuildingHarness] CHECK ok|FAILED ...}
+ * lines for the state it expects, and takes screenshots of the preview in both skins.
  */
 final class ModeHarness {
 
@@ -55,6 +54,7 @@ final class ModeHarness {
         s.log("move: pillar")
             .command("setblock 3 -60 6 minecraft:stone")
             .command("setblock 3 -59 6 minecraft:gold_block")
+            .wait(10)                                                   // the client sees the pillar before planning
             .run(() -> check(ClientModeState.activate(BuildModes.MOVE), "move activates"))
             .run(() -> ModeController.INSTANCE.debugClick(base, Direction.UP))
             .run(() -> ModeController.INSTANCE.debugClick(base.above(), Direction.UP))
