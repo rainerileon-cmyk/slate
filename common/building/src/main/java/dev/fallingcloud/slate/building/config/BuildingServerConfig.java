@@ -16,4 +16,16 @@ public final class BuildingServerConfig {
     public ServerToolbox toolbox = new ServerToolbox();
     /** Chisel groups. Owner: I. */
     public ServerChisel chisel = new ServerChisel();
+
+    /**
+     * Fills sections a hand-edited file (or a server's sync) left null with their defaults, so the section accessors
+     * of {@link BuildingServerSettings} never return null. Returns this.
+     */
+    public BuildingServerConfig repaired() {
+        if (variants == null) variants = new ServerVariants();
+        if (ops == null) ops = new ServerOps();
+        if (toolbox == null) toolbox = new ServerToolbox();
+        if (chisel == null) chisel = new ServerChisel();
+        return this;
+    }
 }

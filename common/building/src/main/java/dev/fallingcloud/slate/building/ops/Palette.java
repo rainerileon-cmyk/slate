@@ -14,6 +14,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.EntityBlock;
+import net.minecraft.world.level.block.GameMasterBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import org.jetbrains.annotations.Nullable;
@@ -105,7 +106,7 @@ public record Palette(List<WeightedEntry> entries, Pattern pattern) {
      * The palette an operation of {@code mode} uses for {@code player}: the stack in hotbar slot {@code slot} or the offhand ({@link Inventory#SLOT_OFFHAND}) (the
      * selected slot when out of range) for HELD and for modes without a {@code palette} parameter, or every usable
      * block on the hotbar for HOTBAR_RANDOM / HOTBAR_CHECKER. Stacks that cannot be built with (non-blocks, doors,
-     * beds, container blocks in survival, shape items without a material) are left out; the result may be empty.
+     * beds, container blocks in survival, game-master blocks for non-operators, shape items without a material) are left out; the result may be empty.
      */
     public static Palette resolve(final Player player, final BuildMode mode, final ModeParams params, final int slot) {
         final Inventory inv = player.getInventory();
@@ -146,6 +147,8 @@ public record Palette(List<WeightedEntry> entries, Pattern pattern) {
         final Variant variant = VariantRegistry.get().identify(stack).orElse(null);
         if (block instanceof ShapeBlock && variant == null) return null;   // a shape item without a material places nothing
         if (block instanceof EntityBlock && !(block instanceof ShapeBlock) && !mayUseBlockEntities(player)) return null;
+        // Command, structure and jigsaw blocks: only for players vanilla lets place them.
+        if (block instanceof GameMasterBlock && !player.canUseGameMasterBlocks()) return null;
         return new WeightedEntry(stack, variant, stack.getCount());
     }
 

@@ -6,6 +6,7 @@ import dev.fallingcloud.slate.building.ops.PlanContext;
 import dev.fallingcloud.slate.building.variant.ShapeBlock;
 import dev.fallingcloud.slate.building.variant.Variant;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -16,6 +17,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.Mirror;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.block.state.BlockState;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Blueprint modes: copy, cut, paste, stack and move.
@@ -23,13 +25,16 @@ import net.minecraft.world.level.block.state.BlockState;
  * <p>Paste and move place a box against a clicked face ({@link #origin}): on top of the clicked block for UP, hanging
  * below it for DOWN, in front of it for the sides, centred on the clicked block across the face and resting at its
  * height for side faces. Rotation (clockwise from above) and mirroring apply first, inside the box.
+ *
+ * <p>Copies (paste, stack) in survival place what one item pays for: grown crops come back at age 0, blocks without
+ * an item (filled cauldrons, potted plants, fluids) are left out ({@link PlanBuilder#copyOf}, {@link PlanBuilder#mayPlace}).
  */
 public final class ClipboardPlanners {
 
     /** Copy: no world change; the plan's bounds are the box and its count the blocks that will be copied. */
     public static Plan copy(final PlanContext ctx) {
         final Box box = Plans.box(ctx);
-        final Component err = Plans.spanAndVolume(box, ctx.limits());
+        final Component err = Plans.readable(ctx.level(), box, ctx.limits());
         if (err != null) return Plans.error(err, box.aabb());
         final boolean includeAir = ctx.params().getBool("includeAir");
         int count = 0;
@@ -47,7 +52,7 @@ public final class ClipboardPlanners {
     /** Cut: the removal half of copy + clear (the server copies first); fluids stay. */
     public static Plan cut(final PlanContext ctx) {
         final Box box = Plans.box(ctx);
-        final Component err = Plans.spanAndVolume(box, ctx.limits());
+        final Component err = Plans.readable(ctx.level(), box, ctx.limits());
         if (err != null) return Plans.error(err, box.aabb());
         final Level level = ctx.level();
         final PlanBuilder pb = new PlanBuilder(ctx).bounds(box.aabb());
@@ -77,7 +82,8 @@ public final class ClipboardPlanners {
         final Clipboard t = clip.transformed(rotation, mirror);
         final BlockPos origin = origin(ctx.anchor(0), ctx.face(), t.size());
         final Box box = Box.sized(origin, t.size().getX(), t.size().getY(), t.size().getZ());
-        final Component err = Plans.span(box, ctx.limits());
+        Component err = Plans.span(box, ctx.limits());
+        if (err == null) err = Plans.tooMany(t.entries().size(), ctx.limits());
         if (err != null) return Plans.error(err, box.aabb());
         final boolean includeAir = ctx.params().getBool("includeAir");
         final ReplacePolicy policy = ReplacePolicy.of(ctx.params(), ReplacePolicy.REPLACEABLE);
@@ -87,26 +93,28 @@ public final class ClipboardPlanners {
             if (e.state().isAir()) {
                 if (includeAir && policy != ReplacePolicy.AIR) {
                     pb.want();
-                    final BlockState s = ctx.level().getBlockState(pos);
-                    if (policy.allows(s)) pb.breakAt(pos, Blocks.AIR.defaultBlockState());
+                    if (pb.readable(pos) && policy.allows(ctx.level().getBlockState(pos))) pb.breakAt(pos, Blocks.AIR.defaultBlockState());
                 }
                 continue;
             }
             pb.want();
-            pb.place(pos, e.state(), Placement.variantOf(e.state(), e.material()), policy);
+            pb.place(pos, pb.copyOf(e.state()), Placement.variantOf(e.state(), e.material()), policy);
         }
         return pb.build();
     }
 
     /**
      * Stack: repeats the box {@code count} times along {@code direction} (LOOK = the way the player faces, including
-     * up/down), {@code spacing} blocks apart. Copies only go into free (replaceable) space; air is not copied.
+     * up/down), {@code spacing} blocks apart. Copies only go into free (replaceable) space; air is not copied. Copies
+     * that reach into chunks that are not loaded are left out there.
      */
     public static Plan stack(final PlanContext ctx) {
         final Box box = Plans.box(ctx);
-        final Component err = Plans.span(box, ctx.limits());
-        if (err != null) return Plans.error(err, box.aabb());
         final int count = Math.max(1, ctx.params().getInt("count"));
+        Component err = Plans.span(box, ctx.limits());
+        if (err == null) err = Plans.tooMany(box.volume() * count, ctx.limits());
+        if (err == null) err = Plans.unloaded(ctx.level(), box);
+        if (err != null) return Plans.error(err, box.aabb());
         final int spacing = Math.max(0, ctx.params().getInt("spacing"));
         final Direction dir = direction(ctx.params().getChoice("direction"), ctx);
         final int step = box.size(dir.getAxis()) + spacing;
@@ -115,19 +123,29 @@ public final class ClipboardPlanners {
         final Box all = box.union(new Box(box.minX() + far.getX(), box.minY() + far.getY(), box.minZ() + far.getZ(),
             box.maxX() + far.getX(), box.maxY() + far.getY(), box.maxZ() + far.getZ()));
         final PlanBuilder pb = new PlanBuilder(ctx).bounds(all.aabb());
+
+        // The source, read once.
+        final List<BlockPos> from = new ArrayList<>();
+        final List<BlockState> states = new ArrayList<>();
+        final List<Variant> variants = new ArrayList<>();
         final BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
+        for (int y = box.minY(); y <= box.maxY(); y++) {
+            for (int z = box.minZ(); z <= box.maxZ(); z++) {
+                for (int x = box.minX(); x <= box.maxX(); x++) {
+                    final BlockState s = level.getBlockState(p.set(x, y, z));
+                    if (s.isAir() || Plans.isFluid(s)) continue;
+                    final BlockState material = s.getBlock() instanceof ShapeBlock ? ShapeBlock.material(level, p) : null;
+                    from.add(p.immutable());
+                    states.add(pb.copyOf(s));
+                    variants.add(Placement.variantOf(s, material));
+                }
+            }
+        }
         for (int k = 1; k <= count; k++) {
             final Vec3i off = dir.getNormal().multiply(step * k);
-            for (int y = box.minY(); y <= box.maxY(); y++) {
-                for (int z = box.minZ(); z <= box.maxZ(); z++) {
-                    for (int x = box.minX(); x <= box.maxX(); x++) {
-                        final BlockState s = level.getBlockState(p.set(x, y, z));
-                        if (s.isAir() || Plans.isFluid(s)) continue;
-                        pb.want();
-                        final BlockState material = s.getBlock() instanceof ShapeBlock ? ShapeBlock.material(level, p) : null;
-                        pb.place(p.offset(off), s, Placement.variantOf(s, material), ReplacePolicy.REPLACEABLE);
-                    }
-                }
+            for (int i = 0; i < from.size(); i++) {
+                pb.want();
+                pb.place(from.get(i).offset(off), states.get(i), variants.get(i), ReplacePolicy.REPLACEABLE);
             }
         }
         return pb.build();
@@ -136,12 +154,35 @@ public final class ClipboardPlanners {
     /**
      * Move: the box {@code anchors[0..1]} is lifted and put down against the destination ({@code anchors[2]} +
      * {@code face}, like a paste), rotated / mirrored by the parameters. Source positions the moved blocks do not land
-     * on become air; the moved blocks overwrite whatever is at the destination. Fluids and (in survival) containers
-     * stay where they are. With only two anchors the plan is just the selection box.
+     * on become air; the moved blocks overwrite whatever is at the destination. A block only travels when it can land:
+     * fluids, blocks whose landing spot is unbreakable, a container, outside the world or not loaded, and (in survival)
+     * containers and blocks without an item stay where they are. With only two anchors the plan is just the selection
+     * box.
      */
     public static Plan move(final PlanContext ctx) {
+        return move(ctx, null);
+    }
+
+    /**
+     * The source positions a move of {@code ctx} carries (lifted, or overwritten by another moved block): the server
+     * credits exactly these as the moved blocks themselves, so each pays for its own landing and nothing else does.
+     * Same world, same answer as the plan.
+     */
+    public static LongOpenHashSet movingSources(final PlanContext ctx) {
+        final LongOpenHashSet out = new LongOpenHashSet();
+        try {
+            move(ctx, out);
+        } catch (final PlanOverflow e) {
+            // Cannot happen after the same plan succeeded; what was collected is still the right set so far.
+        }
+        return out;
+    }
+
+    private static Plan move(final PlanContext ctx, final @Nullable LongOpenHashSet movingOut) {
         final Box src = Box.of(ctx.anchor(0), ctx.anchor(1));
-        final Component err = Plans.spanAndVolume(src, ctx.limits());
+        Component err = Plans.span(src, ctx.limits());
+        if (err == null) err = Plans.tooMany(src.volume() * 2, ctx.limits());
+        if (err == null) err = Plans.unloaded(ctx.level(), src);
         if (err != null) return Plans.error(err, src.aabb());
         if (ctx.anchors().size() < 3) return new Plan(List.of(), src.aabb(), null, 0);
         final Level level = ctx.level();
@@ -153,14 +194,25 @@ public final class ClipboardPlanners {
         final Box dst = Box.sized(origin, t.size().getX(), t.size().getY(), t.size().getZ());
         final PlanBuilder pb = new PlanBuilder(ctx).bounds(src.union(dst).aabb());
 
-        // Which source blocks travel (what stays behind is not removed and not copied).
-        final LongOpenHashSet moving = new LongOpenHashSet();
+        // Which source blocks may travel at all ...
+        final LongOpenHashSet candidates = new LongOpenHashSet();
+        for (final Clipboard.Entry e : clip.entries()) {
+            final BlockPos from = src.min().offset(e.offset());
+            if (travels(pb, from, e.state())) candidates.add(from.asLong());
+        }
+        // ... and which of them can land: the spot takes the block, or already holds it and is itself moving away.
+        final LongOpenHashSet moving = movingOut != null ? movingOut : new LongOpenHashSet();
         final LongOpenHashSet landing = new LongOpenHashSet();
         for (int i = 0; i < clip.entries().size(); i++) {
-            final Clipboard.Entry e = clip.entries().get(i);
-            if (!travels(pb, src.min().offset(e.offset()), e.state())) continue;
-            moving.add(src.min().offset(e.offset()).asLong());
-            landing.add(origin.offset(t.entries().get(i).offset()).asLong());
+            final BlockPos from = src.min().offset(clip.entries().get(i).offset());
+            if (!candidates.contains(from.asLong())) continue;
+            final Clipboard.Entry e = t.entries().get(i);
+            final BlockPos to = origin.offset(e.offset());
+            final Variant variant = Placement.variantOf(e.state(), e.material());
+            if (!pb.wouldPlace(to, e.state(), variant, ReplacePolicy.ALL)
+                && !(candidates.contains(to.asLong()) && pb.holds(to, e.state(), variant))) continue;
+            moving.add(from.asLong());
+            landing.add(to.asLong());
         }
         // Lift: top layer first.
         for (int i = clip.entries().size() - 1; i >= 0; i--) {
@@ -181,7 +233,7 @@ public final class ClipboardPlanners {
     }
 
     private static boolean travels(final PlanBuilder pb, final BlockPos pos, final BlockState state) {
-        return !Plans.isFluid(state) && pb.breakable(pos, state) && pb.mayPlace(state);
+        return !Plans.isFluid(state) && pb.breakable(pos, state) && pb.mayMove(state);
     }
 
     /** The minimum corner of a {@code size} box placed against {@code face} of the block {@code clicked}. */
@@ -215,7 +267,7 @@ public final class ClipboardPlanners {
     }
 
     /** Variant of a stored clipboard entry (for previews that list materials); null outside the variant system. */
-    public static @org.jetbrains.annotations.Nullable Variant variantOf(final Clipboard.Entry e) {
+    public static @Nullable Variant variantOf(final Clipboard.Entry e) {
         return Placement.variantOf(e.state(), e.material());
     }
 

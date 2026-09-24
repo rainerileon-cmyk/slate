@@ -1,12 +1,14 @@
 package dev.fallingcloud.slate.building.ops.server;
 
 import dev.fallingcloud.slate.building.SlateBuilding;
+import dev.fallingcloud.slate.building.config.BuildingServerSettings;
 import dev.fallingcloud.slate.building.config.ServerOps;
 import dev.fallingcloud.slate.building.net.OpResult;
 import dev.fallingcloud.slate.building.ops.BuildMode;
 import dev.fallingcloud.slate.building.ops.BuildModes;
 import dev.fallingcloud.slate.building.ops.Clipboard;
 import dev.fallingcloud.slate.building.ops.ModeParams;
+import dev.fallingcloud.slate.building.ops.OpMessages;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -18,13 +20,18 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.CakeBlock;
+import net.minecraft.world.level.block.CandleBlock;
+import net.minecraft.world.level.block.LayeredCauldronBlock;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
@@ -44,6 +51,10 @@ public final class OpsSelfTest {
     private static volatile boolean finished;
     private static volatile int passed;
     private static volatile int failed;
+    /** {@code creativeMaxVolume} while a stage lowered it (restored after that stage and at the end), else -1. */
+    private static int savedCreativeMax = -1;
+    /** Whether the far chunk of the stack check was loaded before the stack ran (then nothing can be concluded). */
+    private static boolean farChunkWasLoaded;
 
     /** Starts the self-test for {@code player} (server thread). */
     public static void start(final MinecraftServer server, final UUID player) {
@@ -118,7 +129,7 @@ public final class OpsSelfTest {
             if (!started) {
                 started = true;
                 if (stage.name().equals("survival setup")) {
-                    final ServerOps ops = SlateBuilding.serverConfig().ops;
+                    final ServerOps ops = BuildingServerSettings.local().ops();
                     requireToolbox = ops.requireToolbox;
                     ops.requireToolbox = false;
                     touchedRules = true;
@@ -142,7 +153,8 @@ public final class OpsSelfTest {
         }
 
         void restore() {
-            if (touchedRules) SlateBuilding.serverConfig().ops.requireToolbox = requireToolbox;
+            if (touchedRules) BuildingServerSettings.local().ops().requireToolbox = requireToolbox;
+            restoreCreativeMax();
         }
     }
 
@@ -239,7 +251,7 @@ public final class OpsSelfTest {
             Symmetry.set(p, BuildModes.MIRROR_MODE.id(), params(BuildModes.MIRROR_MODE).set("axis", "X").toTag(), mirrorCentre);
             final BlockHitResult hit = new BlockHitResult(new Vec3(mirrorClick.getX() + 0.5, mirrorClick.getY() + 1.0, mirrorClick.getZ() + 0.5),
                 Direction.UP, mirrorClick, false);
-            p.getMainHandItem().useOn(new UseOnContext(p, InteractionHand.MAIN_HAND, hit));
+            click(p, hit);
         }, p -> firstProblem(is(p.serverLevel(), mirrorClick.above(), Blocks.STONE),
             is(p.serverLevel(), new BlockPos(53, Y, 12), Blocks.STONE))));
 
@@ -317,6 +329,66 @@ public final class OpsSelfTest {
             expect(nonAir(p, liftA, liftB), 0, "blocks left at the source"), expect(items(p, Items.STONE), 0, "stone in inventory"),
             expect(items(p, Items.GOLD_BLOCK), 0, "gold in inventory"))));
 
+        // Regressions of the economy review: what a copy costs, what undo refunds, what a failed move gives.
+        final BlockPos cpA = new BlockPos(2, Y, 26), cpB = new BlockPos(4, Y + 1, 26), pasteClick = new BlockPos(10, Y - 1, 26);
+        s.add(new Stage("survival copy candles, cauldron, pot", p -> {
+            final ServerLevel level = p.serverLevel();
+            level.setBlockAndUpdate(cpA, Blocks.STONE.defaultBlockState());
+            level.setBlockAndUpdate(cpA.above(), Blocks.CANDLE.defaultBlockState().setValue(CandleBlock.CANDLES, 4));
+            level.setBlockAndUpdate(cpA.east(), Blocks.WATER_CAULDRON.defaultBlockState().setValue(LayeredCauldronBlock.LEVEL, 3));
+            level.setBlockAndUpdate(cpA.east(2), Blocks.POTTED_DANDELION.defaultBlockState());
+            apply(p, BuildModes.COPY, params(BuildModes.COPY), Direction.UP, cpA, cpB);
+        }, p -> {
+            final Clipboard clip = OpsServer.clipboard(p);
+            return clip == null ? "no clipboard" : expect(clip.blockCount(), 4, "copied blocks");
+        }));
+
+        s.add(new Stage("survival paste pays 4 candles, skips item-less blocks", p -> {
+            p.getInventory().clearContent();
+            p.getInventory().setItem(0, new ItemStack(Items.STONE, 1));
+            p.getInventory().setItem(1, new ItemStack(Items.CANDLE, 8));
+            p.getInventory().selected = 0;
+            apply(p, BuildModes.PASTE, params(BuildModes.PASTE), Direction.UP, pasteClick);
+        }, p -> {
+            final ServerLevel level = p.serverLevel();
+            final BlockPos o = new BlockPos(9, Y, 26);
+            final BlockState candle = level.getBlockState(o.above());
+            return firstProblem(is(level, o, Blocks.STONE), is(level, o.above(), Blocks.CANDLE),
+                candle.is(Blocks.CANDLE) ? expect(candle.getValue(CandleBlock.CANDLES), 4, "pasted candles") : null,
+                is(level, o.east(), Blocks.AIR), is(level, o.east(2), Blocks.AIR),
+                expect(items(p, Items.CANDLE), 4, "candles left (4 paid)"), expect(items(p, Items.STONE), 0, "stone left"));
+        }));
+
+        final BlockPos cakeAt = new BlockPos(14, Y, 26);
+        s.add(new Stage("survival fill places a cake", p -> {
+            p.getInventory().clearContent();
+            p.getInventory().setItem(0, new ItemStack(Items.CAKE, 1));
+            p.getInventory().selected = 0;
+            apply(p, BuildModes.FILL, params(BuildModes.FILL), Direction.UP, cakeAt, cakeAt);
+        }, p -> firstProblem(is(p.serverLevel(), cakeAt, Blocks.CAKE), expect(items(p, Items.CAKE), 0, "cakes left"))));
+
+        s.add(new Stage("survival undo leaves an eaten cake alone", p -> {
+            p.serverLevel().setBlockAndUpdate(cakeAt, Blocks.CAKE.defaultBlockState().setValue(CakeBlock.BITES, 6));
+            OpsServer.undo(p);
+        }, p -> firstProblem(is(p.serverLevel(), cakeAt, Blocks.CAKE), expect(items(p, Items.CAKE), 0, "cakes refunded"))));
+
+        final BlockPos budAt = new BlockPos(16, Y, 30), budTo = new BlockPos(20, Y - 1, 30);
+        s.add(new Stage("survival move that cannot land gives loot, not the block", p -> {
+            final ServerLevel level = p.serverLevel();
+            level.setBlockAndUpdate(budAt, Blocks.BUDDING_AMETHYST.defaultBlockState());
+            final ArmorStand stand = new ArmorStand(level, budTo.getX() + 0.5, budTo.getY() + 1, budTo.getZ() + 0.5);
+            level.addFreshEntity(stand);
+            apply(p, BuildModes.MOVE, params(BuildModes.MOVE), Direction.UP, budAt, budAt, budTo);
+        }, p -> {
+            final ServerLevel level = p.serverLevel();
+            for (final ArmorStand a : level.getEntitiesOfClass(ArmorStand.class, new AABB(budTo.above()).inflate(1))) a.discard();
+            return firstProblem(is(level, budAt, Blocks.AIR), is(level, budTo.above(), Blocks.AIR),
+                expect(items(p, Items.BUDDING_AMETHYST), 0, "budding amethyst items"));
+        }));
+
+        s.add(new Stage("survival undo puts the unlanded block back", OpsServer::undo,
+            p -> firstProblem(is(p.serverLevel(), budAt, Blocks.BUDDING_AMETHYST), expect(items(p, Items.BUDDING_AMETHYST), 0, "budding amethyst items"))));
+
         s.add(new Stage("back to creative", p -> {
             p.setGameMode(GameType.CREATIVE);
             p.getInventory().setItem(0, new ItemStack(Items.STONE, 64));
@@ -381,7 +453,7 @@ public final class OpsSelfTest {
             Symmetry.set(p, BuildModes.RADIAL.id(), params(BuildModes.RADIAL).set("slices", 4).toTag(), radC);
             final BlockHitResult hit = new BlockHitResult(new Vec3(radClick.getX() + 0.5, radClick.getY() + 1.0, radClick.getZ() + 0.5),
                 Direction.UP, radClick, false);
-            p.getMainHandItem().useOn(new UseOnContext(p, InteractionHand.MAIN_HAND, hit));
+            click(p, hit);
         }, p -> {
             final ServerLevel level = p.serverLevel();
             final String problem = firstProblem(is(level, new BlockPos(43, Y, 40), Blocks.STONE), is(level, new BlockPos(40, Y, 43), Blocks.STONE),
@@ -389,7 +461,56 @@ public final class OpsSelfTest {
             Symmetry.set(p, "", new net.minecraft.nbt.CompoundTag(), BlockPos.ZERO);
             return problem;
         }));
+
+        // Planners never load chunks: a stack reaching ~640 blocks east leaves the far copies out instead.
+        final BlockPos stFar = new BlockPos(40, Y, 20), stFarB = new BlockPos(71, Y, 20), farCopy = new BlockPos(40 + 40 * 16, Y, 20);
+        s.add(new Stage("stack does not load far chunks", p -> {
+            final ServerLevel level = p.serverLevel();
+            level.setBlockAndUpdate(stFar, Blocks.STONE.defaultBlockState());
+            farChunkWasLoaded = level.hasChunk(farCopy.getX() >> 4, farCopy.getZ() >> 4);
+            final ModeParams params = params(BuildModes.STACK).set("count", 16).set("spacing", 8).set("direction", "E");
+            apply(p, BuildModes.STACK, params, Direction.UP, stFar, stFarB);
+        }, p -> {
+            final ServerLevel level = p.serverLevel();
+            final OpResult r = OpsServer.lastResult(p);
+            return firstProblem(r != null && !OpMessages.isError(r) ? null : "stack failed: " + r,
+                r != null && r.placed() > 0 ? null : "no copy placed",
+                farChunkWasLoaded || !level.hasChunk(farCopy.getX() >> 4, farCopy.getZ() >> 4) ? null : "the far chunk got loaded");
+        }));
+
+        // The volume limit refuses before anything is walked (here: creative cap lowered to 100 for one fill of 125).
+        final BlockPos volA = new BlockPos(24, Y, 24), volB = new BlockPos(28, Y + 4, 28);
+        s.add(new Stage("volume limit refuses an oversized fill", p -> {
+            final ServerOps ops = BuildingServerSettings.local().ops();
+            savedCreativeMax = ops.creativeMaxVolume;
+            ops.creativeMaxVolume = 100;
+            apply(p, BuildModes.FILL, params(BuildModes.FILL), Direction.UP, volA, volB);
+        }, p -> {
+            restoreCreativeMax();
+            final OpResult r = OpsServer.lastResult(p);
+            return firstProblem(r != null && r.messageKey().equals("slate_building.plan.too_many") ? null : "expected too_many, got " + r,
+                expect(nonAir(p, volA, volB), 0, "blocks placed"));
+        }));
+
+        s.add(new Stage("undo twice in one tick is throttled", p -> {
+            OpsServer.undo(p);
+            OpsServer.undo(p);
+        }, p -> {
+            final OpResult r = OpsServer.lastResult(p);
+            return r != null && r.messageKey().equals("slate_building.error.too_fast") ? null : "expected too_fast, got " + r;
+        }));
         return s;
+    }
+
+    private static void restoreCreativeMax() {
+        if (savedCreativeMax < 0) return;
+        BuildingServerSettings.local().ops().creativeMaxVolume = savedCreativeMax;
+        savedCreativeMax = -1;
+    }
+
+    /** A right click on a block through the server's own handler (so NeoForge's snapshot capture and the symmetry flush run). */
+    private static void click(final ServerPlayer p, final BlockHitResult hit) {
+        p.gameMode.useItemOn(p, p.serverLevel(), p.getMainHandItem(), InteractionHand.MAIN_HAND, hit);
     }
 
     /** Positions of a disc of radius {@code r} under the "radius + ½" rule, counted independently of the planner. */

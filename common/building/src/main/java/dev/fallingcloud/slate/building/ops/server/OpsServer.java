@@ -18,6 +18,7 @@ import dev.fallingcloud.slate.building.ops.Palette;
 import dev.fallingcloud.slate.building.ops.Plan;
 import dev.fallingcloud.slate.building.ops.PlanContext;
 import dev.fallingcloud.slate.building.ops.Planners;
+import dev.fallingcloud.slate.building.ops.StateWorth;
 import dev.fallingcloud.slate.building.ops.ToolType;
 import dev.fallingcloud.slate.building.ops.plan.Box;
 import dev.fallingcloud.slate.building.ops.plan.ClipboardPlanners;
@@ -27,6 +28,7 @@ import dev.fallingcloud.slate.building.toolbox.ToolboxAccess;
 import dev.fallingcloud.slate.core.net.SlateNetwork;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -71,6 +73,11 @@ public final class OpsServer {
     private static final Map<UUID, Session> SESSIONS = new HashMap<>();
     private static final List<RunningOp> RUNNING = new ArrayList<>();
     private static int roundRobin;
+    /**
+     * Blocks changed by operations that ran at once in a packet handler ({@link #start}) since the last {@link #tick}:
+     * they count against the next tick's {@code globalBlocksPerTick}, so a flood of small requests cannot go around it.
+     */
+    private static int instantUsed;
 
     // ---- lifecycle (OpsSystem) ----
 
@@ -99,6 +106,8 @@ public final class OpsServer {
         }
         RUNNING.clear();
         SESSIONS.clear();
+        instantUsed = 0;
+        Symmetry.clearDeferred();
     }
 
     static Session session(final ServerPlayer player) {
@@ -163,8 +172,9 @@ public final class OpsServer {
 
         if (mode == BuildModes.COPY || mode == BuildModes.CUT) {
             final Box box = Box.of(ctx.anchor(0), ctx.anchor(1));
+            // Operator-only data (command blocks' commands ...) never enters a clipboard of someone who may not set it.
             final Clipboard clip = Clipboard.read(player.serverLevel(), box.min(), box.max(),
-                mode == BuildModes.COPY && params.getBool("includeAir"), free);
+                mode == BuildModes.COPY && params.getBool("includeAir"), free, player.canUseGameMasterBlocks());
             s.clipboard = clip;
             SlateNetwork.get().sendToPlayer(player, new ClipboardSync(clip.toTag()));
             if (mode == BuildModes.COPY) {
@@ -190,11 +200,12 @@ public final class OpsServer {
         final Long2ObjectMap<CompoundTag> data = free ? carriedData(player, mode, ctx, s) : null;
         final List<RunningOp.Step> steps = new ArrayList<>(plan.changes().size());
         for (final Change c : plan.changes()) steps.add(RunningOp.Step.of(c, data == null ? null : data.get(c.pos().asLong())));
-        final Box credit = mode == BuildModes.MOVE ? Box.of(ctx.anchor(0), ctx.anchor(1)) : null;
+        // A survival move credits exactly the blocks that travel, as themselves, to pay for their own landing.
+        final LongOpenHashSet carried = mode == BuildModes.MOVE && !free ? ClipboardPlanners.movingSources(ctx) : null;
         final List<ItemStack> prefer = new ArrayList<>();
         for (final Palette.WeightedEntry e : ctx.palette().entries()) prefer.add(e.stack());
         final RunningOp running = new RunningOp(op, RunningOp.Kind.APPLY, mode, player, player.level().dimension(), steps, economy,
-            free, limits.blocksPerTick(), caps.tier(ToolType.HAMMER), credit, face, prefer);
+            free, limits.blocksPerTick(), caps.tier(ToolType.HAMMER), carried, face, prefer);
         start(player, s, running);
     }
 
@@ -231,6 +242,12 @@ public final class OpsServer {
             fail(player, op, label, Component.translatable("slate_building.error.busy"));
             return;
         }
+        // The same flood guard as ApplyOp: undo / redo each run a whole entry.
+        final long now = player.server.getTickCount();
+        if (now - s.lastOpTick < Math.max(0, rules.minTicksBetweenOps)) {
+            fail(player, op, label, Component.translatable("slate_building.error.too_fast"));
+            return;
+        }
         final ToolboxAccess.Capabilities caps = ToolboxAccess.of(player);
         final boolean free = caps.creative();
         final History.Entry next = undo ? s.history.peekUndo() : s.history.peekRedo();
@@ -243,6 +260,7 @@ public final class OpsServer {
             fail(player, op, label, Component.translatable("slate_building.error.creative_history"));
             return;
         }
+        s.lastOpTick = now;
         final History.Entry entry = undo ? s.history.popUndo() : s.history.popRedo();
         final ServerLevel level = player.server.getLevel(entry.dimension());
         if (level == null) {
@@ -264,11 +282,13 @@ public final class OpsServer {
         s.running = running;
         RUNNING.add(running);
         send(player, new OpProgress(running.id, 0, running.steps.size(), running.mode.id()));
-        // Small operations finish in the tick they were requested in: no progress bar flicker, instant feedback.
+        // Small operations finish in the tick they were requested in: no progress bar flicker, instant feedback. They
+        // share the global budget with everything else; when it is spent they wait for the tick loop like large ones.
         final ServerOps rules = BuildingServerSettings.local().ops();
-        if (running.steps.size() <= running.blocksPerTick()) {
+        final int globalLeft = Math.max(1, rules.globalBlocksPerTick) - instantUsed;
+        if (running.steps.size() <= running.blocksPerTick() && running.steps.size() <= globalLeft) {
             final ServerLevel level = player.server.getLevel(running.dimension);
-            if (level != null) running.tick(level, player, running.blocksPerTick(), rules);
+            if (level != null) instantUsed += running.tick(level, player, running.blocksPerTick(), rules);
             if (running.done()) finish(player.server, running, s, player);
         }
     }
@@ -277,9 +297,11 @@ public final class OpsServer {
 
     /** Runs every operation for one server tick, sharing {@code globalBlocksPerTick} fairly (round robin). */
     public static void tick(final MinecraftServer server) {
+        final int usedInstantly = instantUsed;
+        instantUsed = 0;
         if (RUNNING.isEmpty()) return;
         final ServerOps rules = BuildingServerSettings.local().ops();
-        int budget = Math.max(1, rules.globalBlocksPerTick);
+        int budget = Math.max(0, Math.max(1, rules.globalBlocksPerTick) - usedInstantly);
         final List<RunningOp> ops = List.copyOf(RUNNING);
         final int n = ops.size();
         final int share = Math.max(1, budget / n);
@@ -292,12 +314,16 @@ public final class OpsServer {
                 RUNNING.remove(op);
                 continue;
             }
+            // A respawn replaces the player object: charge and pay the live one, never the discarded inventory.
+            op.economy.bind(player);
             final ServerLevel level = server.getLevel(op.dimension);
             if (level == null) {
                 op.cancelled = true;
                 finish(server, op, s, player);
                 continue;
             }
+            // Dead: paused until the respawned player takes over (a dying inventory is dropped, a kept one is copied).
+            if (!player.isAlive()) continue;
             if (budget > 0 && !op.done()) {
                 final int allowed = Math.min(op.blocksPerTick(), Math.min(share, budget));
                 budget -= op.tick(level, player, allowed, rules);
@@ -310,24 +336,27 @@ public final class OpsServer {
     private static void finish(final MinecraftServer server, final RunningOp op, final Session s, final ServerPlayer player) {
         RUNNING.remove(op);
         if (s.running == op) s.running = null;
+        op.economy.bind(player);
+        op.convertUnlanded(server.getLevel(op.dimension), player);
         op.economy.settle();
         final ServerOps rules = BuildingServerSettings.local().ops();
         final Limits limits = ToolboxAccess.of(player).limits(BuildingServerSettings.local());
         final int depth = Math.max(1, limits.undoDepth());
+        final long maxData = Math.max(0, rules.maxUndoDataKiB) * 1024L;
         final History.Entry done = new History.Entry(op.mode, op.dimension, List.copyOf(op.records), op.economy.isFree());
         // A revert moves what it reverted to the other stack; what it could not pay for (or did not reach) stays where
         // it was, so getting the items and pressing undo again finishes the job.
         final History.Entry rest = op.kind == RunningOp.Kind.APPLY ? null
             : new History.Entry(op.mode, op.dimension, op.leftover(), op.sourceFree);
         switch (op.kind) {
-            case APPLY -> s.history.pushNew(done, depth, rules.maxUndoBlocks);
+            case APPLY -> s.history.pushNew(done, depth, rules.maxUndoBlocks, maxData);
             case UNDO -> {
-                s.history.pushRedo(done, depth, rules.maxUndoBlocks);
-                s.history.pushUndo(rest, depth, rules.maxUndoBlocks);
+                s.history.pushRedo(done, depth, rules.maxUndoBlocks, maxData);
+                s.history.pushUndo(rest, depth, rules.maxUndoBlocks, maxData);
             }
             case REDO -> {
-                s.history.pushUndo(done, depth, rules.maxUndoBlocks);
-                s.history.pushRedo(rest, depth, rules.maxUndoBlocks);
+                s.history.pushUndo(done, depth, rules.maxUndoBlocks, maxData);
+                s.history.pushRedo(rest, depth, rules.maxUndoBlocks, maxData);
             }
         }
         send(player, OpMessages.result(op.id, op.mode, op.kind.name(), op.placed, op.replaced, op.removed, op.skipped, op.missing,
@@ -381,7 +410,7 @@ public final class OpsServer {
         for (final Change c : plan.changes()) {
             if (c.kind() == Change.Kind.BREAK) continue;
             final CostKey key = CostKey.of(c.target(), c.targetVariant());
-            if (key != null) need.merge(key, 1, Integer::sum);
+            if (key != null) need.merge(key, StateWorth.units(c.target()), Integer::sum);
         }
         if (need.isEmpty()) return null;
         boolean any = false;
@@ -410,7 +439,7 @@ public final class OpsServer {
             for (final Clipboard.Entry e : t.entries()) if (e.blockEntity() != null) out.put(origin.offset(e.offset()).asLong(), e.blockEntity());
         } else if (mode == BuildModes.MOVE && ctx.anchors().size() >= 3) {
             final Box src = Box.of(ctx.anchor(0), ctx.anchor(1));
-            final Clipboard clip = Clipboard.read(player.serverLevel(), src.min(), src.max(), false, true);
+            final Clipboard clip = Clipboard.read(player.serverLevel(), src.min(), src.max(), false, true, player.canUseGameMasterBlocks());
             final Rotation rotation = Clipboard.rotation(ctx.params().getChoice("rotation"));
             final Mirror mirror = Clipboard.mirror(ctx.params().getChoice("mirror"));
             final Clipboard t = clip.transformed(rotation, mirror);

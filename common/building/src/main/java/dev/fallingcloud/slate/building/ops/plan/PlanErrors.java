@@ -32,5 +32,8 @@ public final class PlanErrors {
 
     public static Component failed() { return Component.translatable("slate_building.plan.failed"); }
 
+    /** Part of the selection is in chunks that are not loaded (planners never load one). */
+    public static Component unloaded() { return Component.translatable("slate_building.error.unloaded"); }
+
     private PlanErrors() {}
 }

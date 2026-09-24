@@ -9,9 +9,11 @@ import dev.fallingcloud.slate.building.ops.plan.EditPlanners;
 import dev.fallingcloud.slate.building.ops.plan.ExtendPlanner;
 import dev.fallingcloud.slate.building.ops.plan.InfoPlanners;
 import dev.fallingcloud.slate.building.ops.plan.PlanErrors;
+import dev.fallingcloud.slate.building.ops.plan.PlanOverflow;
 import dev.fallingcloud.slate.building.ops.plan.ShapePlanners;
 import dev.fallingcloud.slate.building.toolbox.ToolboxAccess;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.Nullable;
@@ -66,6 +68,9 @@ public final class Planners {
             if (refused != null) return Plan.error(refused);
             try {
                 return planner.plan(ctx);
+            } catch (final PlanOverflow e) {
+                // More positions than the player may change: refused before the whole region was walked.
+                return new Plan(List.of(), e.bounds() != null ? e.bounds() : Plan.EMPTY.bounds(), PlanErrors.tooMany(e.count(), e.max()), e.count());
             } catch (final RuntimeException e) {
                 SlateBuilding.LOGGER.error("[Slate Building] planner {} failed", mode.id(), e);
                 return Plan.error(PlanErrors.failed());

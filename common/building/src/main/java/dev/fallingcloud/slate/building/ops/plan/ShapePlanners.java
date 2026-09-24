@@ -24,12 +24,13 @@ public final class ShapePlanners {
         final BlockPos a = ctx.anchor(0);
         final BlockPos b = ctx.anchor(1);
         final Box box = Box.of(a, b);
-        final Component err = Plans.span(box, ctx.limits());
-        if (err != null) return Plans.error(err, box.aabb());
-        if (ctx.palette().isEmpty()) return Plans.error(PlanErrors.noBlock(), box.aabb());
-        final int t = ctx.mode().param("thickness") != null ? ctx.params().getInt("thickness") : 1;
+        final int t = ctx.mode().param("thickness") != null ? Math.max(1, ctx.params().getInt("thickness")) : 1;
         final int dx = b.getX() - a.getX(), dy = b.getY() - a.getY(), dz = b.getZ() - a.getZ();
         final int steps = Math.max(Math.abs(dx), Math.max(Math.abs(dy), Math.abs(dz)));
+        Component err = Plans.span(box, ctx.limits());
+        if (err == null) err = Plans.tooMany((steps + 1L) * t * t, ctx.limits());
+        if (err != null) return Plans.error(err, box.aabb());
+        if (ctx.palette().isEmpty()) return Plans.error(PlanErrors.noBlock(), box.aabb());
         final Direction.Axis major = Math.abs(dx) >= Math.abs(dy) && Math.abs(dx) >= Math.abs(dz) ? Direction.Axis.X
             : Math.abs(dy) >= Math.abs(dz) ? Direction.Axis.Y : Direction.Axis.Z;
         final int lo = -(t - 1) / 2;
@@ -74,10 +75,14 @@ public final class ShapePlanners {
         final int r = (int) Math.round(Math.sqrt((double) dxB * dxB + (double) dzB * dzB));
         final int y0 = Math.min(a.getY(), b.getY()), y1 = Math.max(a.getY(), b.getY());
         final Box box = new Box(a.getX() - r, y0, a.getZ() - r, a.getX() + r, y1, a.getZ() + r);
-        final Component err = Plans.span(box, ctx.limits());
+        final boolean hollow = ctx.params().getBool("hollow");
+        final int h = y1 - y0 + 1;
+        // The client's estimate (ModeGeometry): above the real count, so an honest request always passes.
+        final long est = (long) Math.ceil(hollow ? 2 * Math.PI * (r + 1) * h : Math.PI * (r + 1) * (r + 1) * h);
+        Component err = Plans.span(box, ctx.limits());
+        if (err == null) err = Plans.tooMany(Math.max(1, est), ctx.limits());
         if (err != null) return Plans.error(err, box.aabb());
         if (ctx.palette().isEmpty()) return Plans.error(PlanErrors.noBlock(), box.aabb());
-        final boolean hollow = ctx.params().getBool("hollow");
         final ReplacePolicy policy = ReplacePolicy.of(ctx.params(), ReplacePolicy.REPLACEABLE);
         final long seed = ctx.seed();
         final PlanBuilder pb = new PlanBuilder(ctx).bounds(box.aabb());
@@ -106,10 +111,13 @@ public final class ShapePlanners {
         final int yHi = "BOWL".equals(part) ? 0 : r;
         final Box box = new Box(a.getX() - r, a.getY() + yLo, a.getZ() - r, a.getX() + r, a.getY() + yHi, a.getZ() + r);
         final Box full = new Box(a.getX() - r, a.getY() - r, a.getZ() - r, a.getX() + r, a.getY() + r, a.getZ() + r);
-        final Component err = Plans.span(full, ctx.limits());
+        final boolean hollow = ctx.params().getBool("hollow");
+        final double half = "FULL".equals(part) ? 1.0 : 0.5;
+        final long est = (long) Math.ceil(half * (hollow ? 4 * Math.PI * (r + 1) * (r + 1) : 4.0 / 3.0 * Math.PI * Math.pow(r + 1, 3)));
+        Component err = Plans.span(full, ctx.limits());
+        if (err == null) err = Plans.tooMany(Math.max(1, est), ctx.limits());
         if (err != null) return Plans.error(err, box.aabb());
         if (ctx.palette().isEmpty()) return Plans.error(PlanErrors.noBlock(), box.aabb());
-        final boolean hollow = ctx.params().getBool("hollow");
         final ReplacePolicy policy = ReplacePolicy.of(ctx.params(), ReplacePolicy.REPLACEABLE);
         final long seed = ctx.seed();
         final PlanBuilder pb = new PlanBuilder(ctx).bounds(box.aabb());

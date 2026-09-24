@@ -35,6 +35,11 @@ public final class ServerOps {
     public int undoPerMemory = 10;
     /** Total blocks remembered in one player's history. */
     public int maxUndoBlocks = 200000;
+    /**
+     * Total block-entity data (KiB) remembered in one player's history: creative operations keep the contents of every
+     * container they change so undo can put them back. An operation over this budget cannot be undone.
+     */
+    public int maxUndoDataKiB = 65536;
     /** One point of tool durability per this many blocks changed. */
     public int durabilityPerBlocks = 4;
     /** Place what the player can afford instead of refusing an operation they cannot fully pay. */

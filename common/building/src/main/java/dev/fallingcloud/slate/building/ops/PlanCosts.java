@@ -2,7 +2,6 @@ package dev.fallingcloud.slate.building.ops;
 
 import dev.fallingcloud.slate.building.ops.server.CostKey;
 import dev.fallingcloud.slate.building.toolbox.ToolboxAccess;
-import dev.fallingcloud.slate.building.variant.VariantRegistry;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -39,7 +38,7 @@ public final class PlanCosts {
         for (final Change c : plan.changes()) {
             if (c.kind() == Change.Kind.BREAK) continue;
             final CostKey key = CostKey.of(c.target(), c.targetVariant());
-            if (key != null) needed.merge(key, Math.max(1, VariantRegistry.get().units(c.target(), null)), Integer::sum);
+            if (key != null) needed.merge(key, StateWorth.units(c.target()), Integer::sum);
         }
         final Inventory inv = player.getInventory();
         final List<Need> out = new ArrayList<>(needed.size());

@@ -81,10 +81,20 @@ public record Clipboard(Vec3i size, List<Entry> entries) {
 
     /**
      * Copies the box {@code min..max} (inclusive) of {@code level}. Air is kept only with {@code includeAir};
-     * block-entity data only with {@code blockEntityData} (creative). Our shape blocks keep their material.
+     * block-entity data only with {@code blockEntityData} (creative), never data only operators may set (command
+     * blocks, spawners ...). Our shape blocks keep their material. Callers make sure the box is loaded.
      */
     public static Clipboard read(final Level level, final BlockPos min, final BlockPos max, final boolean includeAir,
                                  final boolean blockEntityData) {
+        return read(level, min, max, includeAir, blockEntityData, false);
+    }
+
+    /**
+     * {@link #read(Level, BlockPos, BlockPos, boolean, boolean)}; {@code opData}: also keep block-entity data only
+     * operators may set ({@code BlockEntity.onlyOpCanSetNbt}), for copiers who may use game-master blocks.
+     */
+    public static Clipboard read(final Level level, final BlockPos min, final BlockPos max, final boolean includeAir,
+                                 final boolean blockEntityData, final boolean opData) {
         final List<Entry> out = new ArrayList<>();
         final BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
         for (int y = min.getY(); y <= max.getY(); y++) {
@@ -98,7 +108,7 @@ public record Clipboard(Vec3i size, List<Entry> entries) {
                     BlockState material = null;
                     CompoundTag data = null;
                     if (be instanceof ShapeBlockEntity shape) material = shape.material();
-                    else if (be != null && blockEntityData) data = be.saveWithoutMetadata(level.registryAccess());
+                    else if (be != null && blockEntityData && (opData || !be.onlyOpCanSetNbt())) data = be.saveWithoutMetadata(level.registryAccess());
                     out.add(new Entry(offset, state, material, data));
                 }
             }

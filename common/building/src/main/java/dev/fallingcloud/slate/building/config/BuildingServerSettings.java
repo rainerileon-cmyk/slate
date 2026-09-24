@@ -42,11 +42,15 @@ public record BuildingServerSettings(BuildingServerConfig config, boolean remote
 
     public ServerChisel chisel() { return config.chisel; }
 
-    /** The rules of the server running in this process (also correct for a client's integrated server). */
+    /**
+     * The rules of the server running in this process (also correct for a client's integrated server). Sections a
+     * hand-edited file left null are filled with defaults ({@link BuildingServerConfig#repaired}) whenever the file is
+     * (re)loaded, so the accessors below never return null.
+     */
     public static BuildingServerSettings local() {
         final BuildingServerConfig cfg = SlateBuilding.serverConfig();
         BuildingServerSettings s = local;
-        if (s == null || s.config != cfg) local = s = new BuildingServerSettings(cfg, false); // re-wrap after a reload
+        if (s == null || s.config != cfg) local = s = new BuildingServerSettings(cfg.repaired(), false); // re-wrap after a reload
         return s;
     }
 
@@ -71,7 +75,7 @@ public record BuildingServerSettings(BuildingServerConfig config, boolean remote
         if (tag.contains(TAG_JSON, Tag.TAG_BYTE_ARRAY)) {
             try {
                 final BuildingServerConfig cfg = JsonConfig.GSON.fromJson(new String(tag.getByteArray(TAG_JSON), StandardCharsets.UTF_8), BuildingServerConfig.class);
-                if (cfg != null) return cfg;
+                if (cfg != null) return cfg.repaired();
             } catch (final JsonParseException e) {
                 SlateBuilding.LOGGER.warn("[Slate Building] unreadable server settings from the server, using defaults: {}", e.toString());
             }

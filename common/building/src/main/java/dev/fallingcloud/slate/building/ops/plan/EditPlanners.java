@@ -34,7 +34,7 @@ public final class EditPlanners {
      */
     public static Plan replace(final PlanContext ctx) {
         final Box box = Plans.box(ctx);
-        final Component err = Plans.spanAndVolume(box, ctx.limits());
+        final Component err = Plans.readable(ctx.level(), box, ctx.limits());
         if (err != null) return Plans.error(err, box.aabb());
         final Palette.WeightedEntry held = ctx.palette().first();
         if (held == null) return Plans.error(PlanErrors.noBlock(), box.aabb());
@@ -101,12 +101,14 @@ public final class EditPlanners {
      */
     public static Plan overlay(final PlanContext ctx) {
         final Box box = Plans.box(ctx);
-        final Component err = Plans.span(box, ctx.limits());
+        final int depth = Math.max(1, ctx.params().getInt("depth"));
+        Component err = Plans.span(box, ctx.limits());
+        if (err == null) err = Plans.tooMany((long) box.sizeX() * box.sizeZ() * depth, ctx.limits());
+        if (err == null) err = Plans.unloaded(ctx.level(), box);
         if (err != null) return Plans.error(err, box.aabb());
         final Palette.WeightedEntry held = ctx.palette().first();
         if (held == null) return Plans.error(PlanErrors.noBlock(), box.aabb());
         final Level level = ctx.level();
-        final int depth = Math.max(1, ctx.params().getInt("depth"));
         final boolean onTop = !"REPLACE_TOP".equals(ctx.params().getChoice("mode"));
         final PlanBuilder pb = new PlanBuilder(ctx).bounds(onTop ? box.aabb().expandTowards(0, depth, 0) : box.aabb());
         final BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
@@ -143,7 +145,7 @@ public final class EditPlanners {
      */
     public static Plan clear(final PlanContext ctx) {
         final Box box = Plans.box(ctx);
-        final Component err = Plans.spanAndVolume(box, ctx.limits());
+        final Component err = Plans.readable(ctx.level(), box, ctx.limits());
         if (err != null) return Plans.error(err, box.aabb());
         final Level level = ctx.level();
         final String filter = ctx.params().getChoice("filter");
@@ -190,7 +192,7 @@ public final class EditPlanners {
      */
     public static Plan reshape(final PlanContext ctx) {
         final Box box = Plans.box(ctx);
-        final Component err = Plans.spanAndVolume(box, ctx.limits());
+        final Component err = Plans.readable(ctx.level(), box, ctx.limits());
         if (err != null) return Plans.error(err, box.aabb());
         final Palette.WeightedEntry held = ctx.palette().first();
         if (held == null || held.variant() == null) return Plans.error(PlanErrors.noShape(), box.aabb());

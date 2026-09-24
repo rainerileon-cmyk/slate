@@ -24,10 +24,11 @@ import net.minecraft.world.level.block.state.BlockState;
  * it ({@code match}: EXACT state, same BLOCK, or ANY solid block) and has free space in front gets one block added in
  * front of it. Connectivity includes diagonals; {@code lock} keeps it to one row: HORIZONTAL (for a top/bottom face:
  * the row across your view) or VERTICAL (for a top/bottom face: the line along your view). The number of blocks is
- * capped by the trowel tier ({@code extendMax}: 16/64/256/1024), nearest first.
+ * capped by the trowel tier ({@code extendMax}: 16/64/256/1024), nearest first, and stops at unloaded chunks.
  *
  * <p>What is added: the held block when the player holds one, else a copy of each source block (same state, same
- * material), so a row of stairs extends as stairs facing the same way.
+ * material), so a row of stairs extends as stairs facing the same way. In survival such copies are paid like any
+ * placement: blocks without an item are skipped and grown crops are copied as fresh ones.
  */
 public final class ExtendPlanner {
 
@@ -52,10 +53,14 @@ public final class ExtendPlanner {
         final List<BlockPos> accepted = new ArrayList<>();
         while (!queue.isEmpty() && accepted.size() < max) {
             final BlockPos pos = queue.poll();
+            // Never read (and so load or generate) a chunk that is not loaded: the walk stops at the loaded edge. The walk
+            // is otherwise bounded by the count: every accepted block is one step from another, so none is further than
+            // max blocks from the clicked one.
+            if (!pb.readable(pos)) continue;
             final BlockState state = level.getBlockState(pos);
             if (!matches(level, pos, state, source, sourceVariant, match)) continue;
             final BlockPos front = pos.relative(face);
-            if (level.isOutsideBuildHeight(front) || !level.getBlockState(front).canBeReplaced()) continue;
+            if (!pb.readable(front) || !level.getBlockState(front).canBeReplaced()) continue;
             accepted.add(pos);
             for (final Vec3i step : steps) {
                 final BlockPos next = pos.offset(step);
@@ -70,7 +75,7 @@ public final class ExtendPlanner {
             } else {
                 final BlockState state = level.getBlockState(pos);
                 final BlockState material = state.getBlock() instanceof ShapeBlock ? ShapeBlock.material(level, pos) : null;
-                pb.place(front, state, Placement.variantOf(state, material), ReplacePolicy.REPLACEABLE);
+                pb.place(front, pb.copyOf(state), Placement.variantOf(state, material), ReplacePolicy.REPLACEABLE);
             }
         }
         return pb.build();

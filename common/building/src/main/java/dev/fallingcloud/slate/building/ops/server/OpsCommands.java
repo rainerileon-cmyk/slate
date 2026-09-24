@@ -71,9 +71,11 @@ public final class OpsCommands {
 
     private static int reload(final CommandSourceStack source) {
         SlateBuilding.serverConfigFile().load();
+        BuildingServerSettings.local();                // re-wraps the new file, filling sections it left null
         VariantRegistry.invalidate();                  // rebuilt lazily from the new variant rules (both sides)
         BuildingServerSettings.broadcast(source.getServer());
         ChiselSystem.rebuild(source.getServer());      // chisel rules + building-chisel.json, resent to everyone
+        Symmetry.recheckAll(source.getServer());       // a symmetry mode disabled now switches off at once
         source.sendSuccess(() -> Component.translatable("slate_building.command.reloaded"), true);
         return 1;
     }

@@ -2,6 +2,7 @@ package dev.fallingcloud.slate.building.ops;
 
 import dev.fallingcloud.slate.building.ops.server.OpsSelfTest;
 import dev.fallingcloud.slate.building.ops.server.OpsServer;
+import dev.fallingcloud.slate.building.ops.server.Symmetry;
 import dev.fallingcloud.slate.core.event.SlateEvents;
 
 /**
@@ -18,6 +19,7 @@ public final class OpsSystem {
         if (initialised) return;
         initialised = true;
         SlateEvents.SERVER_TICK_END.register(OpsServer::tick);
+        SlateEvents.SERVER_TICK_END.register(Symmetry::flushAtTickEnd);
         SlateEvents.SERVER_TICK_END.register(OpsSelfTest::tick);
         SlateEvents.PLAYER_JOINED.register(OpsServer::onJoin);
         SlateEvents.PLAYER_LEFT.register(OpsServer::onLeave);

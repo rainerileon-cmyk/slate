@@ -34,12 +34,14 @@ public interface BuildingPlatform {
     boolean canBreak(ServerPlayer p, ServerLevel level, BlockPos pos, BlockState state);
 
     /**
-     * Sets the block (with {@code flags}), fires the loader place event (NeoForge {@code EventHooks.onBlockPlace}
-     * with a pre-change snapshot) and reverts + returns false if a listener cancelled it. {@code face} is the clicked
-     * face as in {@code BlockPlaceContext.getClickedFace()}: the block it was placed against is
-     * {@code pos.relative(face.getOpposite())}. Fabric has no place event: this is {@code level.setBlock}. Returns
-     * false as well when {@code setBlock} itself refused. Block-entity data (e.g. our shape material) is set by the
-     * caller afterwards.
+     * Sets the block (with {@code flags}) if the loader's protection hooks let {@code p} place it there. NeoForge: sets
+     * it, fires the place event ({@code EventHooks.onBlockPlace} with a pre-change snapshot) and reverts + returns false
+     * if a listener cancelled it. Fabric has no place event: it asks what it can before writing (spawn protection,
+     * adventure rules, the Common Protection API when installed, {@code PlayerBlockBreakEvents.BEFORE} for the position;
+     * see {@code FabricBuildingPlatform}). {@code face} is the clicked face as in
+     * {@code BlockPlaceContext.getClickedFace()}: the block it was placed against is {@code pos.relative(face.getOpposite())}.
+     * Returns false as well when {@code setBlock} itself refused. Block-entity data (e.g. our shape material) is set by
+     * the caller afterwards.
      */
     boolean tryPlace(ServerPlayer p, ServerLevel level, BlockPos pos, BlockState state, Direction face, int flags);
 

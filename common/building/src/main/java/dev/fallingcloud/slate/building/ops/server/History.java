@@ -15,8 +15,9 @@ import org.jetbrains.annotations.Nullable;
  * One player's undo / redo history (in memory, dropped on logout). Undo reverts an entry position by position,
  * newest first: a position is only touched when it still holds what the operation left there, it refunds what was
  * paid for it and charges back what it gave (design §1), and what it actually reverted becomes the redo entry.
- * Bounded by depth (undoDepth + Memory upgrades) and by {@code maxUndoBlocks} positions over both stacks; the oldest
- * entries go first. An operation larger than the block cap is not remembered at all.
+ * Bounded by depth (undoDepth + Memory upgrades), by {@code maxUndoBlocks} positions and by {@code maxUndoDataKiB} of
+ * block-entity data (creative operations keep container contents) over both stacks; the oldest entries go first. An
+ * operation larger than either cap is not remembered at all.
  */
 final class History {
 
@@ -34,9 +35,23 @@ final class History {
     record BlockRecord(BlockPos pos, BlockState before, @Nullable BlockState beforeMaterial, @Nullable CompoundTag beforeData,
                        BlockState after, @Nullable BlockState afterMaterial, List<Economy.Cost> paid, List<Economy.Cost> gained) {}
 
-    /** One undoable operation; {@code records} in execution order; {@code free} when it ran without costs (creative). */
-    record Entry(BuildMode mode, ResourceKey<Level> dimension, List<BlockRecord> records, boolean free) {
+    /**
+     * One undoable operation; {@code records} in execution order; {@code free} when it ran without costs (creative);
+     * {@code dataBytes} the block-entity data it keeps.
+     */
+    record Entry(BuildMode mode, ResourceKey<Level> dimension, List<BlockRecord> records, boolean free, long dataBytes) {
+
+        Entry(final BuildMode mode, final ResourceKey<Level> dimension, final List<BlockRecord> records, final boolean free) {
+            this(mode, dimension, records, free, dataBytes(records));
+        }
+
         int size() { return records.size(); }
+
+        private static long dataBytes(final List<BlockRecord> records) {
+            long b = 0;
+            for (final BlockRecord r : records) if (r.beforeData() != null) b += r.beforeData().sizeInBytes();
+            return b;
+        }
     }
 
     private final Deque<Entry> undo = new ArrayDeque<>();
@@ -55,22 +70,22 @@ final class History {
     @Nullable Entry popRedo() { return redo.pollLast(); }
 
     /** A new operation: remembered for undo, and the redo stack is dropped (the timeline branched). */
-    void pushNew(final Entry e, final int depth, final int maxBlocks) {
+    void pushNew(final Entry e, final int depth, final int maxBlocks, final long maxData) {
         if (e.records().isEmpty()) return;
         redo.clear();
-        pushUndo(e, depth, maxBlocks);
+        pushUndo(e, depth, maxBlocks, maxData);
     }
 
-    void pushUndo(final Entry e, final int depth, final int maxBlocks) {
-        if (e.records().isEmpty() || e.size() > maxBlocks) return;
+    void pushUndo(final Entry e, final int depth, final int maxBlocks, final long maxData) {
+        if (e.records().isEmpty() || e.size() > maxBlocks || e.dataBytes() > maxData) return;
         undo.addLast(e);
-        trim(depth, maxBlocks);
+        trim(depth, maxBlocks, maxData);
     }
 
-    void pushRedo(final Entry e, final int depth, final int maxBlocks) {
-        if (e.records().isEmpty() || e.size() > maxBlocks) return;
+    void pushRedo(final Entry e, final int depth, final int maxBlocks, final long maxData) {
+        if (e.records().isEmpty() || e.size() > maxBlocks || e.dataBytes() > maxData) return;
         redo.addLast(e);
-        trim(depth, maxBlocks);
+        trim(depth, maxBlocks, maxData);
     }
 
     void clear() {
@@ -78,16 +93,20 @@ final class History {
         redo.clear();
     }
 
-    private void trim(final int depth, final int maxBlocks) {
+    private void trim(final int depth, final int maxBlocks, final long maxData) {
         final int d = Math.max(1, depth);
         while (undo.size() > d) undo.pollFirst();
         while (redo.size() > d) redo.pollFirst();
         long total = 0;
-        for (final Entry e : undo) total += e.size();
-        for (final Entry e : redo) total += e.size();
-        while (total > maxBlocks && (!undo.isEmpty() || !redo.isEmpty())) {
+        long data = 0;
+        for (final Entry e : undo) { total += e.size(); data += e.dataBytes(); }
+        for (final Entry e : redo) { total += e.size(); data += e.dataBytes(); }
+        while ((total > maxBlocks || data > maxData) && (!undo.isEmpty() || !redo.isEmpty())) {
             final Entry dropped = undo.size() >= redo.size() && !undo.isEmpty() ? undo.pollFirst() : redo.pollFirst();
-            if (dropped != null) total -= dropped.size();
+            if (dropped != null) {
+                total -= dropped.size();
+                data -= dropped.dataBytes();
+            }
         }
     }
 }
