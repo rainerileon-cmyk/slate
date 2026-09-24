@@ -71,7 +71,7 @@ public final class WheelPages {
                 slices.add(new WheelSlice(WheelSlice.Kind.SHAPE, shape, t.material(), stack, shape.icon(),
                     label(stack, t.material(), shape), available, lock, shape == t.shape()));
             }
-            final String name = wheel.name.isBlank() ? Component.translatable("slate_building.ui.wheel.unnamed", w + 1).getString() : wheel.name;
+            final String name = WheelConfig.displayName(wheel, w).getString();
             split(out, "wheel:" + w, name, WheelSlice.Kind.SHAPE, slices, max);
         }
         return out;

@@ -52,11 +52,19 @@ public final class WheelSettings {
     /** When the build-menu key claims its key: {@code SMART} (holding a block / variant / tool / toolbox, or a mode is active) or {@code ALWAYS}. */
     public String menuKeyContext = "SMART";
 
-    /** The default pages: "Shapes" (8 common shapes) and "More" (the rest). */
+    /** Name of the first default wheel: a lang key, so it reads in the player's language ("Shapes"). */
+    public static final String DEFAULT_SHAPES_NAME = "slate_building.ui.wheel.default.shapes";
+    /** Name of the second default wheel ("More"). */
+    public static final String DEFAULT_MORE_NAME = "slate_building.ui.wheel.default.more";
+
+    /**
+     * The default pages: "Shapes" (8 common shapes) and "More" (the rest). Their names are lang keys; the UI shows a
+     * name that is a known {@code slate_building.} key translated and anything else (what the player typed) as is.
+     */
     public static List<Wheel> defaultWheels() {
         final List<Wheel> out = new ArrayList<>();
-        out.add(new Wheel("Shapes", List.of("stairs", "slab", "vertical_slab", "vertical_stairs", "wall", "fence", "step", "panel")));
-        out.add(new Wheel("More", List.of("fence_gate", "vertical_step", "post", "layer", "pane")));
+        out.add(new Wheel(DEFAULT_SHAPES_NAME, List.of("stairs", "slab", "vertical_slab", "vertical_stairs", "wall", "fence", "step", "panel")));
+        out.add(new Wheel(DEFAULT_MORE_NAME, List.of("fence_gate", "vertical_step", "post", "layer", "pane")));
         return out;
     }
 }

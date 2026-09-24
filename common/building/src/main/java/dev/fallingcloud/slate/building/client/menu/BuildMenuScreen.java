@@ -33,6 +33,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.Nullable;
@@ -330,17 +331,29 @@ public final class BuildMenuScreen extends SlateScreen {
             onClose();
             return true;
         }
-        if (!typing && (keyCode == GLFW.GLFW_KEY_PAGE_UP || keyCode == GLFW.GLFW_KEY_PAGE_DOWN)) {
+        final GuiEventListener focus = getFocused();
+        final SlateList<BuildMode> list = table;
+        // PageUp / PageDown turn the wheel pages, except in the table, which pages through its rows.
+        if (!typing && focus != list && (keyCode == GLFW.GLFW_KEY_PAGE_UP || keyCode == GLFW.GLFW_KEY_PAGE_DOWN)) {
             final int dir = keyCode == GLFW.GLFW_KEY_PAGE_DOWN ? 1 : -1;
             final WheelPanel focused = focusedPanel();
             if (focused != null && focused.turnPage(dir)) return true;
         }
-        if (super.keyPressed(keyCode, scanCode, modifiers)) return true;
-        if (!typing && (keyCode == GLFW.GLFW_KEY_DOWN || keyCode == GLFW.GLFW_KEY_UP) && table != null && getFocused() == null) {
-            setFocused(table);
-            return table.keyPressed(keyCode, scanCode, modifiers);
+        if (!typing && list != null && list.visible && focus != list) {
+            // Arrows move in the modes table (design §5). Vanilla would spend Up / Down on spatial focus moves first, so
+            // they are routed here, unless the focused widget uses them itself (a wheel steps along its slices).
+            if (keyCode == GLFW.GLFW_KEY_DOWN || keyCode == GLFW.GLFW_KEY_UP) {
+                if (focus != null && focus.keyPressed(keyCode, scanCode, modifiers)) return true;
+                setFocused(list);
+                return list.keyPressed(keyCode, scanCode, modifiers);
+            }
+            // Enter with nothing focused activates the selected mode, like Enter in the table.
+            if (focus == null && (keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER)) {
+                setFocused(list);
+                return list.keyPressed(keyCode, scanCode, modifiers);
+            }
         }
-        return false;
+        return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
     @Override
@@ -471,6 +484,22 @@ public final class BuildMenuScreen extends SlateScreen {
     public void debugSearch(final String text) {
         final WheelPanel p = shapes != null && shapes.isVisible() ? shapes : chisel;
         if (p != null) p.search().setValue(text);
+    }
+
+    /** Dev harness: whether the shape search (as restored or typed) matches any slice of the held material. */
+    public boolean debugShapeSearchMatches() {
+        return shapes != null && shapes.hasMatches();
+    }
+
+    /** Dev harness: the mode selected in the table, or "" (keyboard navigation checks). */
+    public String debugSelectedId() {
+        final BuildMode m = table == null ? null : table.selectedItem();
+        return m == null ? "" : m.id();
+    }
+
+    /** Dev harness: whether keyboard focus is on the modes table. */
+    public boolean debugTableFocused() {
+        return table != null && getFocused() == table;
     }
 
     /** Whether the wheel settings changed while the menu was open (editor returned): rebuild the wheels. */

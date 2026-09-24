@@ -1,21 +1,31 @@
 package dev.fallingcloud.slate.building.client.ui;
 
 import dev.fallingcloud.slate.building.client.BuildingHarness;
+import dev.fallingcloud.slate.building.client.hud.ModeHud;
+import dev.fallingcloud.slate.building.client.input.BuildInput;
+import dev.fallingcloud.slate.building.client.input.BuildKeys;
+import dev.fallingcloud.slate.building.client.input.ExclusiveKeys;
+import dev.fallingcloud.slate.building.client.input.KeyClaims;
 import dev.fallingcloud.slate.building.client.menu.BuildMenuScreen;
 import dev.fallingcloud.slate.building.client.menu.WheelEditorScreen;
 import dev.fallingcloud.slate.building.client.mode.ClientModeState;
 import dev.fallingcloud.slate.building.client.settings.BuildingSettingsScreen;
 import dev.fallingcloud.slate.building.client.wheel.RadialWheel;
+import dev.fallingcloud.slate.building.client.wheel.WheelConfig;
 import dev.fallingcloud.slate.building.client.wheel.WheelOverlay;
 import dev.fallingcloud.slate.building.client.wheel.WheelTarget;
+import dev.fallingcloud.slate.building.config.WheelSettings;
 import dev.fallingcloud.slate.building.net.OpResult;
 import dev.fallingcloud.slate.building.ops.BuildModes;
+import dev.fallingcloud.slate.building.ops.OpMessages;
 import dev.fallingcloud.slate.building.variant.Shape;
 import java.util.List;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.toasts.SystemToast;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.block.Blocks;
 import org.lwjgl.glfw.GLFW;
 
@@ -97,15 +107,30 @@ final class UiHarness {
         scene(s);
         s.run(() -> KeyMapping.set(alt, true)).wait(10)
             .run(() -> check("alt opens the wheel", WheelOverlay.INSTANCE.isOpen()))
-            .run(() -> check("alt is claimed", dev.fallingcloud.slate.building.client.input.ExclusiveKeys.isHeldExclusively(
-                dev.fallingcloud.slate.building.client.input.BuildKeys.SWAP)))
-            .run(() -> dev.fallingcloud.slate.building.client.input.BuildInput.fireMouseLook(170, 10)).wait(12)
+            .run(() -> check("alt is claimed", ExclusiveKeys.isHeldExclusively(BuildKeys.SWAP)))
+            .run(() -> BuildInput.fireMouseLook(170, 10)).wait(12)
             .screenshot("input-wheel-look")
-            .run(() -> dev.fallingcloud.slate.building.client.input.BuildInput.fireScroll(0, -1)).wait(12)
+            .run(() -> BuildInput.fireScroll(0, -1)).wait(12)
             .screenshot("input-wheel-scroll")
             .run(() -> check("scroll stays in the hotbar slot", Minecraft.getInstance().player.getInventory().selected == 0))
+            // Releases of buttons / keys held from before the wheel opened must reach vanilla (else use / attack
+            // stay down and keep placing / mining after the wheel closes).
+            .run(() -> check("an open wheel lets mouse-button releases through",
+                !BuildInput.fireMouseButton(GLFW.GLFW_MOUSE_BUTTON_RIGHT, GLFW.GLFW_RELEASE, 0)
+                    && !BuildInput.fireMouseButton(GLFW.GLFW_MOUSE_BUTTON_LEFT, GLFW.GLFW_RELEASE, 0)))
+            .run(() -> check("an open wheel lets key releases through",
+                !BuildInput.fireKey(GLFW.GLFW_KEY_1, GLFW.glfwGetKeyScancode(GLFW.GLFW_KEY_1), GLFW.GLFW_RELEASE, 0)))
+            .run(() -> check("the wheel stays open after those releases", WheelOverlay.INSTANCE.isOpen()))
             .run(() -> KeyMapping.set(alt, false)).wait(10)
             .run(() -> check("release closes the wheel", !WheelOverlay.INSTANCE.isOpen()))
+            .run(() -> {
+                // Fabric keeps ONE mapping per key: when another mod's Alt mapping owns the slot, vanilla's release
+                // never reaches ours. The release hook alone (vanilla's body skipped) must free a claimed mapping
+                // that setAll() put down after a screen closed.
+                BuildKeys.SWAP.setDown(true);
+                ExclusiveKeys.onSet(alt, false);
+                check("a key release frees a claimed mapping vanilla does not reach", !BuildKeys.SWAP.isDown());
+            })
             .wait(20)
             .run(() -> KeyMapping.click(r)).wait(10)
             .run(() -> check("R opens the build menu", Minecraft.getInstance().screen instanceof BuildMenuScreen)).wait(20)
@@ -114,11 +139,21 @@ final class UiHarness {
                 if (screen != null) screen.keyPressed(GLFW.GLFW_KEY_R, GLFW.glfwGetKeyScancode(GLFW.GLFW_KEY_R), 0);
             }).wait(3)
             .run(() -> check("R closes the build menu", Minecraft.getInstance().screen == null))
+            // Spectator keeps the inventory, but the server ignores swaps there: no wheel, and Alt / R stay with the
+            // other mods on those keys.
+            .command("gamemode spectator").wait(10)
+            .run(() -> check("spectator: nothing to swap, Alt not claimed", WheelTarget.resolve() == null && !KeyClaims.swapWanted()))
+            .run(() -> KeyMapping.set(alt, true)).wait(5)
+            .run(() -> check("spectator: Alt does not open the wheel", !WheelOverlay.INSTANCE.isOpen()
+                && !ExclusiveKeys.isHeldExclusively(BuildKeys.SWAP)))
+            .run(() -> KeyMapping.set(alt, false))
+            .run(() -> check("spectator: R is not claimed while holding a block", !KeyClaims.menuWanted()))
+            .command("gamemode creative").wait(10)
             // Survival reach is 4.5 blocks: pick a stair right in front of the player.
             .command("setblock 0 -60 3 minecraft:stone_brick_stairs")
             .command("tp @s 0.5 -60 0.5 0 30")
             .command("gamemode survival").wait(10)
-            .run(() -> dev.fallingcloud.slate.building.client.input.BuildInput.firePickBlock())
+            .run(() -> BuildInput.firePickBlock())
             .run(() -> check("pick block selects the stone bricks slot", Minecraft.getInstance().player.getInventory().selected == 1))
             .command("gamemode creative")
             .command("setblock 0 -60 3 minecraft:air")
@@ -155,6 +190,16 @@ final class UiHarness {
 
     private static void menu(final BuildingHarness.Script s) {
         scene(s);
+        s.run(() -> {
+            // The mode chip at the top never reaches under the toasts (top right): centred where it can be.
+            final int[] wide = ModeHud.debugTopLayout(480, 400);
+            check("HUD chip on a 480-wide GUI stays centred, left of the toasts",
+                wide[0] + wide[1] <= wide[2] && Math.abs(wide[0] + wide[1] / 2 - 240) <= 1);
+            final int[] small = ModeHud.debugTopLayout(427, 400);
+            check("HUD chip on a 427-wide GUI stays left of the toasts", small[0] + small[1] <= small[2] && small[0] >= 2);
+            check("default wheel names are translated",
+                !WheelConfig.displayName(WheelSettings.defaultWheels().get(0), 0).getString().startsWith("slate_building."));
+        });
         for (final String skin : new String[] {"DARK", "VANILLA"}) {
             final String k = skin.toLowerCase(java.util.Locale.ROOT);
             s.skin(skin).wait(5)
@@ -165,12 +210,27 @@ final class UiHarness {
                 .run(() -> Minecraft.getInstance().setScreen(new BuildMenuScreen(null))).run(UiHarness::parkMouse)
                 .wait(8).screenshot("menu-" + k + "-opening").wait(40)
                 .screenshot("menu-" + k)
+                .run(() -> {
+                    // Design §5: arrows move in the modes table (vanilla would spend them on spatial focus moves).
+                    if (!(Minecraft.getInstance().screen instanceof BuildMenuScreen m)) { check("build menu open for the arrow check", false); return; }
+                    final String before = m.debugSelectedId();
+                    m.keyPressed(GLFW.GLFW_KEY_DOWN, GLFW.glfwGetKeyScancode(GLFW.GLFW_KEY_DOWN), 0);
+                    check("down arrow moves the selection in the modes table", m.debugTableFocused() && !m.debugSelectedId().equals(before));
+                    m.keyPressed(GLFW.GLFW_KEY_UP, GLFW.glfwGetKeyScancode(GLFW.GLFW_KEY_UP), 0);
+                    check("up arrow moves it back", m.debugSelectedId().equals(before));
+                })
                 .run(() -> { if (Minecraft.getInstance().screen instanceof BuildMenuScreen m) m.debugSelect("paste"); }).wait(25)
                 .screenshot("menu-" + k + "-options")
                 .run(() -> { if (Minecraft.getInstance().screen instanceof BuildMenuScreen m) m.debugSelect("stack"); }).wait(25)
                 .screenshot("menu-" + k + "-stack")
                 .run(() -> { if (Minecraft.getInstance().screen instanceof BuildMenuScreen m) m.debugSearch("slab"); }).wait(25)
                 .screenshot("menu-" + k + "-search")
+                // A search remembered across openings matches like a typed one ("Stairs" finds the stairs slice).
+                .run(() -> { if (Minecraft.getInstance().screen instanceof BuildMenuScreen m) m.debugSearch("Stairs"); }).wait(3)
+                .run(() -> Minecraft.getInstance().setScreen(null)).wait(3)
+                .run(() -> Minecraft.getInstance().setScreen(new BuildMenuScreen(null))).run(UiHarness::parkMouse).wait(10)
+                .run(() -> check("a remembered search still matches after reopening",
+                    Minecraft.getInstance().screen instanceof BuildMenuScreen m && m.debugShapeSearchMatches()))
                 .run(() -> { if (Minecraft.getInstance().screen instanceof BuildMenuScreen m) m.debugSearch(""); })
                 .run(() -> Minecraft.getInstance().setScreen(new WheelEditorScreen(Minecraft.getInstance().screen))).run(UiHarness::parkMouse).wait(40)
                 .screenshot("editor-" + k)
@@ -212,14 +272,31 @@ final class UiHarness {
                     ClientModeState.setMode(BuildModes.FILL);
                     ClientModeState.setAnchors(List.of(new BlockPos(-3, -60, 4), new BlockPos(4, -57, 9)));
                     ClientModeState.setPending(ClientModeState.Pending.SELECTED);
+                    // Toasts at the top right: the chip must stay clear of them.
+                    final Minecraft mc = Minecraft.getInstance();
+                    SystemToast.add(mc.getToasts(), SystemToast.SystemToastId.PERIODIC_NOTIFICATION,
+                        Component.translatable("slate_building.ui.menu.title"), Component.translatable("slate_building.ui.hint.menu"));
                 })
                 .wait(30).screenshot("hud-" + k + "-selection")
+                // The GUI of a 1080p screen at GUI scale 4: the chip stays centred, narrower, its text wrapped.
+                .run(() -> window(960, 540, 2)).wait(20).screenshot("hud-" + k + "-narrow")
+                .run(() -> window(854, 480, 0)).wait(10)
                 .run(() -> {
                     ClientModeState.setPending(ClientModeState.Pending.APPLYING);
                     ClientModeState.setProgress(new ClientModeState.Progress(1, 150, 384, "fill"));
                     ClientModeState.onResult(new OpResult(0, "fill", 372, 0, 12, "slate_building.ui.harness.filled", List.of("372")));
                 })
                 .wait(30).screenshot("hud-" + k + "-progress")
+                .run(() -> {
+                    // A refusal: its block name arrives as a "lang:" argument and must read as a name, with the error look.
+                    ClientModeState.setProgress(null);
+                    ClientModeState.onResult(new OpResult(0, "fill", 0, 0, 0, "slate_building.error.not_enough",
+                        List.of("lang:block.minecraft.oak_planks", "12", "384")));
+                    final OpResult r = ClientModeState.lastResult();
+                    check("a refusal reads as text and counts as an error", r != null && OpMessages.isError(r)
+                        && !OpMessages.describe(r).getString().contains("lang:"));
+                })
+                .wait(20).screenshot("hud-" + k + "-refused")
                 .run(() -> {
                     ClientModeState.setProgress(null);
                     ClientModeState.clearSelection();

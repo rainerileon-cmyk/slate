@@ -34,7 +34,7 @@ public final class WheelsRow extends SlateWidget {
         int i = 0;
         for (final WheelSettings.Wheel w : WheelConfig.wheel().wheels) {
             if (i > 0) out.append(" · ");
-            out.append(w.name.isBlank() ? Component.translatable("slate_building.ui.wheel.unnamed", i + 1).getString() : w.name)
+            out.append(WheelConfig.displayName(w, i))
                 .append(" " + WheelConfig.shapesOf(w).size());
             i++;
         }

@@ -234,7 +234,8 @@ public final class WheelEditorScreen extends SlateScreen {
 
     private void rename(final String name) {
         final WheelSettings.Wheel w = wheel();
-        if (w == null || name.equals(w.name)) return;
+        // The field shows the translated default name; only a real edit replaces the lang key with the typed text.
+        if (w == null || name.equals(w.name) || name.equals(fieldText(w, selectedWheel))) return;
         w.name = name;
         save();
         refreshPreview(false);
@@ -313,7 +314,7 @@ public final class WheelEditorScreen extends SlateScreen {
         }
         final WheelSettings.Wheel w = wheel();
         if (nameField != null) {
-            nameField.setValue(w == null ? "" : w.name);
+            nameField.setValue(w == null ? "" : fieldText(w, selectedWheel));
             nameField.active = w != null;
         }
         refreshSlices();
@@ -369,8 +370,13 @@ public final class WheelEditorScreen extends SlateScreen {
 
     // ------------------------------------------------------------------ rows
 
-    private Component displayName(final WheelSettings.Wheel w, final int index) {
-        return w.name.isBlank() ? Component.translatable("slate_building.ui.wheel.unnamed", index + 1) : Component.literal(w.name);
+    private static Component displayName(final WheelSettings.Wheel w, final int index) {
+        return WheelConfig.displayName(w, index);
+    }
+
+    /** What the name field shows: the readable name ("Shapes" for the default key), empty for an unnamed wheel. */
+    private static String fieldText(final WheelSettings.Wheel w, final int index) {
+        return w.name.isBlank() ? "" : displayName(w, index).getString();
     }
 
     private void renderWheelRow(final GuiGraphics g, final Integer index, final int i, final int x, final int y, final int w, final int h,

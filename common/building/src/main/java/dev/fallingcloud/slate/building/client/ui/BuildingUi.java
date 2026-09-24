@@ -12,6 +12,7 @@ import dev.fallingcloud.slate.building.client.wheel.WheelOverlay;
 import dev.fallingcloud.slate.core.client.CoreActions;
 import dev.fallingcloud.slate.core.platform.SlatePlatform;
 import dev.fallingcloud.slate.core.screen.ScreenIds;
+import net.minecraft.client.Minecraft;
 
 /**
  * Client init of the UI (design §5, §10): the Alt wheel overlay and its input handler, pick-block swap, the mode
@@ -36,14 +37,31 @@ public final class BuildingUi {
         PickBlockSwap.init();
         ModeHud.init();
         MenuKeys.init();
-        CoreActions.SCREEN_FACTORIES.put(BuildingClient.BUILD_MENU_SCREEN, BuildMenuScreen::new);
-        CoreActions.SCREEN_FACTORIES.put(BuildingClient.SETTINGS_SCREEN, BuildingSettingsScreen::new);
-        CoreActions.SCREEN_FACTORIES.put(WHEEL_EDITOR_SCREEN, WheelEditorScreen::new);
+        onRenderThread(BuildingUi::registerScreens);
         ScreenIds.register(BuildMenuScreen.class, BuildingClient.BUILD_MENU_SCREEN, "Build menu");
         ScreenIds.register(BuildingSettingsScreen.class, BuildingClient.SETTINGS_SCREEN, "Building settings");
         ScreenIds.register(WheelEditorScreen.class, WHEEL_EDITOR_SCREEN, "Wheel editor");
         if (SlatePlatform.get().isModLoaded("slate_config")) ConfigSide.init();
         UiHarness.init();
+    }
+
+    /**
+     * {@code CoreActions.SCREEN_FACTORIES} is a plain map that other Slate modules (chat, menu, multiplayer, config)
+     * fill from their own mod constructors, and NeoForge constructs mods in parallel on worker threads, where this
+     * init runs too. So our entries go in from the render thread's task queue (thread-safe), which runs them on the
+     * first frame, after every mod has been constructed and long before anything can open these screens.
+     */
+    private static void registerScreens() {
+        CoreActions.SCREEN_FACTORIES.put(BuildingClient.BUILD_MENU_SCREEN, BuildMenuScreen::new);
+        CoreActions.SCREEN_FACTORIES.put(BuildingClient.SETTINGS_SCREEN, BuildingSettingsScreen::new);
+        CoreActions.SCREEN_FACTORIES.put(WHEEL_EDITOR_SCREEN, WheelEditorScreen::new);
+    }
+
+    private static void onRenderThread(final Runnable task) {
+        final Minecraft mc = Minecraft.getInstance();
+        // tell() only queues (the game thread may not even run yet); a missing client instance cannot race anyone.
+        if (mc != null) mc.tell(task);
+        else task.run();
     }
 
     /** Only loaded after the {@code slate_config} presence check (soft dependency). */

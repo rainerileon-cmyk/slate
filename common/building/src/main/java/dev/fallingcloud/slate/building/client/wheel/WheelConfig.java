@@ -8,6 +8,8 @@ import dev.fallingcloud.slate.building.variant.Shape;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import net.minecraft.locale.Language;
+import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 
 /**
@@ -28,12 +30,27 @@ public final class WheelConfig {
         final WheelSettings w = cfg.wheel;
         if (w.wheels == null) w.wheels = WheelSettings.defaultWheels();
         w.wheels.removeIf(x -> x == null);
-        for (final WheelSettings.Wheel x : w.wheels) {
+        for (int i = 0; i < w.wheels.size(); i++) {
+            final WheelSettings.Wheel x = w.wheels.get(i);
             if (x.name == null) x.name = "";
             if (x.entries == null) x.entries = new ArrayList<>();
+            // Files written before the default names became lang keys: pick up the translation too.
+            if (i == 0 && "Shapes".equals(x.name)) x.name = WheelSettings.DEFAULT_SHAPES_NAME;
+            else if (i == 1 && "More".equals(x.name)) x.name = WheelSettings.DEFAULT_MORE_NAME;
         }
         if (w.menuKeyContext == null) w.menuKeyContext = "SMART";
         return w;
+    }
+
+    /**
+     * How a wheel's name reads: "Wheel 3" when blank, translated when it is one of our lang keys (the defaults), else
+     * the text the player typed.
+     */
+    public static Component displayName(final WheelSettings.Wheel wheel, final int index) {
+        final String name = wheel.name == null ? "" : wheel.name;
+        if (name.isBlank()) return Component.translatable("slate_building.ui.wheel.unnamed", index + 1);
+        if (name.startsWith("slate_building.") && Language.getInstance().has(name)) return Component.translatable(name);
+        return Component.literal(name);
     }
 
     public static HudSettings hud() {
