@@ -534,6 +534,7 @@ final class ModeController implements BuildInput.Handler {
         int x = p.getX() - size.getX() / 2;
         int y = p.getY();
         int z = p.getZ() - size.getZ() / 2;
+        if (t.air()) return new BlockPos(x, p.getY() - size.getY() / 2, z);   // floating: centred on the air point
         switch (t.face()) {
             case DOWN -> y = p.getY() - size.getY() + 1;
             case EAST -> x = p.getX();

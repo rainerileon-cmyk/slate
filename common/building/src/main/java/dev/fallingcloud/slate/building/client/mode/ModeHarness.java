@@ -5,6 +5,7 @@ import dev.fallingcloud.slate.building.client.BuildingHarness;
 import dev.fallingcloud.slate.building.client.input.BuildInput;
 import dev.fallingcloud.slate.building.ops.BuildMode;
 import dev.fallingcloud.slate.building.ops.BuildModes;
+import dev.fallingcloud.slate.building.ops.ModeParams;
 import java.util.List;
 import java.util.stream.Collectors;
 import net.minecraft.client.Minecraft;
@@ -207,6 +208,8 @@ final class ModeHarness {
                 }
                 mc.getToasts().clear();
                 ClientModeState.deactivate();
+                // Parameters persist in the run dir's building.json; every scenario starts from the defaults.
+                for (final BuildMode m : BuildModes.all()) ClientModeState.setParams(ModeParams.defaults(m));
             })
             .wait(20);
     }
