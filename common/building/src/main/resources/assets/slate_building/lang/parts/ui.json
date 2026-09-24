@@ -2,6 +2,8 @@
   "slate_building.ui.variant_name": "%s %s",
 
   "slate_building.ui.wheel.unnamed": "Wheel %s",
+  "slate_building.ui.wheel.default.shapes": "Shapes",
+  "slate_building.ui.wheel.default.more": "More",
   "slate_building.ui.wheel.part": "%s (%s/%s)",
   "slate_building.ui.wheel.no_shapes": "No other shapes",
   "slate_building.ui.wheel.in_world": "in the world",

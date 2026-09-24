@@ -44,11 +44,14 @@ public record WheelTarget(Source source, Block material, Shape shape, int count,
         return WheelPages.variantName(material, shape);
     }
 
-    /** The held-stack target, or null when the main hand is not a variant. */
+    /**
+     * The held-stack target, or null when the main hand is not a variant. Never in spectator: a spectator keeps the
+     * inventory, but the server ignores their swaps, so the wheel must not open (or claim Alt) there.
+     */
     public static @Nullable WheelTarget heldTarget() {
         final Minecraft mc = Minecraft.getInstance();
         final LocalPlayer player = mc.player;
-        if (player == null) return null;
+        if (player == null || player.isSpectator()) return null;
         final ItemStack held = player.getMainHandItem();
         if (held.isEmpty()) return null;
         final Optional<Variant> v = WheelSources.get().identify(held);
@@ -58,12 +61,12 @@ public record WheelTarget(Source source, Block material, Shape shape, int count,
 
     /**
      * The in-world reshape target: empty hand or a building tool, crosshair on a variant block, and a hammer in the
-     * toolbox (creative bypass counts). Null otherwise.
+     * toolbox (creative bypass counts). Null otherwise, and always in spectator.
      */
     public static @Nullable WheelTarget worldTarget() {
         final Minecraft mc = Minecraft.getInstance();
         final LocalPlayer player = mc.player;
-        if (player == null || mc.level == null) return null;
+        if (player == null || player.isSpectator() || mc.level == null) return null;
         final ItemStack held = player.getMainHandItem();
         if (!held.isEmpty() && !(held.getItem() instanceof BuildingToolItem)) return null;
         if (!(mc.hitResult instanceof BlockHitResult hit) || hit.getType() != HitResult.Type.BLOCK) return null;

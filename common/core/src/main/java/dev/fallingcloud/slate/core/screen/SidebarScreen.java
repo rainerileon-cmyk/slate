@@ -64,13 +64,44 @@ public abstract class SidebarScreen extends SlateScreen {
 
     protected boolean narrow() { return width < 420; }
 
-    protected int navWidth() { return narrow() ? NAV_W_NARROW : NAV_W; }
+    /**
+     * The nav column's width: as wide as its longest label needs ({@link #NAV_W} at least, at most two fifths of the
+     * screen), icons only when {@link #narrow()}. Subclasses may widen it; the labels always get at least what they
+     * need within that bound, so "Language &amp; Accessibility" is never cut to "Language &amp; Acces…".
+     */
+    protected int navWidth() { return narrow() ? NAV_W_NARROW : labelFitWidth(); }
 
-    public Rect navRect() { return new Rect(0, HEADER_H, navWidth(), height - HEADER_H); }
+    /** {@link #navWidth()}, but never narrower than the labels need (a subclass may only widen the column). */
+    private int navW() {
+        if (narrow()) return NAV_W_NARROW;
+        return Math.max(navWidth(), labelFitWidth());
+    }
+
+    /**
+     * Width that fits the longest page label next to its icon (and its badge), bounded by {@link #NAV_W} and two
+     * fifths of the screen. Measured when the screen builds, so a badge appearing later never shifts the page.
+     */
+    private int labelFitWidth() {
+        if (fitWidthFor != width) {
+            fitWidthFor = width;
+            int need = NAV_W;
+            if (font != null) {
+                for (final SidebarPage p : pages) need = Math.max(need, font.width(p.title()) + 32 + (p.badge() > 0 ? 24 : 0));
+            }
+            fitWidth = Math.min(need, Math.max(NAV_W, width * 2 / 5));
+        }
+        return fitWidth;
+    }
+
+    /** Cache of {@link #labelFitWidth()}: the width it was measured for ({@code -1}: measure again). */
+    private int fitWidthFor = -1;
+    private int fitWidth = NAV_W;
+
+    public Rect navRect() { return new Rect(0, HEADER_H, navW(), height - HEADER_H); }
 
     /** The row holding the page title and the page actions. */
     public Rect pageTitleRect() {
-        return new Rect(navWidth() + PAD, HEADER_H + 6, width - navWidth() - PAD * 2, PAGE_TITLE_H);
+        return new Rect(navW() + PAD, HEADER_H + 6, width - navW() - PAD * 2, PAGE_TITLE_H);
     }
 
     /** Where pages build their widgets (below the title row). */
@@ -83,6 +114,7 @@ public abstract class SidebarScreen extends SlateScreen {
     @Override
     protected void build() {
         if (pages.isEmpty()) definePages(pages);
+        fitWidthFor = -1;                                   // re-measure the labels (language, badges, resize)
         if (current >= pages.size()) current = 0;
         navHighlight.snap(current);
         pageWidgets.clear();

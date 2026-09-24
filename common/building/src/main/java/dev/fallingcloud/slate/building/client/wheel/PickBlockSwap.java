@@ -40,7 +40,7 @@ public final class PickBlockSwap implements BuildInput.Handler {
         if (!WheelConfig.wheel().pickBlockSwaps) return false;
         final Minecraft mc = Minecraft.getInstance();
         final LocalPlayer player = mc.player;
-        if (player == null || mc.level == null || player.getAbilities().instabuild) return false;
+        if (player == null || mc.level == null || player.getAbilities().instabuild || player.isSpectator()) return false;
         if (!(mc.hitResult instanceof BlockHitResult hit) || hit.getType() != HitResult.Type.BLOCK) return false;
         final Optional<Variant> picked = WheelSources.get().identify(mc.level, hit.getBlockPos());
         if (picked.isEmpty()) return false;

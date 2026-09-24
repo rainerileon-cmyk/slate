@@ -7,6 +7,7 @@ import dev.fallingcloud.slate.building.client.gfx.UiDraw;
 import dev.fallingcloud.slate.building.client.input.BuildInput;
 import dev.fallingcloud.slate.building.client.input.BuildKeys;
 import dev.fallingcloud.slate.building.client.input.ExclusiveKeys;
+import dev.fallingcloud.slate.building.client.input.KeyClaims;
 import dev.fallingcloud.slate.building.client.render.OverlayRenderer;
 import dev.fallingcloud.slate.building.config.WheelSettings;
 import dev.fallingcloud.slate.core.event.SlateEvents;
@@ -72,17 +73,12 @@ public final class WheelOverlay implements BuildInput.Handler {
 
     public static void init() {
         BuildInput.register(INSTANCE);
-        ExclusiveKeys.claim(BuildKeys.SWAP, WheelOverlay::claimWanted);
+        // The swap key takes Alt for itself exactly when the wheel would open (and the user wants exclusivity).
+        ExclusiveKeys.claim(BuildKeys.SWAP, KeyClaims::swapWanted);
         SlateEvents.CLIENT_TICK_END.register(INSTANCE::tick);
         SlateEvents.HUD_RENDER.register(INSTANCE::render);
         SlateEvents.CLIENT_LEFT_SERVER.register(() -> INSTANCE.close(false));
         WheelConfig.onChange(INSTANCE::rebuild);
-    }
-
-    /** The swap key takes Alt for itself exactly when the wheel would open (and the user wants exclusivity). */
-    private static boolean claimWanted() {
-        final Minecraft mc = Minecraft.getInstance();
-        return mc.screen == null && WheelConfig.wheel().exclusiveSwapKey && WheelTarget.resolve() != null;
     }
 
     public boolean isOpen() { return open; }
@@ -286,8 +282,11 @@ public final class WheelOverlay implements BuildInput.Handler {
 
     @Override
     public boolean onMouseButton(final int button, final int action, final int mods) {
-        if (!open) return false;
-        if (action != GLFW.GLFW_PRESS) return true;
+        // Releases always reach vanilla. A button held from before the wheel opened (use / attack held down, or the
+        // swap key bound to a mouse button) must see its release, or its KeyMapping stays down: blocks keep being
+        // placed or mined after the wheel closes, or the wheel never closes. A press the wheel consumed never set its
+        // mapping down, so vanilla's release of it is a no-op.
+        if (!open || action != GLFW.GLFW_PRESS) return false;
         final WheelSettings ws = WheelConfig.wheel();
         if (!ws.releaseToSelect && button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
             applyHovered();
@@ -309,11 +308,12 @@ public final class WheelOverlay implements BuildInput.Handler {
 
     @Override
     public boolean onKey(final int key, final int scancode, final int action, final int mods) {
-        if (!open) return false;
+        // Like mouse buttons: key releases always reach vanilla, so nothing held from before the wheel opened sticks.
+        if (!open || action == GLFW.GLFW_RELEASE) return false;
         final Minecraft mc = Minecraft.getInstance();
         if (key == GLFW.GLFW_KEY_ESCAPE) {
             if (action == GLFW.GLFW_PRESS) close(false);
-            return true;
+            return true;                       // no pause menu for the Esc that cancels the wheel
         }
         for (int i = 0; i < 9; i++) {
             if (!mc.options.keyHotbarSlots[i].matches(key, scancode)) continue;

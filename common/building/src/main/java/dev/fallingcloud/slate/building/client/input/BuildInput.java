@@ -21,8 +21,9 @@ import net.minecraft.client.Minecraft;
  * <p>Semantics worth knowing:
  * <ul>
  *   <li>{@link Handler#onMouseButton}: raw GLFW button/action ({@code 1} press, {@code 0} release)/mods, before
- *       vanilla's key mappings see it. If you consume a press, consume its release too, or vanilla sees an
- *       unmatched release (harmless, but untidy).</li>
+ *       vanilla's key mappings see it. Let releases through (return false): a button held down before your handler
+ *       took over (use / attack, or a key bound to a mouse button) must see its release, or its KeyMapping stays down;
+ *       vanilla's release of a press you consumed is a harmless no-op. The same goes for {@link Handler#onKey}.</li>
  *   <li>{@link Handler#onScroll}: deltas already scaled like vanilla (discrete scrolling + sensitivity), so one
  *       notch is about ±1. Consuming stops hotbar scrolling.</li>
  *   <li>{@link Handler#onMouseLook}: the raw accumulated cursor deltas (screen pixels) for this frame, before

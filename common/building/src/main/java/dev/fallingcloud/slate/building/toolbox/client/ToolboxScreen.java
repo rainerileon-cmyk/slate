@@ -21,6 +21,7 @@ import dev.fallingcloud.slate.core.gfx.Fonts;
 import dev.fallingcloud.slate.core.gfx.Icon;
 import dev.fallingcloud.slate.core.gfx.Icons;
 import dev.fallingcloud.slate.core.gfx.SlateDraw;
+import dev.fallingcloud.slate.core.screen.reskin.ReskinDraw;
 import dev.fallingcloud.slate.core.theme.Colors;
 import dev.fallingcloud.slate.core.theme.Palette;
 import dev.fallingcloud.slate.core.theme.Theme;
@@ -31,17 +32,22 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent;
+import net.minecraft.client.gui.screens.inventory.tooltip.DefaultTooltipPositioner;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.inventory.tooltip.TooltipComponent;
 import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.Nullable;
+import org.joml.Vector2ic;
 
 /**
  * The Builder's Toolbox screen, in both Slate skins.
@@ -53,7 +59,8 @@ import org.jetbrains.annotations.Nullable;
  * highlighted. The panel scrolls, and follows the tool under the cursor (or the one just put in).
  *
  * <p>Dark skin: Slate surfaces, wells and accent. Vanilla skin: the classic light-grey container look, so it sits with
- * vanilla's own inventories. Container screens are outside Slate's reskin, so every tooltip here is vanilla's.
+ * vanilla's own inventories. Container screens are outside Slate's reskin, so the dark skin puts its tooltips on
+ * Slate's panel itself.
  */
 public class ToolboxScreen extends AbstractContainerScreen<ToolboxMenu> {
 
@@ -635,22 +642,68 @@ public class ToolboxScreen extends AbstractContainerScreen<ToolboxMenu> {
     @Override
     protected void renderTooltip(final GuiGraphics g, final int mouseX, final int mouseY) {
         if (!menu.getCarried().isEmpty()) return;
+        final boolean vanilla = Theme.current().isVanilla();
         if (hoveredSlot != null) {
             if (hoveredSlot.hasItem()) {
-                super.renderTooltip(g, mouseX, mouseY);
+                if (vanilla) {
+                    super.renderTooltip(g, mouseX, mouseY);
+                } else {
+                    final ItemStack stack = hoveredSlot.getItem();
+                    slateTooltip(g, getTooltipFromContainerItem(stack), stack.getTooltipImage(), mouseX, mouseY);
+                }
                 return;
             }
-            if (hoveredSlot.index < ToolboxMenu.TOOLBOX_END) {
-                g.renderComponentTooltip(font, emptySlotLines(hoveredSlot.index), mouseX, mouseY);
-            }
+            if (hoveredSlot.index < ToolboxMenu.TOOLBOX_END) tooltip(g, emptySlotLines(hoveredSlot.index), mouseX, mouseY);
             return;
         }
         for (final Hit h : hits) {
             if (h.contains(mouseX, mouseY)) {
-                g.renderComponentTooltip(font, h.lines(), mouseX, mouseY);
+                tooltip(g, h.lines(), mouseX, mouseY);
                 return;
             }
         }
+    }
+
+    /** A text tooltip in the current skin: vanilla's box on the vanilla skin, Slate's panel on the dark one. */
+    private void tooltip(final GuiGraphics g, final List<Component> lines, final int mouseX, final int mouseY) {
+        if (Theme.current().isVanilla()) g.renderComponentTooltip(font, lines, mouseX, mouseY);
+        else slateTooltip(g, lines, Optional.empty(), mouseX, mouseY);
+    }
+
+    /**
+     * Vanilla's tooltip (same components, item pictures such as the toolbox's own, same placement and text) on Slate's
+     * dark panel. Core restyles tooltip boxes only on screens it reskins, and container screens are never among them,
+     * so without this the dark toolbox would show vanilla's purple box.
+     */
+    private void slateTooltip(final GuiGraphics g, final List<Component> lines, final Optional<TooltipComponent> image,
+                              final int mouseX, final int mouseY) {
+        final List<ClientTooltipComponent> parts = new ArrayList<>(lines.size() + 1);
+        for (final Component line : lines) parts.add(ClientTooltipComponent.create(line.getVisualOrderText()));
+        image.ifPresent(i -> parts.add(parts.isEmpty() ? 0 : 1, ClientTooltipComponent.create(i)));
+        if (parts.isEmpty()) return;
+        int w = 0;
+        int h = parts.size() == 1 ? -2 : 0;
+        for (final ClientTooltipComponent c : parts) {
+            w = Math.max(w, c.getWidth(font));
+            h += c.getHeight();
+        }
+        final Vector2ic pos = DefaultTooltipPositioner.INSTANCE.positionTooltip(width, height, mouseX, mouseY, w, h);
+        final int x = pos.x(), y = pos.y();
+        g.pose().pushPose();
+        ReskinDraw.tooltipBackground(g, x, y, w, h, 400);
+        g.pose().translate(0f, 0f, 400f);
+        int ty = y;
+        for (int i = 0; i < parts.size(); i++) {
+            parts.get(i).renderText(font, x, ty, g.pose().last().pose(), g.bufferSource());
+            ty += parts.get(i).getHeight() + (i == 0 ? 2 : 0);
+        }
+        g.flush();
+        ty = y;
+        for (int i = 0; i < parts.size(); i++) {
+            parts.get(i).renderImage(font, x, ty, g);
+            ty += parts.get(i).getHeight() + (i == 0 ? 2 : 0);
+        }
+        g.pose().popPose();
     }
 
     @Override

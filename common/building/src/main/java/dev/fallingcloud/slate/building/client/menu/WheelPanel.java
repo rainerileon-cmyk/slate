@@ -64,12 +64,14 @@ final class WheelPanel {
 
     WheelPanel(final Kind kind, final String initialQuery, final int initialPage) {
         this.kind = kind;
-        this.query = initialQuery == null ? "" : initialQuery;
+        // The field shows what the user typed; the query is matched the way setQuery normalises it.
+        final String typed = initialQuery == null ? "" : initialQuery;
+        this.query = normalise(typed);
         this.page = initialPage;
         this.search = new SlateTextField(0, 0, 10, SEARCH_H, Component.translatable("slate.search"));
         search.icon(Icon.SEARCH).clearButton(true)
             .placeholder(Component.translatable(kind == Kind.SHAPES ? "slate_building.ui.menu.search_shapes" : "slate_building.ui.menu.search_chisel"));
-        search.setValue(query);
+        search.setValue(typed);
         search.onChange(this::setQuery);
         search.onEscape(() -> { if (!search.getValue().isEmpty()) search.setValue(""); else search.setFocused(false); });
         this.wheel = new WheelWidget(0, 0, 10, 10).onPick(this::pick);
@@ -85,6 +87,12 @@ final class WheelPanel {
     WheelWidget wheel() { return wheel; }
 
     String query() { return query; }
+
+    /** Whether the search matches a slice on any page (false without a query). */
+    boolean hasMatches() {
+        for (final boolean m : pageMatches) if (m) return true;
+        return false;
+    }
 
     int page() { return page; }
 
@@ -196,8 +204,13 @@ final class WheelPanel {
     }
 
     private void setQuery(final String q) {
-        query = q == null ? "" : q.trim().toLowerCase(Locale.ROOT);
+        query = normalise(q);
         applySearch(true);
+    }
+
+    /** Search text as slices are matched against it ({@link WheelSlice#searchText()} is lower case). */
+    private static String normalise(final @Nullable String q) {
+        return q == null ? "" : q.trim().toLowerCase(Locale.ROOT);
     }
 
     /** Glow/dim the current page's slices; with {@code jump}, go to the first page with a match if this one has none. */
