@@ -11,7 +11,6 @@ import dev.fallingcloud.slate.building.SlateBuilding;
 import dev.fallingcloud.slate.building.config.PreviewSettings;
 import dev.fallingcloud.slate.core.client.render.SlateRenderEvents;
 import dev.fallingcloud.slate.core.gfx.Clock;
-import dev.fallingcloud.slate.core.theme.Colors;
 import dev.fallingcloud.slate.core.theme.Palette;
 import dev.fallingcloud.slate.core.theme.Theme;
 import java.util.ArrayList;
@@ -25,7 +24,6 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.client.renderer.Sheets;
-import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
@@ -51,7 +49,8 @@ import org.joml.Matrix4f;
  * drifting hatching, {@link Style#INVALID} draws only a red outline. Optional outline in the style's colour (the
  * Slate accent for placements) and a gentle alpha pulse. Above {@code preview.maxBlocks} a set is drawn as its flat
  * hull with merged hull edges instead of textured blocks. With an Iris shader pack active the vanilla translucent
- * entity path is used instead (alpha only, since a custom core shader would bypass the pack).
+ * block sheet is used instead (alpha and style tint only, since a custom core shader would bypass the pack); cached
+ * plans then replay a mesh recorded when they changed, and keep their outlines and hulls.
  *
  * <p><b>Depth.</b> Ghosts are depth-tested against the world (hidden behind walls, never drawn through them) and drawn
  * in two passes: depth only, then colour where the depth matches. Only the ghost surface nearest to the camera
@@ -101,9 +100,13 @@ public final class GhostRenderer {
     private static final RenderKit.DynamicBuffer IMMEDIATE_QUADS = new RenderKit.DynamicBuffer();
     private static final RenderKit.DynamicBuffer IMMEDIATE_LINES = new RenderKit.DynamicBuffer();
     private static final RenderKit.DynamicBuffer IMMEDIATE_HULL = new RenderKit.DynamicBuffer();
+    /** Scratch mesh of this frame's immediate ghosts on the shader-pack fallback path. */
+    private static final FallbackMesh IMMEDIATE_FALLBACK = new FallbackMesh();
     private static @Nullable ByteBufferBuilder bytes;
     /** Dev harness only: draw with the shader-pack fallback path, to check it without Iris installed. */
     static boolean forceVanillaPath;
+    /** Dev harness only: how many cached fallback meshes were recorded (once per plan change, never per frame). */
+    static int fallbackBuilds;
 
     // ======================================================================== API
 
@@ -137,6 +140,12 @@ public final class GhostRenderer {
         if (BuildingRender.inTick()) plan.usedTick = true;
         else plan.usedFrame = true;
         plan.lastUsedMs = Clock.nowMs();
+    }
+
+    /** Dev harness: whether {@code key} is cached with its outline buffer built. */
+    static boolean hasOutlines(final Object key) {
+        final CachedPlan p = CACHED.get(key);
+        return p != null && p.lines != null;
     }
 
     /** Frees the buffers of {@code key} now (e.g. its mode was closed). */
@@ -180,6 +189,7 @@ public final class GhostRenderer {
         IMMEDIATE_QUADS.close();
         IMMEDIATE_LINES.close();
         IMMEDIATE_HULL.close();
+        IMMEDIATE_FALLBACK.trim(0);
     }
 
     // ======================================================================== drawing
@@ -207,12 +217,17 @@ public final class GhostRenderer {
         }
         final BlockPos origin = BlockPos.containing(cam);
         final boolean immediateHull = ghosts.size() > settings.maxBlocks();
+        // Cached plans are brought up to date for the path drawing them (outlines and hulls on both paths; the
+        // textured mesh as a GPU buffer for the ghost shader, or recorded for the fallback path). Each plan is
+        // measured against maxBlocks on its own, like the immediate ghosts.
+        for (final CachedPlan p : plans) p.ensureBuilt(level, settings, !vanillaPath);
 
         if (vanillaPath) {
             drawVanilla(level, cam, settings, pulse, ghosts, alphas, immediateHull, plans);
         } else {
             drawShaded(level, cam, modelView, projection, shader, settings, time, pulse, ghosts, alphas, origin, immediateHull, plans);
         }
+        drawHulls(cam, modelView, projection, pulse, ghosts, origin, immediateHull, plans);
         drawOutlines(level, cam, modelView, projection, settings, pulse, ghosts, alphas, origin, immediateHull, plans);
     }
 
@@ -221,14 +236,13 @@ public final class GhostRenderer {
                                    final ShaderInstance shader, final PreviewSettings settings, final float time, final float pulse,
                                    final List<Ghost> ghosts, final float[] alphas, final BlockPos origin, final boolean immediateHull,
                                    final List<CachedPlan> plans) {
-        // Build this frame's immediate mesh and bring cached plans up to date first (no GL state changes in between).
+        // Build this frame's immediate mesh first (no GL state changes in between).
         boolean immediateQuads = false;
         if (!ghosts.isEmpty() && !immediateHull) {
             final BufferBuilder buf = RenderKit.begin(bytes(), VertexFormat.Mode.QUADS, GhostShader.FORMAT);
             GhostMesher.quads(GhostMesher.shaderSink(buf), ghosts, alphas, origin, level);
             immediateQuads = IMMEDIATE_QUADS.fill(buf);
         }
-        for (final CachedPlan p : plans) p.ensureBuilt(level, settings);
 
         final Palette pal = Theme.current().palette();
         uniform(shader, "GhostParams", settings.opacity() * pulse, settings.saturation(), time, 0.45F);
@@ -250,8 +264,11 @@ public final class GhostRenderer {
         RenderSystem.colorMask(true, true, true, true);
         RenderSystem.depthMask(true);
         Minecraft.getInstance().gameRenderer.lightTexture().turnOffLightLayer();
+    }
 
-        // Sets above the limit: their flat hull (translucent, no depth writes).
+    /** Sets above the limit: their flat hull (translucent, no depth writes), on both paths. */
+    private static void drawHulls(final Vec3 cam, final Matrix4f modelView, final Matrix4f projection, final float pulse,
+                                  final List<Ghost> ghosts, final BlockPos origin, final boolean immediateHull, final List<CachedPlan> plans) {
         RenderKit.translucentState();
         if (!ghosts.isEmpty() && immediateHull) {
             final BufferBuilder fill = RenderKit.begin(bytes(), VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
@@ -272,41 +289,33 @@ public final class GhostRenderer {
     }
 
     /**
-     * Shader-pack fallback: the ghosts' quads through the vanilla translucent entity render type (the pack's own
-     * pipeline handles it), alpha and style tint only. Capped at {@code maxBlocks} ghosts in total.
+     * Shader-pack fallback: the ghosts' quads through the vanilla translucent block sheet (the pack's own pipeline
+     * handles it), alpha and style tint only. Cached plans replay the mesh recorded when they changed
+     * ({@link FallbackMesh}); only the few immediate ghosts are meshed per frame. Sets above {@code maxBlocks} show
+     * their hull instead ({@link #drawHulls}), exactly as on the shaded path.
      */
     private static void drawVanilla(final Level level, final Vec3 cam, final PreviewSettings settings, final float pulse,
                                     final List<Ghost> ghosts, final float[] alphas, final boolean immediateHull, final List<CachedPlan> plans) {
+        boolean any = !ghosts.isEmpty() && !immediateHull;
+        for (final CachedPlan p : plans) any |= p.fallback != null && p.fallback.vertices() > 0;
+        if (!any) return;
         final MultiBufferSource.BufferSource source = Minecraft.getInstance().renderBuffers().bufferSource();
         final RenderType type = Sheets.translucentCullBlockSheet();
         final VertexConsumer consumer = source.getBuffer(type);
         final float opacity = settings.opacity() * pulse;
-        // Positions come relative to the camera block (float precision far from the world origin), then camera-relative.
-        final BlockPos origin = BlockPos.containing(cam);
-        final float ox = (float) (origin.getX() - cam.x), oy = (float) (origin.getY() - cam.y), oz = (float) (origin.getZ() - cam.z);
-        final Palette pal = Theme.current().palette();
-        final GhostMesher.Sink sink = (x, y, z, r, g, b, a, u, v, bl, sl, style, nx, ny, nz) -> {
-            final int tint = style == 1 ? GhostMesher.REPLACE_AMBER : style == 2 ? pal.danger() : 0;
-            float rr = r, gg = g, bb = b;
-            if (style != 0) {
-                rr = r * 0.55F + ((tint >> 16) & 0xFF) / 255F * 0.45F;
-                gg = g * 0.55F + ((tint >> 8) & 0xFF) / 255F * 0.45F;
-                bb = b * 0.55F + (tint & 0xFF) / 255F * 0.45F;
-            }
-            consumer.addVertex(x + ox, y + oy, z + oz,
-                Colors.argb(Math.round(Math.min(1F, a * opacity) * 255), Math.round(Math.min(1F, rr) * 255),
-                    Math.round(Math.min(1F, gg) * 255), Math.round(Math.min(1F, bb) * 255)),
-                u, v, OverlayTexture.NO_OVERLAY, bl | (sl << 16), nx, ny, nz);
-        };
-        int budget = settings.maxBlocks();
+        final int danger = Theme.current().palette().danger();
         if (!ghosts.isEmpty() && !immediateHull) {
-            GhostMesher.quads(sink, ghosts, alphas, origin, level);
-            budget -= ghosts.size();
+            // Positions relative to the camera block (float precision far from the world origin), then camera-relative.
+            final BlockPos origin = BlockPos.containing(cam);
+            IMMEDIATE_FALLBACK.clear();
+            GhostMesher.quads(IMMEDIATE_FALLBACK, ghosts, alphas, origin, level);
+            IMMEDIATE_FALLBACK.replay(consumer, (float) (origin.getX() - cam.x), (float) (origin.getY() - cam.y), (float) (origin.getZ() - cam.z),
+                opacity, danger);
         }
         for (final CachedPlan p : plans) {
-            if (p.ghosts.size() > budget) continue;
-            GhostMesher.quads(sink, p.ghosts, null, origin, level);
-            budget -= p.ghosts.size();
+            if (p.fallback == null) continue;
+            p.fallback.replay(consumer, (float) (p.origin.getX() - cam.x), (float) (p.origin.getY() - cam.y), (float) (p.origin.getZ() - cam.z),
+                opacity, danger);
         }
         source.endBatch(type);
     }
@@ -373,11 +382,15 @@ public final class GhostRenderer {
         boolean usedFrame;
         long lastUsedMs;
         BlockPos origin = BlockPos.ZERO;
+        /** The ghost-shader mesh (shaded path). */
         @Nullable VertexBuffer quads;
+        /** The recorded mesh of the shader-pack fallback path. */
+        @Nullable FallbackMesh fallback;
         @Nullable VertexBuffer hull;
         @Nullable VertexBuffer lines;
         private int builtMax = -1;
         private boolean builtOutline;
+        private boolean builtShaded;
 
         void setGhosts(final List<Ghost> list, final int newVersion) {
             ghosts = list;
@@ -389,21 +402,32 @@ public final class GhostRenderer {
             return ghosts != null && (usedTick || usedFrame);
         }
 
-        void ensureBuilt(final Level level, final PreviewSettings settings) {
+        /**
+         * Builds what the path drawing this frame needs, once per change of the ghosts, the relevant settings or the
+         * path ({@code shaded}: the ghost shader; else the shader-pack fallback): the textured mesh (or the hull
+         * above {@code maxBlocks}) and the outlines.
+         */
+        void ensureBuilt(final Level level, final PreviewSettings settings, final boolean shaded) {
             if (ghosts == null) return;
-            if (!dirty && builtMax == settings.maxBlocks() && builtOutline == settings.outline) return;
+            if (!dirty && builtMax == settings.maxBlocks() && builtOutline == settings.outline && builtShaded == shaded) return;
             dirty = false;
             builtMax = settings.maxBlocks();
             builtOutline = settings.outline;
+            builtShaded = shaded;
             closeBuffers();
             if (ghosts.isEmpty()) return;
             origin = ghosts.get(0).pos();
             final boolean hullOnly = ghosts.size() > builtMax;
             try {
-                if (!hullOnly) {
+                if (!hullOnly && shaded) {
                     final BufferBuilder buf = RenderKit.begin(bytes(), VertexFormat.Mode.QUADS, GhostShader.FORMAT);
                     GhostMesher.quads(GhostMesher.shaderSink(buf), ghosts, null, origin, level);
                     quads = uploadStatic(buf);
+                } else if (!hullOnly) {
+                    final FallbackMesh mesh = new FallbackMesh();
+                    GhostMesher.quads(mesh, ghosts, null, origin, level);
+                    fallback = mesh;
+                    fallbackBuilds++;
                 } else {
                     final BufferBuilder fill = RenderKit.begin(bytes(), VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
                     GhostMesher.hullFaces(fill, ghosts, origin);
@@ -435,6 +459,7 @@ public final class GhostRenderer {
             if (hull != null) hull.close();
             if (lines != null) lines.close();
             quads = null;
+            fallback = null;
             hull = null;
             lines = null;
         }

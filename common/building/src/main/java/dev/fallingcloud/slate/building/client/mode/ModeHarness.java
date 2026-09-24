@@ -114,8 +114,9 @@ final class ModeHarness {
             .run(() -> state("selected"))
             .run(() -> checkSize(5, 3, 5))
             .screenshot("selection-preview")
-            .skin("VANILLA").wait(15).screenshot("selection-preview-vanilla").skin("DARK")
-            .run(() -> check(ModeController.INSTANCE.debugResize(Direction.EAST, 2), "Ctrl+scroll pushes the east face"))
+            .skin("VANILLA").wait(15).screenshot("selection-preview-vanilla").skin("DARK");
+        replanChecks(s);
+        s.run(() -> check(ModeController.INSTANCE.debugResize(Direction.EAST, 2), "Ctrl+scroll pushes the east face"))
             .wait(20)
             .run(() -> checkSize(7, 3, 5))
             .screenshot("selection-resized")
@@ -168,6 +169,54 @@ final class ModeHarness {
             .run(() -> check(!ClientModeState.isActive() && ClientModeState.anchors().isEmpty(), "modes turn off"))
             .wait(5)
             .run(() -> check(ClientModeState.hints().isEmpty(), "no hints without a mode"));
+    }
+
+    /**
+     * Regression checks of the fixed 5×3×5 fill between A and B: it is not re-planned (nor its ghost buffers rebuilt)
+     * while nothing changes, a block changed inside it re-plans it at once, one changed far away does not, and an
+     * identical re-plan keeps the ghosts' version.
+     */
+    private static void replanChecks(final BuildingHarness.Script s) {
+        final long[] mark = new long[3];
+        s.log("selection: re-planned only when something changes")
+            .run(() -> {
+                mark[0] = ModePreview.planRuns;
+                mark[1] = ModePreview.version();
+                mark[2] = net.minecraft.Util.getMillis();
+                final net.minecraft.world.phys.AABB placed = ModePreview.placedBounds();
+                check(placed != null && placed == ModePreview.placedBounds(), "placed bounds are computed once per plan");
+            })
+            .waitUntil(() -> net.minecraft.Util.getMillis() - mark[2] > 2500, 1200)
+            .run(() -> check(ModePreview.planRuns == mark[0] && ModePreview.version() == mark[1],
+                "a fixed selection is not re-planned while nothing changes (" + (ModePreview.planRuns - mark[0]) + " runs, version "
+                    + mark[1] + " -> " + ModePreview.version() + ")"))
+            .command("setblock 0 -59 4 minecraft:stone")
+            .waitUntil(() -> ModePreview.version() != mark[1], 240)
+            .run(() -> {
+                check(ModePreview.version() != mark[1], "a block placed inside the selection re-plans it");
+                mark[1] = ModePreview.version();
+            })
+            .command("setblock 0 -59 4 minecraft:air")
+            .waitUntil(() -> ModePreview.version() != mark[1], 240)
+            .run(() -> check(ModePreview.version() != mark[1] && ClientModeState.stats().blocks() == 75,
+                "removing it again restores the plan (" + ClientModeState.stats().blocks() + " blocks)"))
+            .run(() -> {
+                mark[0] = ModePreview.planRuns;
+                mark[1] = ModePreview.version();
+            })
+            .command("setblock 9 -60 14 minecraft:stone")                 // far outside the selection
+            .wait(20)
+            .run(() -> check(ModePreview.planRuns == mark[0] && ModePreview.version() == mark[1],
+                "a block changed far from the selection does not re-plan it"))
+            .command("setblock 9 -60 14 minecraft:air")
+            .run(() -> {
+                mark[0] = ModePreview.planRuns;
+                mark[1] = ModePreview.version();
+                ModePreview.invalidate();
+            })
+            .wait(5)
+            .run(() -> check(ModePreview.planRuns > mark[0] && ModePreview.version() == mark[1],
+                "an identical re-plan keeps the ghosts' version (no buffer rebuild)"));
     }
 
     /** Mirror (plane through the targeted block, axis change, a mirrored placement) and radial. */

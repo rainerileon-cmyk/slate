@@ -37,7 +37,7 @@ import org.joml.Matrix4f;
  */
 public final class OverlayRenderer {
 
-    private record Box(AABB box, int argb, boolean animated) {}
+    private record Box(AABB box, int argb, boolean animated, float faces) {}
 
     private record Marker(BlockPos pos, int argb) {}
 
@@ -55,6 +55,8 @@ public final class OverlayRenderer {
 
     /** Lines are grown this much off their box so they never fight the faces of the blocks they frame. */
     private static final double BOX_GROW = 0.004;
+    /** Alpha of a box's faces relative to its edges (before {@link #box(AABB, int, boolean, float)}'s {@code faces}). */
+    private static final float BOX_FACES = 0.075F;
     /** Sweep: seconds per run across a box and the width of the bright band (blocks). */
     private static final float SWEEP_PERIOD = 2.6F;
     private static final float SWEEP_WIDTH = 1.4F;
@@ -63,7 +65,15 @@ public final class OverlayRenderer {
 
     /** A box with glowing (optionally animated) edges and faint faces, e.g. an area selection. */
     public static void box(final AABB box, final int argb, final boolean animated) {
-        if (RenderSystem.isOnRenderThread()) ITEMS.add(new Box(box, argb, animated));
+        box(box, argb, animated, 1F);
+    }
+
+    /**
+     * A box with glowing (optionally animated) edges; {@code faces} scales its faint face fill (1 = the default, 0 =
+     * edges only), e.g. toned down while ghost blocks inside the box should read as clearly as a placement ghost.
+     */
+    public static void box(final AABB box, final int argb, final boolean animated, final float faces) {
+        if (RenderSystem.isOnRenderThread()) ITEMS.add(new Box(box, argb, animated, Math.max(0F, Math.min(1F, faces))));
     }
 
     /** A block-sized marker (corner brackets and a faint fill), e.g. a selection anchor. */
@@ -128,8 +138,9 @@ public final class OverlayRenderer {
 
         final BufferBuilder fills = RenderKit.begin(GhostRenderer.bytes(), VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
         for (final Object item : items) {
-            if (item instanceof Box b) boxFaces(fills, b.box().inflate(BOX_GROW), b.argb(), t, cam, 0.075F);
-            else if (item instanceof Marker m) boxFaces(fills, markerBox(m.pos(), t, animated), m.argb(), t, cam, 0.06F);
+            if (item instanceof Box b) {
+                if (b.faces() > 0.01F) boxFaces(fills, b.box().inflate(BOX_GROW), b.argb(), t, cam, BOX_FACES * b.faces());
+            } else if (item instanceof Marker m) boxFaces(fills, markerBox(m.pos(), t, animated), m.argb(), t, cam, 0.06F);
             else if (item instanceof Plane p) planeFill(fills, p, cam);
         }
         final boolean hasFills = FILLS.fill(fills);

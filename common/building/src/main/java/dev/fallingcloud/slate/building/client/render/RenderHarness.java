@@ -4,6 +4,8 @@ import dev.fallingcloud.slate.building.SlateBuilding;
 import dev.fallingcloud.slate.building.block.ShapeBlockEntity;
 import dev.fallingcloud.slate.building.client.BuildingHarness;
 import dev.fallingcloud.slate.building.client.mode.ClientModeState;
+import dev.fallingcloud.slate.building.client.model.ShapeModels;
+import dev.fallingcloud.slate.building.client.model.ShapeQuadBaker;
 import dev.fallingcloud.slate.building.config.PreviewSettings;
 import dev.fallingcloud.slate.building.ops.BuildModes;
 import dev.fallingcloud.slate.building.ops.ModeParams;
@@ -21,12 +23,15 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.block.model.BakedQuad;
+import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.client.server.IntegratedServer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -97,6 +102,7 @@ final class RenderHarness {
         camera(s, -3.5, -57, 1.5, new Vec3(-3.5, Y, 8)).wait(40).screenshot("render-closeup-front");
         s.run(() -> SlateEvents.HUD_RENDER.register(ITEMS_SHEET)).wait(10).screenshot("render-items")
             .run(() -> SlateEvents.HUD_RENDER.unregister(ITEMS_SHEET));
+        s.run(RenderHarness::checkQuadCache);
 
         s.log("render: ghosts and overlays")
             .run(() -> {
@@ -119,8 +125,19 @@ final class RenderHarness {
                 plan = true;
             });
         camera(s, 7.5, -57, -4.5, new Vec3(7.0, -59.5, -10.0)).wait(30).screenshot("render-plan");
-        s.run(() -> GhostRenderer.forceVanillaPath = true).wait(5).screenshot("render-plan-fallback")
-            .run(() -> GhostRenderer.forceVanillaPath = false);
+        final int[] builds = new int[1];
+        s.run(() -> {
+                builds[0] = GhostRenderer.fallbackBuilds;
+                GhostRenderer.forceVanillaPath = true;
+            })
+            .wait(5).screenshot("render-plan-fallback")
+            .wait(20)
+            .run(() -> {
+                check(GhostRenderer.fallbackBuilds - builds[0] == 1,
+                    "the fallback mesh of a cached plan is recorded once, not per frame (" + (GhostRenderer.fallbackBuilds - builds[0]) + ")");
+                check(GhostRenderer.hasOutlines("harness-plan"), "a cached plan keeps its outlines on the shader-pack fallback path");
+                GhostRenderer.forceVanillaPath = false;
+            });
         s.run(() -> PreviewSettings.current().maxBlocks = 10).wait(10).screenshot("render-hull")
             .run(() -> {
                 PreviewSettings.current().maxBlocks = new PreviewSettings().maxBlocks;
@@ -252,6 +269,48 @@ final class RenderHarness {
                 Blocks.WHITE_WOOL.defaultBlockState(), GhostRenderer.Style.PLACE));
         }
         return out;
+    }
+
+    // ---- regression checks ----
+
+    /**
+     * The quad cache hits for material models that hand out a fresh list of the same quads on every call (vanilla
+     * multipart) and for ones that build fresh but identical quads (connected-texture style), and keeps a model whose
+     * quads differ (another variant) apart.
+     */
+    private static void checkQuadCache() {
+        final RegistryRef<? extends Block> stairs = BuildingBlocks.forShape(Shape.STAIRS);
+        if (stairs == null || !stairs.isBound()) return;
+        final BlockState shape = with(stairs.get().defaultBlockState(), "facing", "west");
+        final BlockState material = Blocks.OAK_PLANKS.defaultBlockState();
+        final BakedModel model = ShapeModels.modelOf(material);
+        final Object key = "slate_building:harness_quad_cache";      // not a material chunk meshing has used
+        final ShapeQuadBaker.QuadSource fresh = d -> new ArrayList<>(model.getQuads(material, d, RandomSource.create(42L)));
+        final ShapeQuadBaker.QuadSource copies = d -> {
+            final List<BakedQuad> out = new ArrayList<>();
+            for (final BakedQuad q : model.getQuads(material, d, RandomSource.create(42L))) {
+                out.add(new BakedQuad(q.getVertices().clone(), q.getTintIndex(), q.getDirection(), q.getSprite(), q.isShade()));
+            }
+            return out;
+        };
+        final BakedModel other = ShapeModels.modelOf(Blocks.STONE.defaultBlockState());
+        final ShapeQuadBaker.QuadSource different = d -> other.getQuads(Blocks.STONE.defaultBlockState(), d, RandomSource.create(42L));
+        for (final Direction side : new Direction[] {null, Direction.DOWN, Direction.EAST}) {
+            final long[] before = ShapeQuadBaker.cacheStats();
+            final List<BakedQuad> a = ShapeQuadBaker.quads(shape, side, key, null, fresh);
+            final List<BakedQuad> b = ShapeQuadBaker.quads(shape, side, key, null, fresh);
+            final List<BakedQuad> c = ShapeQuadBaker.quads(shape, side, key, null, copies);
+            final long[] after = ShapeQuadBaker.cacheStats();
+            check(!a.isEmpty() && a == b && b == c && after[1] - before[1] == 1,
+                "the quad cache hits for fresh source lists and fresh identical quads (bucket " + side + ", " + a.size() + " quads)");
+            final List<BakedQuad> d = ShapeQuadBaker.quads(shape, side, key, null, different);
+            check(d != a, "different source quads get their own cache entry (bucket " + side + ")");
+        }
+    }
+
+    private static void check(final boolean ok, final String what) {
+        if (ok) SlateBuilding.LOGGER.info("[BuildingHarness] CHECK ok: {}", what);
+        else SlateBuilding.LOGGER.warn("[BuildingHarness] CHECK FAILED: {}", what);
     }
 
     // ---- item sheet (HUD) ----

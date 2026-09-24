@@ -43,15 +43,36 @@ final class ShapeFaces {
     private static final Direction[] DIRECTIONS = Direction.values();
 
     private final List<Region>[] byDir;
+    /** Bit {@code dir.ordinal()} set: the shape has a boundary / an internal region facing that way. */
+    private final int boundaryMask;
+    private final int internalMask;
 
-    @SuppressWarnings("unchecked")
     private ShapeFaces(final List<Region>[] byDir) {
         this.byDir = byDir;
+        int boundary = 0, internal = 0;
+        for (final List<Region> regions : byDir) {
+            for (final Region r : regions) {
+                if (r.boundary()) boundary |= 1 << r.dir().ordinal();
+                else internal |= 1 << r.dir().ordinal();
+            }
+        }
+        this.boundaryMask = boundary;
+        this.internalMask = internal;
     }
 
     /** The visible regions facing {@code dir}. */
     List<Region> facing(final Direction dir) {
         return byDir[dir.ordinal()];
+    }
+
+    /** Whether some visible region facing {@code dir} lies on the block boundary (culled against the neighbour). */
+    boolean hasBoundary(final Direction dir) {
+        return (boundaryMask >> dir.ordinal() & 1) != 0;
+    }
+
+    /** Whether some visible region facing {@code dir} lies inside the block (a slab top, a stair riser: never culled). */
+    boolean hasInternal(final Direction dir) {
+        return (internalMask >> dir.ordinal() & 1) != 0;
     }
 
     /** Whether the shape covers the whole face on {@code dir}'s side of the block (one full boundary region). */
