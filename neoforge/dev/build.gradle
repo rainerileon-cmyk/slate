@@ -9,6 +9,25 @@ evaluationDependsOn(':building')
 
 base { archivesName = 'slate-dev' }
 
+// Harness / screenshot system properties shared by every client run (`gameDir` is the run's game directory).
+def harnessProperties = { run, File gameDir ->
+    if (project.hasProperty('buildingHarness')) {
+        // Slate Building scenario runs: -PbuildingHarness=smoke,render [-PautoSkin=VANILLA]. The building
+        // harness creates its own flat world and quits by itself, so Core's screenshot harness stays off
+        // for this run (it would open a second world and quit underneath the scenarios).
+        run.systemProperty 'slate.building.harness', project.buildingHarness.toString()
+        if (project.hasProperty('autoSkin')) run.systemProperty 'slate.autoSkin', project.autoSkin.toString()
+    } else if (project.hasProperty('autoScreens') || project.hasProperty('autoWorld')) {
+        // Unattended screenshot runs: -PautoScreens=slate:hub,slate:settings [-PautoSkin=VANILLA] [-PautoQuit=true]
+        if (project.hasProperty('autoScreens')) run.systemProperty 'slate.autoScreens', project.autoScreens.toString()
+        run.systemProperty 'slate.autoDir', gameDir.absolutePath
+        run.systemProperty 'slate.autoQuit', project.hasProperty('autoQuit') ? project.autoQuit.toString() : 'true'
+        if (project.hasProperty('autoSkin')) run.systemProperty 'slate.autoSkin', project.autoSkin.toString()
+        if (project.hasProperty('autoWorld')) run.systemProperty 'slate.autoWorld', project.autoWorld.toString()
+        if (project.hasProperty('autoFrames')) run.systemProperty 'slate.autoFrames', project.autoFrames.toString()
+    }
+}
+
 neoForge {
     mods {
         slate { sourceSet project(':core').sourceSets.main }
@@ -22,21 +41,18 @@ neoForge {
         client {
             client()
             gameDirectory = file('run')
-            if (project.hasProperty('buildingHarness')) {
-                // Slate Building scenario runs: -PbuildingHarness=smoke,render [-PautoSkin=VANILLA]. The building
-                // harness creates its own flat world and quits by itself, so Core's screenshot harness stays off
-                // for this run (it would open a second world and quit underneath the scenarios).
-                systemProperty 'slate.building.harness', project.buildingHarness.toString()
-                if (project.hasProperty('autoSkin')) systemProperty 'slate.autoSkin', project.autoSkin.toString()
-            } else if (project.hasProperty('autoScreens') || project.hasProperty('autoWorld')) {
-                // Unattended screenshot runs: -PautoScreens=slate:hub,slate:settings [-PautoSkin=VANILLA] [-PautoQuit=true]
-                if (project.hasProperty('autoScreens')) systemProperty 'slate.autoScreens', project.autoScreens.toString()
-                systemProperty 'slate.autoDir', file('run').absolutePath
-                systemProperty 'slate.autoQuit', project.hasProperty('autoQuit') ? project.autoQuit.toString() : 'true'
-                if (project.hasProperty('autoSkin')) systemProperty 'slate.autoSkin', project.autoSkin.toString()
-                if (project.hasProperty('autoWorld')) systemProperty 'slate.autoWorld', project.autoWorld.toString()
-                if (project.hasProperty('autoFrames')) systemProperty 'slate.autoFrames', project.autoFrames.toString()
-            }
+            harnessProperties(delegate, file('run'))
+        }
+        // DF-pack compatibility run (`:dev:runClientCompat`, same harness properties as `client`): its own game
+        // directory whose mods/ holds copies of the DF pack's production jars (Sodium, Iris, Create, Diagonal*,
+        // KleeSlabs, JEI, Curios, OPAC, Shoulder Surfing, Relics, BetterInventory). NeoForge 1.21.1 production
+        // jars are mojmap, so they load next to the dev sources as they are. Populate it with
+        // tools/compat/populate-run-compat.sh; the compat scenarios are `-PbuildingHarness=compat-*`.
+        clientCompat {
+            client()
+            gameDirectory = file('run-compat')
+            jvmArgument '-Xmx4G'
+            harnessProperties(delegate, file('run-compat'))
         }
         server {
             server()
