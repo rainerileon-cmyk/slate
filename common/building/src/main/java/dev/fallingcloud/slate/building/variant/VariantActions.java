@@ -60,7 +60,12 @@ public final class VariantActions {
             fail(player, Component.translatable("slate_building.variant.unavailable", material.getName(), target.displayName()));
             return;
         }
+        // 1:1; should the new item stack smaller than the old one, the overflow goes back into the inventory.
+        final ItemStack overflow = swapped.getCount() > swapped.getMaxStackSize()
+            ? swapped.split(swapped.getCount() - swapped.getMaxStackSize())
+            : ItemStack.EMPTY;
         inventory.setItem(slot, swapped);
+        if (!overflow.isEmpty()) inventory.placeItemBackInInventory(overflow);
         inventory.setChanged();
         player.containerMenu.broadcastChanges();
         final SoundType sound = material.defaultBlockState().getSoundType();

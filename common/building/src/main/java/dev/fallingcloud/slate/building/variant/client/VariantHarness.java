@@ -109,11 +109,11 @@ final class VariantHarness {
         s.run(VariantHarness::deleteNativesChecks)
             .run(VariantHarness::summary)
             .command("gamemode creative")
-            .command("tp @s 0 -49 -12 0 33")
+            .command("tp @s 0 -51 -5 0 40")
             .run(() -> Minecraft.getInstance().options.hideGui = true)
             .wait(90)
             .screenshot("variants")
-            .command("tp @s -9 -57 -3 -25 38")
+            .command("tp @s -8 -57 0 20 45")
             .wait(40)
             .screenshot("variants-close")
             .run(() -> Minecraft.getInstance().options.hideGui = false);
