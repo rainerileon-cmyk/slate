@@ -1,18 +1,24 @@
 package dev.fallingcloud.slate.building.toolbox;
 
+import dev.fallingcloud.slate.building.SlateBuilding;
 import dev.fallingcloud.slate.building.config.BuildingServerSettings;
 import dev.fallingcloud.slate.building.config.ServerOps;
 import dev.fallingcloud.slate.building.ops.BuildModes;
 import dev.fallingcloud.slate.building.ops.Limits;
 import dev.fallingcloud.slate.building.ops.ToolType;
 import dev.fallingcloud.slate.building.registry.BuildingItems;
+import dev.fallingcloud.slate.building.registry.BuildingTags;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.GlobalPos;
 import net.minecraft.core.NonNullList;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.tags.TagKey;
 import net.minecraft.world.Container;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.ClickType;
@@ -101,6 +107,20 @@ public final class ToolboxSelfTest {
      */
     public static List<String> server(final ServerPlayer p, final BlockPos chest) {
         final ToolboxSelfTest t = new ToolboxSelfTest();
+        // Data: recipes, tags, repair, enchanting, fire resistance.
+        final var recipes = p.server.getRecipeManager();
+        t.check("recipes loaded", recipes.byKey(SlateBuilding.id("toolbox")).isPresent() && recipes.byKey(SlateBuilding.id("iron_trowel")).isPresent()
+            && recipes.byKey(SlateBuilding.id("netherite_chisel")).isPresent() && recipes.byKey(SlateBuilding.id("magnet_upgrade")).isPresent(), "missing");
+        final ItemStack ironHammer = tool(ToolType.HAMMER, ToolTier.IRON);
+        t.check("tags", new ItemStack(BuildingItems.TOOLBOX.get()).is(BuildingTags.TOOLBOXES) && ironHammer.is(BuildingTags.TOOLS)
+            && upgrade(UpgradeType.SPEED).is(BuildingTags.UPGRADES)
+            && ironHammer.is(TagKey.create(Registries.ITEM, ResourceLocation.withDefaultNamespace("enchantable/durability"))), ironHammer.getTags().toList());
+        t.check("anvil repair with the tier material", ironHammer.getItem().isValidRepairItem(ironHammer, new ItemStack(Items.IRON_INGOT))
+            && !ironHammer.getItem().isValidRepairItem(ironHammer, new ItemStack(Items.DIAMOND)), "repair");
+        t.check("tools are enchantable", ironHammer.isEnchantable(), "not enchantable");
+        t.check("netherite tools resist fire", tool(ToolType.HAMMER, ToolTier.NETHERITE).has(DataComponents.FIRE_RESISTANT)
+            && !ironHammer.has(DataComponents.FIRE_RESISTANT), "fire");
+
         final ToolboxAccess.Located at = ToolboxAccess.locate(p);
         t.check("finds the hotbar toolbox", at != null && at.slot() == 0, at);
         if (at == null) return t.out;

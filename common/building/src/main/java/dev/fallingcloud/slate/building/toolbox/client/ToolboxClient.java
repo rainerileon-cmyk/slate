@@ -10,6 +10,8 @@ import dev.fallingcloud.slate.building.toolbox.ToolboxContents;
 import dev.fallingcloud.slate.building.toolbox.ToolboxMenu;
 import dev.fallingcloud.slate.building.toolbox.ToolboxSelfTest;
 import dev.fallingcloud.slate.core.net.SlateNetwork;
+import dev.fallingcloud.slate.core.platform.Loader;
+import dev.fallingcloud.slate.core.platform.SlatePlatform;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -40,9 +42,13 @@ public final class ToolboxClient {
 
     /**
      * A kitted toolbox in the hotbar, a tool/upgrade/blocks to shift-click in, a chest to link; logs the capability,
-     * server and menu self-tests (PASS/FAIL), then screenshots the screen in both skins with and without tooltips.
+     * server and menu self-tests (PASS/FAIL), then screenshots the screen in both skins with and without tooltips. The
+     * real cursor is parked for the whole run so it never adds a stray hover to a shot.
      */
     private static void harness(final BuildingHarness.Script s) {
+        // Core's TooltipRenderUtilMixin (its NeoForge-only @Dynamic overload) fails to apply on a Fabric DEV client and
+        // crashes the first tooltip; skip the tooltip shots there until Core is fixed.
+        final boolean tooltips = SlatePlatform.get().loader() != Loader.FABRIC || !SlatePlatform.get().isDevelopmentEnvironment();
         s.command("time set noon")
             .command("weather clear")
             .command("gamemode survival")
@@ -70,37 +76,41 @@ public final class ToolboxClient {
             .run(() -> onServer(p -> ToolboxSelfTest.server(p, CHEST)))
             .waitUntil(() -> pending.isDone(), 200)
             .run(() -> results("server", pending.join()))
+            .run(() -> ToolboxScreen.debugHover(-1))
             .run(() -> SlateNetwork.get().sendToServer(new OpenToolbox(0)))
             .waitUntil(() -> Minecraft.getInstance().screen instanceof ToolboxScreen, 200)
             .run(() -> onServer(ToolboxSelfTest::menu))
             .waitUntil(() -> pending.isDone(), 200)
             .run(() -> results("menu", pending.join()))
-            .run(() -> ToolboxScreen.debugHover(-1))   // screenshots ignore the real cursor
             .run(() -> Minecraft.getInstance().getToasts().clear())
             .wait(60)
-            .screenshot("toolbox-dark")
-            .run(() -> ToolboxScreen.debugHover(ToolboxContents.FIRST_POUCH + 5))
-            .wait(8)
-            .screenshot("toolbox-dark-pouch-hint")
-            .run(() -> ToolboxScreen.debugHover(ToolboxMenu.HOTBAR_START))
-            .wait(8)
-            .screenshot("toolbox-dark-toolbox-tooltip")
-            // Hovering the Square slot scrolls the unlock panel to the Square and lights its block.
-            .run(() -> ToolboxScreen.debugHover(ToolboxContents.toolSlot(ToolType.SQUARE)))
-            .wait(30)
-            .screenshot("toolbox-dark-focus")
-            .run(() -> ToolboxScreen.debugHover(-1))
-            .skin("VANILLA")
+            .screenshot("toolbox-dark");
+        if (tooltips) {
+            s.run(() -> ToolboxScreen.debugHover(ToolboxContents.FIRST_POUCH + 5))
+                .wait(8)
+                .screenshot("toolbox-dark-pouch-hint")
+                .run(() -> ToolboxScreen.debugHover(ToolboxMenu.HOTBAR_START))
+                .wait(8)
+                .screenshot("toolbox-dark-toolbox-tooltip")
+                // Hovering the Square slot scrolls the unlock panel to the Square and lights its block.
+                .run(() -> ToolboxScreen.debugHover(ToolboxContents.toolSlot(ToolType.SQUARE)))
+                .wait(30)
+                .screenshot("toolbox-dark-focus")
+                .run(() -> ToolboxScreen.debugHover(-1));
+        }
+        s.skin("VANILLA")
             .wait(20)
-            .screenshot("toolbox-vanilla")
-            .run(() -> ToolboxScreen.debugHover(ToolboxContents.toolSlot(ToolType.TROWEL)))
-            .wait(8)
-            .screenshot("toolbox-vanilla-tool-tooltip")
-            .run(() -> ToolboxScreen.debugHover(ToolboxContents.FIRST_POUCH))
-            .wait(8)
-            .screenshot("toolbox-vanilla-hover")
-            .run(() -> ToolboxScreen.debugHover(-1))
-            .skin("DARK")
+            .screenshot("toolbox-vanilla");
+        if (tooltips) {
+            s.run(() -> ToolboxScreen.debugHover(ToolboxContents.toolSlot(ToolType.TROWEL)))
+                .wait(8)
+                .screenshot("toolbox-vanilla-tool-tooltip")
+                .run(() -> ToolboxScreen.debugHover(ToolboxContents.FIRST_POUCH))
+                .wait(8)
+                .screenshot("toolbox-vanilla-hover")
+                .run(() -> ToolboxScreen.debugHover(-1));
+        }
+        s.skin("DARK")
             .run(ToolboxClient::closeScreen)
             .wait(10)
             // An empty toolbox, as a creative player: the empty-state hint and the creative note.
