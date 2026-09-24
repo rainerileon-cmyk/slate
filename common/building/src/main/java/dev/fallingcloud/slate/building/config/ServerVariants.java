@@ -26,9 +26,10 @@ public final class ServerVariants {
      */
     public boolean rebalanceRecipes = true;
     /**
-     * Hide native variant items (creative tabs, search, JEI) and remove the recipes that make them; the swap wheel
-     * hands out Slate Building's shapes instead. Native blocks already in worlds keep working and still drop their
-     * material.
+     * Hide native variant items (creative tabs, search, JEI) and remove the recipes that make them; the swap wheel,
+     * build menu, chisel and pick-block still hand out the native item (swapped 1:1 from the material), so every
+     * recipe that USES a native variant or its tag keeps working. Native blocks already in worlds keep working and
+     * still drop their material.
      */
     public boolean deleteNativeVariants = false;
     /** Offer Slate Building's own shapes for materials that lack a native one (e.g. dirt stairs, glass steps). */

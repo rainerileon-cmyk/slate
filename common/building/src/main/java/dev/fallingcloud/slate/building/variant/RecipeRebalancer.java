@@ -29,6 +29,8 @@ import org.jetbrains.annotations.Nullable;
  * block or any shape of it); if no slot names an item directly (tag ingredients), every slot that is not a
  * rod/stick. Stonecutting always consumes 1. Recipes whose units cannot be told are left alone.
  * {@code deleteNativeVariants} removes the recipes (or just their native outputs, for multi-output recipes) instead.
+ * Only recipes that MAKE natives go: recipes that consume them stay craftable, because
+ * {@link VariantRegistry#stackFor} keeps handing out the native item (swap wheel, build menu, chisel, pick-block).
  */
 public final class RecipeRebalancer {
 

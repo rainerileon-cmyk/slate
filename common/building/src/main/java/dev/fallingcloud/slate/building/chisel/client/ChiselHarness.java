@@ -119,9 +119,16 @@ final class ChiselHarness {
                 Blocks.COPPER_BLOCK, Blocks.CUT_COPPER, Blocks.ANDESITE)) {
             SlateBuilding.LOGGER.info("[BuildingHarness] chisel groups of {}: {}", id(b), describe(g, b));
         }
-        expect(g.linked(Blocks.STONE, Blocks.STONE_BRICKS) && g.linked(Blocks.STONE, Blocks.COBBLESTONE), "stone ~ stone bricks ~ cobblestone");
-        expect(g.linked(Blocks.DEEPSLATE, Blocks.DEEPSLATE_TILES), "deepslate ~ deepslate tiles");
-        expect(g.linked(Blocks.QUARTZ_BLOCK, Blocks.QUARTZ_PILLAR) && g.linked(Blocks.QUARTZ_BLOCK, Blocks.SMOOTH_QUARTZ), "quartz block ~ pillar ~ smooth quartz");
+        expect(g.linked(Blocks.STONE, Blocks.STONE_BRICKS) && g.linked(Blocks.STONE_BRICKS, Blocks.CHISELED_STONE_BRICKS), "stone ~ stone bricks ~ chiseled stone bricks");
+        // Economy (design §1): nothing that vanilla only reaches by smelting or by adding an ingredient.
+        expect(!g.linked(Blocks.STONE, Blocks.COBBLESTONE) && !g.linked(Blocks.COBBLESTONE, Blocks.MOSSY_COBBLESTONE)
+                && !g.linked(Blocks.STONE_BRICKS, Blocks.MOSSY_STONE_BRICKS) && !g.linked(Blocks.STONE, Blocks.SMOOTH_STONE),
+            "stone kept apart from cobblestone (smelting), mossy (moss added) and smooth stone (smelting)");
+        expect(g.linked(Blocks.COBBLED_DEEPSLATE, Blocks.DEEPSLATE_TILES) && !g.linked(Blocks.DEEPSLATE, Blocks.COBBLED_DEEPSLATE),
+            "cobbled deepslate ~ deepslate tiles, natural deepslate kept apart (smelting)");
+        expect(g.linked(Blocks.QUARTZ_BLOCK, Blocks.QUARTZ_PILLAR) && !g.linked(Blocks.QUARTZ_BLOCK, Blocks.SMOOTH_QUARTZ)
+                && !g.linked(Blocks.SANDSTONE, Blocks.SMOOTH_SANDSTONE) && !g.linked(Blocks.BASALT, Blocks.SMOOTH_BASALT),
+            "quartz block ~ pillar; smooth quartz / sandstone / basalt kept apart (smelting)");
         expect(g.linked(Blocks.SANDSTONE, Blocks.CUT_SANDSTONE), "sandstone ~ cut sandstone");
         expect(g.linked(Blocks.ANDESITE, Blocks.POLISHED_ANDESITE), "andesite ~ polished andesite");
         expect(!g.linked(Blocks.COPPER_BLOCK, Blocks.CUT_COPPER) && !g.linked(Blocks.COPPER_BLOCK, Blocks.CHISELED_COPPER),
