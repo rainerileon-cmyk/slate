@@ -10,6 +10,7 @@ import dev.fallingcloud.slate.core.screen.Reskin;
 import dev.fallingcloud.slate.core.screen.SlateScreen;
 import dev.fallingcloud.slate.core.theme.Colors;
 import dev.fallingcloud.slate.core.theme.Palette;
+import dev.fallingcloud.slate.core.theme.PixelFont;
 import dev.fallingcloud.slate.core.theme.Theme;
 import dev.fallingcloud.slate.core.widget.SlateButton;
 import dev.fallingcloud.slate.core.widget.SlateCard;
@@ -20,6 +21,7 @@ import dev.fallingcloud.slate.core.widget.SlateLabel;
 import dev.fallingcloud.slate.core.widget.SlateModal;
 import dev.fallingcloud.slate.core.widget.SlateProgress;
 import dev.fallingcloud.slate.core.widget.SlateScrollPanel;
+import dev.fallingcloud.slate.core.widget.SlateSegmented;
 import dev.fallingcloud.slate.core.widget.SlateSlider;
 import dev.fallingcloud.slate.core.widget.SlateSwatches;
 import dev.fallingcloud.slate.core.widget.SlateTextField;
@@ -127,7 +129,16 @@ public final class CoreSettingsScreen extends SlateScreen {
         look.flow.skip(2);
         look.row(new SlateSlider(0, 0, look.rowW, Component.translatable("slate.settings.radius"), 0, 4, 1, cfg.radius,
             v -> Integer.toString((int) v) + " px", v -> save(x -> x.radius = (int) v)).compact(true));
-        look.row(new SlateToggle(0, 0, look.rowW, Component.translatable("slate.settings.heading_font"), cfg.headingFont, v -> save(x -> x.headingFont = v)));
+        // Each option is written in its own font; the choice only matters while the heading font is on.
+        final SlateSegmented<PixelFont> pixelFont = new SlateSegmented<>(0, 0, look.rowW, List.of(PixelFont.values()),
+            PixelFont.parse(cfg.pixelFont), PixelFont::label, f -> save(x -> x.pixelFont = f.key()));
+        pixelFont.active = cfg.headingFont;
+        look.row(new SlateToggle(0, 0, look.rowW, Component.translatable("slate.settings.heading_font"), cfg.headingFont, v -> {
+            save(x -> x.headingFont = v);
+            pixelFont.active = v;
+        }));
+        look.row(new SlateLabel(0, 0, look.rowW, Component.translatable("slate.settings.pixel_font")).style(SlateLabel.Style.MUTED));
+        look.row(pixelFont);
         look.row(new SlateToggle(0, 0, look.rowW, Component.translatable("slate.settings.blur_in_game"), cfg.blurInGame, v -> save(x -> x.blurInGame = v)));
         panel.add(look.finish(), 0, y);
         y += look.card.getHeight() + CARD_GAP;

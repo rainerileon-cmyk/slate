@@ -97,17 +97,19 @@ record HubEntry(Component label, Icon icon, Runnable onClick) {}
 ## 2. Theme (`core/theme/`)
 
 **`Theme`**
-- Static: `current()`, `reload()` (rebuilds from `Slate.config()` and fires listeners), `onChange(Runnable)`, and `public static final ResourceLocation HEADING_FONT = Slate.id("heading")`.
+- Static: `current()`, `reload()` (rebuilds from `Slate.config()` and fires listeners), `onChange(Runnable)`, and `public static final ResourceLocation HEADING_FONT` (the default pixel font, `slate:heading_pixeloid`).
 - Instance:
   - `skin()`, `isVanilla()`, `palette()`
   - `radius()`: 0 on vanilla, otherwise `CoreConfig.radius` clamped to 0–4
   - `motion()`: float, 0 = snap, 1 = default, 2 = half speed
   - `transitions()`, `uiSounds()`, `toasts()`, `blurInGame()`
-  - `headingStyle()`: `Style` using the Pixelify font when enabled
+  - `headingStyle()`: `Style` using the configured pixel font (`pixelFont()`) when enabled
   - `ms(int base)`: base × motion
   - Shorthands: `bg()`, `surface()`, `border()`, `text()`, `muted()`, `accent()`
 
 **`Skin`**: `enum { DARK, VANILLA }`, `static Skin parse(String)`.
+
+**`PixelFont`**: `enum { PIXELOID, MONOCRAFT, PIXELIFY }`, `key()` (the `core.json` value), `id()` (`slate:heading_<key>`), `label()` (the name written in that font), `static PixelFont parse(String)` (unknown → `PIXELOID`).
 
 **`Palette`** is a record of ARGB ints, in this order: `bg, bg2, surface, surfaceHover, surfaceActive, border, borderStrong, text, textMuted, textDim, accent, accentHover, accentText, danger, success, warning, overlay, shadow`.
 - `DEFAULT_ACCENT = 0xFFD9805E`.
@@ -501,6 +503,7 @@ String skin = "DARK"
 String accent = "#D9805E"
 double motion = 1.0
 boolean headingFont = true
+String pixelFont = "pixeloid"
 boolean transitions = true
 boolean uiSounds = true
 boolean toasts = true

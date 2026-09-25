@@ -165,7 +165,7 @@ The "Sections" column is what would become top tabs.
 - `slate_chat` (only if `Modules.isLoaded("slate_chat")`): `SimplePages.slateModule("chat","slate_chat","slate_config.chat.slate")`.
 
 **Interface.** `CFG/page/InterfacePage.java`.
-- `look`: skin `SlateSegmented`, a `SwatchRow` custom widget, core accent / radius / headingFont / blurInGame.
+- `look`: skin `SlateSegmented`, a `SwatchRow` custom widget, core accent / radius / headingFont / pixelFont / blurInGame.
 - `motion`: core motion, transitions, uiSounds, toasts.
 - `restyle`: reskinScope, reskinAllowlist, reskinDenylist.
 - `vanilla`: guiScale, narrator, highContrast, forceUnicodeFont, …, operatorItemsTab.

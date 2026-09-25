@@ -43,6 +43,7 @@
   "slate.settings.accent_preset": "Accent preset",
   "slate.settings.radius": "Corner radius",
   "slate.settings.heading_font": "Pixel heading font",
+  "slate.settings.pixel_font": "Pixel font",
   "slate.settings.blur_in_game": "Blur world behind menus",
   "slate.settings.motion": "Animation speed",
   "slate.settings.motion.off": "Off",
@@ -82,6 +83,9 @@
 
   "slate.skin.dark": "Dark",
   "slate.skin.vanilla": "Vanilla",
+  "slate.pixel_font.pixeloid": "Pixeloid Sans",
+  "slate.pixel_font.monocraft": "Monocraft",
+  "slate.pixel_font.pixelify": "Pixelify Sans",
   "slate.reskin.vanilla_and_slate": "Vanilla + Slate screens",
   "slate.reskin.allowlist": "Vanilla, Slate + known config screens",
   "slate.reskin.all_non_container": "Every non-inventory screen",

@@ -32,6 +32,10 @@ Switch skins in the Slate hub (pause menu / title screen button, or bind "Open S
 Controls → Slate), in Slate settings, or with the dev-mode action `slate:set_skin`. Accent presets and a
 hex colour field live in Slate settings (the Config module offers the same on its Interface page).
 
+Titles and headings use a pixel font: Pixeloid Sans by default, or Monocraft or Pixelify Sans, chosen under "Pixel
+font" in Slate settings or on Slate Config's Interface page. Pixeloid Sans and Monocraft are drawn on Minecraft's own
+pixel grid, so they stay crisp at every GUI scale; characters a font lacks fall back to the vanilla font.
+
 `config/slate/core.json`:
 
 | key | default | meaning |
@@ -42,7 +46,8 @@ hex colour field live in Slate settings (the Config module offers the same on it
 | `accent` | `#D9805E` | accent colour |
 | `radius` | `3` | corner step radius (0–4), dark skin only |
 | `motion` | `1.0` | animation speed multiplier; `0` disables motion |
-| `headingFont` | `true` | Pixelify Sans for headings |
+| `headingFont` | `true` | titles and headings in the pixel font; off uses the vanilla font everywhere |
+| `pixelFont` | `pixeloid` | which pixel font: `pixeloid` (Pixeloid Sans), `monocraft` (Monocraft) or `pixelify` (Pixelify Sans); anything else reads as `pixeloid` |
 | `transitions` | `true` | fade between menu screens |
 | `uiSounds` | `true` | soft click/tick sounds |
 | `toasts` | `true` | Slate notifications |

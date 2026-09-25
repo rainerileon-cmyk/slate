@@ -52,7 +52,7 @@ public final class InterfacePage extends OptionPageBase {
         out.add(modes);
         final Section look = Section.of("look", Component.translatable("slate_config.interface.look"));
         look.custom(SwatchRow::new);
-        look.addAll(CoreBindings.all("accent", "radius", "headingFont", "blurInGame"));
+        look.addAll(CoreBindings.all("accent", "radius", "headingFont", "pixelFont", "blurInGame"));
         out.add(look);
         out.add(Section.of("motion", Component.translatable("slate_config.interface.motion"), CoreBindings.all("motion", "transitions", "uiSounds", "toasts")));
         out.add(Section.of("restyle", Component.translatable("slate_config.interface.restyle"),

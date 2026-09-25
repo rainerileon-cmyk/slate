@@ -32,8 +32,10 @@ public final class CoreConfig {
     public String accent = "#D9805E";
     /** Animation speed multiplier: 0 disables motion, 1 default, 2 slow. */
     public double motion = 1.0;
-    /** Use the Pixelify Sans heading font (false = vanilla font everywhere). */
+    /** Use the pixel heading font (false = vanilla font everywhere). */
     public boolean headingFont = true;
+    /** Which pixel font headings use: {@code pixeloid} (default), {@code monocraft} or {@code pixelify}; others read as the default. */
+    public String pixelFont = "pixeloid";
     /** Cross-screen fade. */
     public boolean transitions = true;
     /** Subtle click/hover sounds on Slate widgets. */

@@ -36,10 +36,14 @@ compile against vendored jars in `MinecraftMods/Source/libs` (or `-Pslate.libs=<
 
 ## Configuration
 
-Everything lives under `config/slate/`: `core.json` (the three switches: `customLayout`, `skin`, `reskinContainers`; accent, motion, dev mode, restyle scope; `setupDone`),
+Everything lives under `config/slate/`: `core.json` (the three switches: `customLayout`, `skin`, `reskinContainers`; accent, pixel font, motion, dev mode, restyle scope; `setupDone`),
 `menu.json`, `multiplayer.json`, `chat.json`, `config.json`, `building.json` (client building preferences),
 `building-server.json` (server building rules, synced to players), `building-chisel.json` (chisel groups),
 `layouts/<screen>.json` (dev-mode layouts), `config/pages/*.json` (curated settings pages). Modpacks ship
 defaults by placing files there.
 
 License: MIT.
+
+Core bundles three pixel fonts for headings, each under the SIL Open Font License 1.1, with its license text beside
+it in `common/core/src/main/resources/assets/slate/font/`: Pixeloid Sans (© 2020-2022 GGBotNet, Reserved Font Name
+"Pixeloid"), Monocraft (© 2022 Idrees Hassan) and Pixelify Sans (© 2021 The Pixelify Sans Project Authors).

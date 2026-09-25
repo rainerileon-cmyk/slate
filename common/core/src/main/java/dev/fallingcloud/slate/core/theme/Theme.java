@@ -14,7 +14,8 @@ import net.minecraft.resources.ResourceLocation;
  */
 public final class Theme {
 
-    public static final ResourceLocation HEADING_FONT = Slate.id("heading");
+    /** The default pixel font's id. Headings follow the configured font: use {@link #headingStyle()}. */
+    public static final ResourceLocation HEADING_FONT = PixelFont.DEFAULT.id();
 
     private static volatile Theme current = new Theme(new CoreConfig());
     private static final List<Runnable> LISTENERS = new CopyOnWriteArrayList<>();
@@ -27,6 +28,7 @@ public final class Theme {
     private final int containerRadius;
     private final float motion;
     private final boolean headingFont;
+    private final PixelFont pixelFont;
     private final boolean transitions;
     private final boolean uiSounds;
     private final boolean toasts;
@@ -41,6 +43,7 @@ public final class Theme {
         this.radius = skin == Skin.VANILLA ? 0 : containerRadius;
         this.motion = (float) Math.max(0, Math.min(2, cfg.motion));
         this.headingFont = cfg.headingFont;
+        this.pixelFont = PixelFont.parse(cfg.pixelFont);
         this.transitions = cfg.transitions;
         this.uiSounds = cfg.uiSounds;
         this.toasts = cfg.toasts;
@@ -83,9 +86,12 @@ public final class Theme {
     public boolean toasts() { return toasts; }
     public boolean blurInGame() { return blurInGame; }
 
-    /** Style for headings: Pixelify Sans when enabled, the default font otherwise. */
+    /** The chosen pixel font; headings use it while the heading font is on. */
+    public PixelFont pixelFont() { return pixelFont; }
+
+    /** Style for headings: the chosen pixel font when enabled, the default font otherwise. */
     public Style headingStyle() {
-        return headingFont ? Style.EMPTY.withFont(HEADING_FONT) : Style.EMPTY;
+        return headingFont ? Style.EMPTY.withFont(pixelFont.id()) : Style.EMPTY;
     }
 
     /** Duration in ms after the motion multiplier (0 when motion is off). */

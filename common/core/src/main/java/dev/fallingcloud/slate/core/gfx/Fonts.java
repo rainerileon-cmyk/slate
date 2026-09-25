@@ -7,7 +7,7 @@ import net.minecraft.network.chat.MutableComponent;
 /** Text helpers that apply the theme's fonts. */
 public final class Fonts {
 
-    /** {@code text} in the heading font (Pixelify Sans) when enabled. */
+    /** {@code text} in the heading font (the configured pixel font) when enabled. */
     public static MutableComponent heading(final Component text) {
         return text.copy().withStyle(Theme.current().headingStyle());
     }

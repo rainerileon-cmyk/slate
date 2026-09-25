@@ -43,7 +43,7 @@ Ctrl+Shift+PgUp / PgDn the secondary tabs, `/` or Ctrl+F focuses search.
   the folder, the folder, what is active) and **Shader Packs** (only with Iris: every pack in `shaderpacks/`
   with the active one marked, Apply, **Import**, shaders on/off, the folder, and Iris' own screen for
   per-pack options; if Iris' internals are unreachable, Apply opens Iris' screen instead).
-- **Interface**: Slate's skin, accent swatches and custom colour, motion, restyle (scope, inventories &
+- **Interface**: Slate's skin, accent swatches and custom colour, the heading font and its pixel font, motion, restyle (scope, inventories &
   containers, lists), the vanilla GUI options that belong here, Slate Menu, development mode.
 - **Accessibility** (id `language_accessibility`): **Language** (searchable list, Apply reloads; font
   options) and **Accessibility** (reading, motion & effects).

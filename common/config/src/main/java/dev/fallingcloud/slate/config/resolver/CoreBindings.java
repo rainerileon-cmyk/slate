@@ -11,6 +11,7 @@ import dev.fallingcloud.slate.core.config.CoreConfig;
 import dev.fallingcloud.slate.core.screen.Reskin;
 import dev.fallingcloud.slate.core.theme.Colors;
 import dev.fallingcloud.slate.core.theme.Palette;
+import dev.fallingcloud.slate.core.theme.PixelFont;
 import dev.fallingcloud.slate.core.theme.Theme;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -59,6 +60,12 @@ public final class CoreBindings {
         DEFS.put("radius", () -> base("radius", OptionType.INT).range(NumberRange.ints(0, 4))
             .getter(() -> Slate.config().radius).setter(v -> save(c -> c.radius = Math.max(0, Math.min(4, OptionValues.asInt(v, 3))))).def(DEFAULTS.radius));
         bool("headingFont", c -> c.headingFont, (c, v) -> c.headingFont = v);
+        DEFS.put("pixelFont", () -> base("pixelFont", OptionType.CHOICE)
+            .choices(pixelFonts())
+            .getter(() -> PixelFont.parse(Slate.config().pixelFont).key())
+            .setter(v -> save(c -> c.pixelFont = PixelFont.parse(OptionValues.asString(v)).key()))
+            .def(PixelFont.DEFAULT.key())
+            .enabledIf(() -> Slate.config().headingFont));
         bool("blurInGame", c -> c.blurInGame, (c, v) -> c.blurInGame = v);
         DEFS.put("motion", () -> base("motion", OptionType.DOUBLE).range(NumberRange.of(0, 2, 0.25))
             .format(v -> { final double d = OptionValues.asDouble(v, 1); return d <= 0 ? Component.translatable("options.off") : Component.literal(String.format(java.util.Locale.ROOT, "%.2fx", d)); })
@@ -85,6 +92,13 @@ public final class CoreBindings {
         DEFS.put("devSnap", () -> base("devSnap", OptionType.INT).range(NumberRange.ints(1, 16))
             .format(v -> Component.literal(OptionValues.asInt(v, 4) + " px"))
             .getter(() -> Slate.config().devSnap).setter(v -> save(c -> c.devSnap = Math.max(1, OptionValues.asInt(v, 4)))).def(DEFAULTS.devSnap));
+    }
+
+    /** One choice per pixel font, each name written in its own font so the dropdown previews them. */
+    private static List<Choice> pixelFonts() {
+        final List<Choice> out = new ArrayList<>();
+        for (final PixelFont f : PixelFont.values()) out.add(new Choice(f.key(), f.label()));
+        return out;
     }
 
     private static List<Choice> scopes() {
