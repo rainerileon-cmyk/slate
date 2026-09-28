@@ -161,7 +161,6 @@ public final class BuildingSettings {
         s.add(bool("modes.livePreview", () -> cfg().modes.livePreview, v -> cfg().modes.livePreview = v, md.livePreview));
         s.add(bool("modes.labels", () -> cfg().modes.labels, v -> cfg().modes.labels = v, md.labels));
         s.add(bool("modes.arrowNudge", () -> cfg().modes.arrowNudge, v -> cfg().modes.arrowNudge = v, md.arrowNudge));
-        s.add(bool("modes.escapeCancels", () -> cfg().modes.escapeCancels, v -> cfg().modes.escapeCancels = v, md.escapeCancels));
         s.add(bool("modes.openContainers", () -> cfg().modes.openContainers, v -> cfg().modes.openContainers = v, md.openContainers));
         s.add(integer("modes.air_distance", () -> cfg().modes.airDistance, v -> cfg().modes.airDistance = v, md.airDistance, 1, 16, 1));
         return new Group("modes", group("modes"), null, s, false);

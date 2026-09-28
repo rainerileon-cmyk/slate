@@ -336,7 +336,8 @@ final class ModePreview {
         if (mode == BuildModes.PASTE && (clipboard == null || clipboard.isEmpty())) {
             return Component.translatable("slate_building.notice.empty_clipboard");
         }
-        if (needsPalette(mode) && palette.isEmpty()) return Component.translatable("slate_building.notice.hold_block");
+        // A breaking selection needs nothing in hand (its geometry runs with a stand-in block, see runPlanner).
+        if (needsPalette(mode) && palette.isEmpty() && !ClientModeState.destructive()) return Component.translatable("slate_building.notice.hold_block");
         if (anchors.isEmpty()) return null;
         if (limits.maxVolume() > 0 && shape.estimate() > limits.maxVolume()) {
             return Component.translatable("slate_building.notice.too_big", shape.estimate(), limits.maxVolume());

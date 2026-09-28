@@ -109,7 +109,8 @@ public final class EditPlanners {
         final Palette.WeightedEntry held = ctx.palette().first();
         if (held == null) return Plans.error(PlanErrors.noBlock(), box.aabb());
         final Level level = ctx.level();
-        final boolean onTop = !"REPLACE_TOP".equals(ctx.params().getChoice("mode"));
+        // A breaking overlay strips the top layers: ON_TOP's positions are the air above them.
+        final boolean onTop = !ctx.destructive() && !"REPLACE_TOP".equals(ctx.params().getChoice("mode"));
         final PlanBuilder pb = new PlanBuilder(ctx).bounds(onTop ? box.aabb().expandTowards(0, depth, 0) : box.aabb());
         final BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
         for (int z = box.minZ(); z <= box.maxZ(); z++) {

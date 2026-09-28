@@ -1,5 +1,6 @@
 package dev.fallingcloud.slate.building.ops.server;
 
+import dev.fallingcloud.slate.building.SlateBuilding;
 import dev.fallingcloud.slate.building.block.ShapeBlockEntity;
 import dev.fallingcloud.slate.building.config.ServerOps;
 import dev.fallingcloud.slate.building.ops.BuildMode;
@@ -120,6 +121,8 @@ final class RunningOp {
     int missing;
     int ticks;
     boolean cancelled;
+    /** Whether a step that threw was logged already (once per operation). */
+    private boolean stepErrorLogged;
     /** Reverts only: whether the history entry being reverted was made without costs (creative). */
     boolean sourceFree;
 
@@ -179,7 +182,18 @@ final class RunningOp {
             while (index < steps.size() && changedNow < budget && processed < maxProcessed) {
                 final Step step = steps.get(index++);
                 processed++;
-                final Outcome o = apply(level, player, step, rules, rules.effects && changedNow % stride == 0);
+                Outcome o;
+                try {
+                    o = apply(level, player, step, rules, rules.effects && changedNow % stride == 0);
+                } catch (final RuntimeException e) {
+                    // Another mod's hook threw while this position changed (Sable's physics once did, on our walls):
+                    // skip it and go on, instead of losing the rest of this tick for every running operation.
+                    if (!stepErrorLogged) {
+                        stepErrorLogged = true;
+                        SlateBuilding.LOGGER.error("[Slate Building] {} failed at {}; skipped, the operation goes on", mode.id(), step.pos(), e);
+                    }
+                    o = Outcome.SKIPPED;
+                }
                 switch (o) {
                     case CHANGED -> changedNow++;
                     case SKIPPED -> skipped++;

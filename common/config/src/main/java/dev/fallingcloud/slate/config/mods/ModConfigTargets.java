@@ -47,8 +47,10 @@ public final class ModConfigTargets {
         }
         for (final Path p : ConfigFiles.forMod(modId)) {
             if (covered.contains(key(p))) continue;
-            Documents.open(p, modId).ifPresent(doc ->
-                out.add(new Target(Component.literal(p.getFileName().toString()), Icon.CODE, () -> mc.setScreen(new FileEditorScreen(mc.screen, doc)))));
+            // Read when opened, not here: the Mods page asks for every installed mod's targets at once, and parsing
+            // each mod's files up front (hundreds in a big pack) froze it.
+            out.add(new Target(Component.literal(p.getFileName().toString()), Icon.CODE,
+                () -> Documents.open(p, modId).ifPresent(doc -> mc.setScreen(new FileEditorScreen(mc.screen, doc)))));
         }
         return out;
     }

@@ -13,7 +13,7 @@ if (-not (Test-Path $mods)) { throw "mods folder not found: $mods" }
 Get-ChildItem $mods -Filter "slate-*-neoforge-1.21.1-*.jar*" | ForEach-Object {
     Write-Output "removing old $($_.Name)"; Remove-Item $_.FullName -Force
 }
-foreach ($m in @("core", "menu", "multiplayer", "chat", "config", "building")) {
+foreach ($m in @("core", "menu", "multiplayer", "chat", "config", "building", "earlywindow")) {
     $jar = Get-ChildItem (Join-Path $root "neoforge\$m\build\libs") -Filter "slate-$m-neoforge-1.21.1-*.jar" |
         Where-Object { $_.Name -notlike "*-sources*" } | Sort-Object LastWriteTime -Descending | Select-Object -First 1
     if (-not $jar) { throw "no built jar for $m - run .\gradlew.bat build in neoforge first" }

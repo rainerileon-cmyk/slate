@@ -47,7 +47,7 @@ import org.jetbrains.annotations.Nullable;
 
 /**
  * The Slate title screen: panorama + logo (or Slate wordmark), a column of large nav buttons, the
- * continue card, the account card, the Multiplayer module's friends panel when installed, splash text,
+ * continue card, the account card, the Multiplayer module's friends panel (opt-in), splash text,
  * footer. Layout adapts to the window: a two-column layout from ~400 px, compact rows below 300 px high.
  * Every button opens the vanilla screen class so the per-screen swap toggles decide what shows.
  */

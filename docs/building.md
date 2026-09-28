@@ -138,7 +138,7 @@ reason such as "Needs: Hammer".
 | Left click / right click | Previous / next wheel page (page dots and the wheel name show where you are) |
 | Scroll | Step around the ring |
 | Hotbar keys 1–9 | Point at that slice (applied on release, or at once with *Release to apply* off) |
-| Esc | Close without changing anything |
+| Esc | Close without changing anything (the pause menu opens as usual) |
 
 With *Release to apply* off, a left click applies (the wheel stays open) and releasing the key only closes it.
 
@@ -233,8 +233,10 @@ hotbar palette. A held shape builds in that shape.
 |---|---|
 | Right click | Next step (corner, fix, apply). With *Right-click applies* off, only the Confirm key applies (right-click still does while Confirm is unbound) |
 | Confirm key | Same as the next right-click. In Mirror/Radial it re-centres on the block you look at |
-| Left click | The same corners, but the mode **breaks** what it would have placed: Fill clears the box, Walls tears them down, Replace removes the matching blocks, Overlay strips the top layer. Drops and harvest rules are Clear's (hammer tier). The ghosts turn warm while a breaking selection is pending |
-| Q (Cancel key), Esc | Clear the pending selection. Q also stops a running operation (what was built stays and can be undone). Q is vanilla's drop key: Slate Building takes it only while there is something to cancel |
+| Left click | The same corners, but the mode **breaks** what it would have placed: Fill clears the box, Walls tears them down, Replace removes the matching blocks, Overlay strips the top layer. Only the shape counts: an empty hand works, and neither the held block nor the *Replace* option changes what breaks (air and water are left alone). Drops and harvest rules are Clear's (hammer tier). The ghosts turn warm while a breaking selection is pending |
+| The other button | Cancels the pending selection and does nothing else: right click on a breaking selection, left click on a placing one (any mode) |
+| Q (Cancel key) | Clear the pending selection. Q also stops a running operation (what was built stays and can be undone). Q is vanilla's drop key: Slate Building takes it only while there is something to cancel |
+| Esc | Only opens the pause menu; a pending selection stays as it is |
 | Ctrl + scroll | Push or pull the face of the box you look at (radius/height on cylinders and spheres). On a fixed paste/move point: nudge it along your view |
 | Shift + scroll | Step the main option: thickness, count, depth, slices, rotation (paste, move) or axis (mirror). Radius on spheres and cylinders |
 | *Corner distance in the air* slider (build menu, under the mode's options) | Distance of a corner placed in the air (default 4; also a setting). Scrolling never changes it |
@@ -413,13 +415,13 @@ All in the **Slate Building** category (Slate Config → Controls, or vanilla Co
 | Undo build | unbound |
 | Redo build | unbound |
 | Confirm selection | unbound (right-click confirms) |
-| Cancel selection | Q (vanilla's drop key; taken only while a selection or an operation can be cancelled; Esc also clears a selection) |
+| Cancel selection | Q (vanilla's drop key; taken only while a selection or an operation can be cancelled; the other mouse button also clears a selection) |
 | Leave building mode | unbound |
 | Toggle accurate placement | unbound |
 | Toggle fast breaking | unbound |
 | Mode: Fill … Mode: Extended, Mode: Measure (one per mode, 21) | unbound |
 
-The keys inside the wheel (clicks, scroll, hotbar keys, Esc) and in modes (Ctrl/Shift+scroll, arrows, PageUp/PageDown, Esc)
+The keys inside the wheel (clicks, scroll, hotbar keys, Esc) and in modes (Ctrl/Shift+scroll, arrows, PageUp/PageDown)
 are fixed.
 
 **Shared keys.** Left Alt and R are popular: in the DF pack six mods use Left Alt (Create's toolbelt, Relics, Iron's
@@ -472,7 +474,6 @@ Building settings screen shows the same rows. Client settings apply live. Server
 | `modes.livePreview` | `true` | Plan ghosts while the box still follows the crosshair (small selections) | Building modes › Live preview |
 | `modes.labels` | `true` | Size labels above the selection | Building modes › Size labels |
 | `modes.arrowNudge` | `true` | Arrow keys nudge | Building modes › Arrow keys nudge |
-| `modes.escapeCancels` | `true` | Esc clears a pending selection before opening the pause menu (the mode stays on) | Building modes › Esc clears the selection |
 | `modes.openContainers` | `true` | With nothing selected, right-clicking a chest opens it | Building modes › Open containers |
 | `modes.airDistance` | `4` | Distance of a corner placed on air (also a slider in the build menu) | Building modes › Corner distance in the air |
 | `modes.params` | `{}` | Options per mode, e.g. `{"fill": {"replace": "AIR"}}` | Build menu options panel |

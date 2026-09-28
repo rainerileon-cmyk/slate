@@ -43,6 +43,8 @@ public class CategoryPage extends SidebarPage implements TabHost, CategoryHost {
     private int stripFrom = -1;
     private int enterDir;
     private String filterText = "";
+    /** The header text each tab (by id) was last handed ({@link #applyFilter}). */
+    private final Map<String, String> appliedFilter = new HashMap<>();
 
     public CategoryPage(final String id, final Component title, final Icon icon, final List<? extends SidebarPage> builtins) {
         super(id, title, icon);
@@ -131,7 +133,13 @@ public class CategoryPage extends SidebarPage implements TabHost, CategoryHost {
         }
     }
 
+    /**
+     * Hands the header search to a tab, once per new header text. Handing it on every build wiped whatever was typed
+     * into the tab's own search box: the Mods page rebuilds on every keystroke, so its box threw each one away.
+     */
     private void applyFilter(final SidebarPage child) {
+        if (filterText.equals(appliedFilter.get(child.id()))) return;
+        appliedFilter.put(child.id(), filterText);
         if (child instanceof OptionPageBase o) o.filterSilently(filterText);
         else if (child instanceof ModsPage m) m.filterSilently(filterText);
     }
@@ -177,6 +185,7 @@ public class CategoryPage extends SidebarPage implements TabHost, CategoryHost {
     public void filter(final String text) {
         filterText = text == null ? "" : text;
         final SidebarPage c = activeChild();
+        if (c != null) appliedFilter.put(c.id(), filterText);
         if (c instanceof OptionPageBase o) o.filter(filterText);
         else if (c instanceof ModsPage m) m.filter(filterText);
     }

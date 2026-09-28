@@ -30,10 +30,13 @@ public final class KeyBinding extends Binding {
 
     public KeyMapping mapping() { return mapping; }
 
-    /** Also the key it is bound to right now ("Left Alt", "key.keyboard.left.alt"), so search finds keys by key. */
+    /**
+     * Also every name of the key it is on right now ("left alt", "lmb", "ctrl+r"), so search finds binds by key. Not
+     * the save name: "key.keyboard.r" put "keyboard" in every bind, so a search for "r" found nearly all of them.
+     */
     @Override
     public String searchText() {
-        return super.searchText() + " " + mapping.getTranslatedKeyMessage().getString() + " " + mapping.saveString().replace('.', ' ');
+        return super.searchText() + " " + KeySearch.text(mapping);
     }
 
     public static InputConstants.Key parse(@Nullable final String name) {

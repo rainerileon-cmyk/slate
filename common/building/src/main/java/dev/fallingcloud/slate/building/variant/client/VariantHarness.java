@@ -534,6 +534,33 @@ final class VariantHarness {
         reshapeLootChecks(c);
         legacySlabMergeChecks(c);
         rulesFingerprintChecks();
+        foreignGetterChecks();
+    }
+
+    /**
+     * Shapes asked for through a getter that holds nothing (Sable bakes physics colliders through one whose
+     * {@code getBlockState} answers null): the diagonal walls, fences and panes read their state back from it and threw,
+     * which failed every placement of them in a pack with Sable.
+     */
+    private static void foreignGetterChecks() {
+        final net.minecraft.world.level.BlockGetter empty = new net.minecraft.world.level.BlockGetter() {
+            @Override public @Nullable net.minecraft.world.level.block.entity.BlockEntity getBlockEntity(final BlockPos pos) { return null; }
+            @SuppressWarnings("DataFlowIssue") @Override public BlockState getBlockState(final BlockPos pos) { return null; }
+            @Override public net.minecraft.world.level.material.FluidState getFluidState(final BlockPos pos) { return net.minecraft.world.level.material.Fluids.EMPTY.defaultFluidState(); }
+            @Override public int getHeight() { return 384; }
+            @Override public int getMinBuildHeight() { return -64; }
+        };
+        for (final Shape shape : List.of(Shape.WALL, Shape.FENCE, Shape.PANE)) {
+            final BlockState state = BuildingBlocks.forShape(shape).get().defaultBlockState();
+            String problem = null;
+            try {
+                state.getShape(empty, BlockPos.ZERO);
+                state.getCollisionShape(empty, BlockPos.ZERO);
+            } catch (final RuntimeException e) {
+                problem = e.toString();
+            }
+            check(shape.name().toLowerCase(java.util.Locale.ROOT) + " shapes through a getter that answers null", problem == null, problem);
+        }
     }
 
     /** A shape can never hold another shape as its material (it would delegate to itself until the stack overflows). */

@@ -45,7 +45,7 @@ public final class LibDiagonalBlocks {
         for (final DiagonalShapes.Diagonal d : DiagonalShapes.Diagonal.values()) {
             final BlockPos np = pos.offset(d.dx, 0, d.dz);
             final BlockState ns = level.getBlockState(np);
-            if (!(ns.getBlock() instanceof StarCollisionBlock twin) || ns.getBlock() instanceof ShapeBlock) continue;
+            if (ns == null || !(ns.getBlock() instanceof StarCollisionBlock twin) || ns.getBlock() instanceof ShapeBlock) continue;
             final BlockState updated = twin.updateIndirectNeighborDiagonalProperty(ns, level, np, EightWayDirection.valueOf(d.opposite().name()));
             if (updated != null && updated != ns) level.setBlock(np, updated, flags, recursionLeft);
         }

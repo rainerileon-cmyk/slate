@@ -176,7 +176,16 @@ public final class DiagonalShapes {
 
     /** The arms of the block at {@code pos}: ours from the block entity, a library twin's from its properties, else none. */
     public static int mask(final BlockGetter level, final BlockPos pos) {
-        final BlockState state = level.getBlockState(pos);
+        return mask(level.getBlockState(pos), level, pos);
+    }
+
+    /**
+     * The arms of {@code state}, the block at {@code pos}. Shape queries pass the state they were asked about instead of
+     * reading it back: another mod's getter need not hold the block (Sable bakes physics colliders through one that
+     * answers {@code getBlockState} with null), and a null state simply has no arms.
+     */
+    public static int mask(final @Nullable BlockState state, final BlockGetter level, final BlockPos pos) {
+        if (state == null) return 0;
         if (kindOf(state.getBlock()) != null) {
             return level.getBlockEntity(pos) instanceof ShapeBlockEntity be ? be.diagonals() : 0;
         }
@@ -201,7 +210,7 @@ public final class DiagonalShapes {
             if (cardinal(state, d.a, kind) || cardinal(state, d.b, kind)) continue;          // a straight arm takes the corner
             final BlockPos np = pos.offset(d.dx, 0, d.dz);
             final BlockState ns = level.getBlockState(np);
-            if (!attaches(ns, kind)) continue;
+            if (ns == null || !attaches(ns, kind)) continue;       // null: a foreign level that does not hold it
             // A block that is not ours must already hold an arm towards us (a library twin sets its own by its rules and
             // then tells us): no arm to a block that gives none back. Between our own the rules are symmetric.
             if (kindOf(ns.getBlock()) == null && !has(level, np, d.opposite())) continue;
@@ -223,6 +232,7 @@ public final class DiagonalShapes {
         for (final Diagonal d : Diagonal.values()) {
             final BlockPos np = pos.offset(d.dx, 0, d.dz);
             final BlockState ns = level.getBlockState(np);
+            if (ns == null) continue;
             final Kind nk = kindOf(ns.getBlock());
             if (nk != null) refresh(ns, level, np, nk);
         }

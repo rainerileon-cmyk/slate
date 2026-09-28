@@ -1,0 +1,20 @@
+// Slate's start-up window for NeoForge: a service jar, not a mod. FML finds it in mods/ through its META-INF/services
+// entries (like Drippy Loading Screen's early-window jar) and runs it before any mod loads. Fabric has no early window.
+// FML's early display and loader come with NeoForge's classpath.
+base { archivesName = 'slate-earlywindow-neoforge-1.21.1' }
+
+// The heading fonts and their licences come from Core's assets, the same files the game's headings use.
+processResources {
+    from("${rootDir}/../common/core/src/main/resources/assets/slate/font") {
+        include '*.ttf', '*-ofl.txt'
+        into 'slate_earlywindow'
+    }
+}
+
+jar {
+    manifest {
+        attributes('Automatic-Module-Name': 'slate.earlywindow',
+            'Implementation-Title': 'Slate early window',
+            'Implementation-Version': project.version)
+    }
+}

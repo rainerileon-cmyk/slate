@@ -399,8 +399,10 @@ Client flow (D2, `building.client.mode`): activating a mode (menu row or its key
 AREA: 1st right-click = corner A (reach = `blockInteractionRange()` + tier reach bonus; on air, a corner at a
 distance set by the build-menu slider), the box then follows the crosshair, 2nd right-click = corner B, the planned result
 shows as ghosts, 3rd right-click (or `confirm` key) applies; the same selection driven by LEFT-click breaks what the
-plan would place (`destructive` in `ApplyOp` / `PlanContext`, `Planners.destructive` turns places into breaks);
-Q (the cancel key, claimed only while there is something to cancel) or Esc cancels;
+plan would place (`destructive` in `ApplyOp` / `PlanContext`; `PlanBuilder` then breaks every non-air, non-fluid block
+the geometry covers, ignoring the held block and the replace policy, and `Planners.destructive` is the safety net);
+the other mouse button (right-click on a breaking selection, left-click on a placing one) or Q (the cancel key,
+claimed only while there is something to cancel) cancels and does nothing else; Esc is never taken (pause menu only);
 Ctrl+scroll pushes/pulls the looked-at face of the box, Shift+scroll changes the main numeric param (thickness /
 count / radius); arrow keys nudge. POINT: one click shows the ghost, the next applies. TOGGLE: the centre is the
 targeted block when activated (re-centre with `confirm`), plane/centre drawn in the world. Normal placing is

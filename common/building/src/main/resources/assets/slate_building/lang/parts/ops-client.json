@@ -43,7 +43,6 @@
   "slate_building.hint.key.scroll": "Scroll",
   "slate_building.hint.key.ctrl_scroll": "Ctrl + Scroll",
   "slate_building.hint.key.shift_scroll": "Shift + Scroll",
-  "slate_building.hint.key.esc": "Esc",
   "slate_building.hint.key.arrows": "Arrow keys",
   "slate_building.hint.corner_a": "First corner",
   "slate_building.hint.corner_b": "Second corner",
@@ -75,8 +74,6 @@
   "slate_building.settings.modes.labels.desc": "Show the size of the selection above it in the world.",
   "slate_building.settings.modes.arrowNudge": "Arrow keys nudge",
   "slate_building.settings.modes.arrowNudge.desc": "Arrow keys move the selection one block; Shift, Page Up and Page Down move it vertically.",
-  "slate_building.settings.modes.escapeCancels": "Esc clears the selection",
-  "slate_building.settings.modes.escapeCancels.desc": "With a selection pending, Esc clears it instead of opening the pause menu (the mode stays on). The cancel key (Q) always does.",
   "slate_building.settings.modes.openContainers": "Open containers",
   "slate_building.settings.modes.openContainers.desc": "With nothing selected, right-clicking a chest or barrel opens it instead of starting a selection."
 }

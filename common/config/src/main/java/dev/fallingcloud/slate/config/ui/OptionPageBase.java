@@ -342,6 +342,10 @@ public abstract class OptionPageBase extends SidebarPage implements TabHost, Ent
     protected boolean showSingleHeader() { return false; }
 
     private static boolean matches(final OptionBinding b, final Section s, final String f) {
+        // Key binds also match by the key they are on ("r", "ctrl+r"), with KeySearch's rules.
+        if (b instanceof dev.fallingcloud.slate.config.option.KeyBinding k) {
+            return dev.fallingcloud.slate.config.option.KeySearch.matches(k.mapping(), f, b.searchText() + " " + s.title.getString() + " " + s.tabLabel().getString());
+        }
         final String hay = (b.searchText() + " " + s.title.getString() + " " + s.tabLabel().getString()).toLowerCase(Locale.ROOT);
         for (final String tok : f.split("\\s+")) if (!tok.isEmpty() && !hay.contains(tok)) return false;
         return true;

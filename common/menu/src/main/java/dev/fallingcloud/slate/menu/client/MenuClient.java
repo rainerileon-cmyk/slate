@@ -82,6 +82,9 @@ public final class MenuClient {
         CoreActions.SCREEN_FACTORIES.put("slate_menu:options", SlateOptionsScreen::new);
         CoreActions.SCREEN_FACTORIES.put("slate_menu:screenshots", SlateScreenshotsScreen::new);
 
+        // Loading screens are drawn over by menu.mixin.*ScreenMixin (LoadingScreens), not swapped; previews for screenshot runs.
+        if (System.getProperty("slate.autoScreens") != null) dev.fallingcloud.slate.menu.client.loading.LoadingPreviews.register();
+
         MenuElements.registerAll();
 
         Placeholders.register("last_world", () -> LastPlayed.quick().map(t -> t.name() == null || t.name().isBlank() ? t.id() : t.name()).orElse(""));

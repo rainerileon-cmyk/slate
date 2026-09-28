@@ -33,7 +33,11 @@ public final class SlateMenu implements SlateModule {
 
     /** The live config wrapper ({@code configFile().update(c -> ...)} edits and saves atomically). */
     public static synchronized JsonConfig<MenuConfig> configFile() {
-        if (config == null) config = JsonConfig.of("menu", MenuConfig.class, MenuConfig::new);
+        if (config == null) {
+            config = JsonConfig.of("menu", MenuConfig.class, MenuConfig::new);
+            // The friends panel went opt-in; a file saved while it defaulted on still says true, so switch it off once.
+            if (!config.get().friendsPanelOptIn) config.update(c -> { c.showFriendsPanel = false; c.friendsPanelOptIn = true; });
+        }
         return config;
     }
 

@@ -17,6 +17,12 @@ public final class MenuConfig {
     public boolean pauseScreen = true;
     public boolean optionsScreen = true;
     public boolean disconnectedScreen = true;
+    /**
+     * Slate's look for the loading screens (loading a world, joining a server, loading terrain, saving, progress). They
+     * are drawn over, not replaced: the game drives them, so vanilla's screen and its logic stay. Also read, as text, by
+     * the NeoForge start-up window jar (slate-earlywindow), which draws only while this is on.
+     */
+    public boolean loadingScreens = true;
 
     // ---- title screen
     public boolean panorama = true;
@@ -25,8 +31,8 @@ public final class MenuConfig {
     public boolean showLogo = true;
     public boolean showContinueCard = true;
     public boolean showAccountCard = true;
-    /** The Multiplayer module's friends panel next to the nav (only when that module is installed). */
-    public boolean showFriendsPanel = true;
+    /** The Multiplayer module's friends panel next to the nav (only when that module is installed). Off by default. */
+    public boolean showFriendsPanel = false;
     public boolean showFooter = true;
     /** Title-screen button for the loader's mod list (when one exists). */
     public boolean showModsButton = true;
@@ -62,7 +68,9 @@ public final class MenuConfig {
     public boolean confirmQuit = true;
     public boolean showSessionTime = true;
 
-    // ---- written by the module (last played target + recent servers)
+    // ---- written by the module (migrations, last played target, recent servers)
+    /** One-time migration done: the friends panel went opt-in, so a file written while it defaulted on was switched off. */
+    public boolean friendsPanelOptIn = false;
     /** {@code world} or {@code server}; empty = nothing recorded yet. */
     public String lastKind = "";
     public String lastWorld = "";

@@ -53,7 +53,9 @@ import org.lwjgl.glfw.GLFW;
  *       it); normal placing and breaking stay untouched on the client, the server mirrors them.</li>
  * </ul>
  * Left-click drives the same selection in its BREAKING form on the area modes (the plan breaks what it would have
- * placed); the cancel key (Q) or Esc clears a pending selection and the mode stays on. Ctrl+scroll pushes / pulls the looked-at
+ * placed). The other button cancels a pending selection and does nothing else (right-click a breaking one, left-click a
+ * placing one), as does the cancel key (Q); the mode stays on. Esc is never taken: it only opens the pause menu, and a
+ * pending selection stays as it is. Ctrl+scroll pushes / pulls the looked-at
  * face (radius / height on round modes), Shift+scroll steps the main parameter (thickness, count, depth, slices;
  * rotation for paste and move, axis for mirror; the radius of spheres and cylinders), arrow keys (Shift / Page Up /
  * Page Down for vertical) nudge; a plain scroll is the hotbar's (the corner distance in the air is a slider in the
@@ -109,8 +111,13 @@ final class ModeController implements BuildInput.Handler {
         final BuildMode mode = ClientModeState.current();
         final LocalPlayer player = Minecraft.getInstance().player;
         if (mode == null || player == null || mode.kind() == ModeKind.TOGGLE || mode.kind() == ModeKind.REACH) return false;
-        // Right-click drives the placing selection; on a left-click (breaking) one it starts over as its own kind.
-        if (ClientModeState.selectionPending() && ClientModeState.destructive()) cancelSelection();
+        // Right-click on a breaking (left-click) selection cancels it and does nothing else. The press stays latched,
+        // so holding the button on does not start a placing selection right after.
+        if (ClientModeState.selectionPending() && ClientModeState.destructive()) {
+            if (!useLatched) cancelSelection();
+            useLatched = true;
+            return true;
+        }
         if (!ClientModeState.selectionPending() && !claimsUse(player)) return false;
         if (useLatched) return true;                    // held: keep vanilla's repeat quiet, act once per press
         useLatched = true;
@@ -120,21 +127,21 @@ final class ModeController implements BuildInput.Handler {
 
     /**
      * Left-click drives the BREAKING selection of the area modes: the same corners, and the mode then breaks what it
-     * would have placed (Fill clears the box, Walls tears them down, Replace removes the matches). Cancelling is the
-     * cancel key (Q) or Esc, never a click. Point and move modes have no breaking variant: with a selection pending
-     * the click is swallowed (no mining under a preview), otherwise it mines as usual.
+     * would have placed (Fill clears the box, Walls tears them down, Replace removes the matches). On a placing
+     * (right-click) selection of any mode, a left-click cancels it and does nothing else. Point and move modes have no
+     * breaking variant: with nothing pending they mine as usual.
      */
     @Override
     public boolean onAttack() {
         final BuildMode mode = ClientModeState.current();
         final LocalPlayer player = Minecraft.getInstance().player;
         if (mode == null || player == null || mode.kind() == ModeKind.TOGGLE || mode.kind() == ModeKind.REACH) return false;
-        if (mode.kind() != ModeKind.AREA && mode.kind() != ModeKind.MEASURE) {
-            if (!ClientModeState.selectionPending()) return false;
-            swallowAttack = true;
+        if (ClientModeState.selectionPending() && !ClientModeState.destructive()) {
+            cancelSelection();
+            swallowAttack = true;                       // no mining with the press that cancelled
             return true;
         }
-        if (ClientModeState.selectionPending() && !ClientModeState.destructive()) cancelSelection();
+        if (mode.kind() != ModeKind.AREA && mode.kind() != ModeKind.MEASURE) return false;
         if (!ClientModeState.selectionPending() && !claimsAttack(player)) return false;
         click(player, mode, false, true);
         swallowAttack = true;                           // do not mine with the same press
@@ -169,13 +176,8 @@ final class ModeController implements BuildInput.Handler {
     public boolean onKey(final int key, final int scancode, final int action, final int mods) {
         final BuildMode mode = ClientModeState.current();
         final LocalPlayer player = Minecraft.getInstance().player;
+        // Esc is never taken here: it only opens the pause menu (a pending selection stays as it is).
         if (mode == null || player == null || action == GLFW.GLFW_RELEASE) return false;
-        // Esc clears a pending selection (the mode stays on; leaving it is the leave-mode key, its own key or the menu).
-        if (key == GLFW.GLFW_KEY_ESCAPE && action == GLFW.GLFW_PRESS && ClientModeState.selectionPending()
-            && ClientModeState.settings().escapeCancels) {
-            cancelSelection();
-            return true;
-        }
         if (!ClientModeState.settings().arrowNudge) return false;
         final boolean shift = (mods & GLFW.GLFW_MOD_SHIFT) != 0;
         final Direction facing = ModeTarget.horizontalFacing(player);
@@ -374,7 +376,7 @@ final class ModeController implements BuildInput.Handler {
         return null;
     }
 
-    /** Left-click / Esc / cancel key on a pending selection. */
+    /** The other mouse button, or the cancel key, on a pending selection. */
     void cancelSelection() {
         if (!ClientModeState.selectionPending()) return;
         ModeOverlay.flashCancelled(ModeOverlay.currentBoxOr(ModePreview.shape().box()));
@@ -815,11 +817,12 @@ final class ModeController implements BuildInput.Handler {
         final List<ClientModeState.Hint> h = new ArrayList<>(5);
         final Component rmb = Component.translatable("slate_building.hint.key.rmb");
         final Component lmb = Component.translatable("slate_building.hint.key.lmb");
-        // A breaking (left-click) selection is driven by the left button; cancelling is the cancel key (Q) or Esc.
+        // A breaking (left-click) selection is driven by the left button and cancelled with the right one; a placing
+        // selection the other way round.
         final boolean breaking = ClientModeState.selectionPending() && ClientModeState.destructive();
         final Component clickKey = breaking ? lmb : rmb;
         final Component applyKey = confirmsWithRightClick() ? clickKey : BuildKeys.CONFIRM.getTranslatedKeyMessage();
-        final Component cancelKey = BuildKeys.CANCEL.isUnbound() ? Component.translatable("slate_building.hint.key.esc") : BuildKeys.CANCEL.getTranslatedKeyMessage();
+        final Component cancelKey = breaking ? rmb : lmb;
         final String applyAction = breaking ? "break" : "apply";
         final boolean air = target != null && target.air();
         final ModeParam main = mainParam(mode);

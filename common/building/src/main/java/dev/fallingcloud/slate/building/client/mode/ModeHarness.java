@@ -145,14 +145,17 @@ final class ModeHarness {
             .run(() -> check(ClientModeState.pending() == ClientModeState.Pending.FIRST_ANCHOR && !ClientModeState.destructive(),
                 "a new right-click starts a new placing selection"))
             .run(() -> check(BuildInput.fireAttack(), "left-click on a placing selection is consumed"))
-            .run(() -> check(ClientModeState.selectionPending() && ClientModeState.destructive(),
-                "left-click starts a breaking selection in its place"))
+            .run(() -> check(!ClientModeState.selectionPending() && !ClientModeState.destructive(),
+                "left-click cancels the placing selection and starts nothing"))
+            .run(() -> check(BuildInput.fireAttack() && ClientModeState.destructive(), "left-click with nothing selected starts a breaking selection"))
+            .run(() -> check(BuildInput.fireUse(), "right-click on a breaking selection is consumed"))
+            .run(() -> check(!ClientModeState.selectionPending() && !ClientModeState.destructive(),
+                "right-click cancels the breaking selection and starts nothing"))
+            .run(() -> check(BuildInput.fireAttack() && ClientModeState.destructive(), "a new left-click starts a breaking selection"))
             .run(() -> {
                 ModeController.INSTANCE.cancelSelection();
-                check(!ClientModeState.selectionPending() && !ClientModeState.destructive(), "cancel clears the breaking selection");
+                check(!ClientModeState.selectionPending() && !ClientModeState.destructive(), "the cancel key clears the breaking selection");
             })
-            .run(() -> check(BuildInput.fireAttack() && ClientModeState.destructive(), "left-click with nothing selected starts a breaking selection"))
-            .run(ModeController.INSTANCE::cancelSelection)
             .log("selection: walls + Shift+scroll")
             .run(() -> check(ClientModeState.activate(BuildModes.WALLS), "walls activates"))
             .run(() -> ModeController.INSTANCE.debugClick(new BlockPos(-6, -60, 8), Direction.UP))

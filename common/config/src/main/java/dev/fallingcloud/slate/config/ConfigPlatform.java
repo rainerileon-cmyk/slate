@@ -21,4 +21,12 @@ public interface ConfigPlatform {
 
     /** The native document for a config file name such as {@code lucid-client.toml}, if the loader tracks it. */
     Optional<FileDocument> nativeConfig(String fileName);
+
+    /**
+     * The modifier a key bind needs held with its key: {@code "ctrl"}, {@code "shift"}, {@code "alt"}, or {@code ""}.
+     * NeoForge key binds can carry one; vanilla's (Fabric) cannot.
+     */
+    default String keyModifier(final net.minecraft.client.KeyMapping mapping) {
+        return "";
+    }
 }

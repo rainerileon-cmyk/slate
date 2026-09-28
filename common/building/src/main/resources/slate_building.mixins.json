@@ -12,7 +12,8 @@
     "GameRendererPickMixin",
     "KeyMappingAccessor",
     "KeyMappingMixin",
-    "MinecraftAccessor"
+    "MinecraftAccessor",
+    "PlacedBlockTrackerMixin"
   ],
   "injectors": {
     "defaultRequire": 1

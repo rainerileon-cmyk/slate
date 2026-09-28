@@ -28,8 +28,10 @@ import org.jetbrains.annotations.Nullable;
 /**
  * The build menu's options panel for the selected mode: a title row (mode name, how it is driven, reset) and one
  * control per {@link ModeParam}: BOOL → toggle, INT → slider, CHOICE → segmented control when its options fit,
- * else a dropdown. Laid out in one or two columns. Edits go straight to {@link ClientModeState#setParam} (the mode
- * controller previews with them; the config saves them).
+ * else a dropdown. Laid out in one or two columns. Below them, anchored to the bottom of the panel, a footer: the
+ * corner-distance-in-the-air slider at the bottom left and the build progress (or last result) to its right, each
+ * in its own cell, so neither can run into the other or into a control. Edits go straight to
+ * {@link ClientModeState#setParam} (the mode controller previews with them; the config saves them).
  */
 final class ModeOptions {
 
@@ -45,9 +47,16 @@ final class ModeOptions {
     private @Nullable BuildMode mode;
     private Rect area = new Rect(0, 0, 0, 0);
     private @Nullable SlateIconButton reset;
+    /** The build progress cell: its left edge and the top of its row (the panel's right edge bounds it). */
+    private int progressX, progressY;
 
     static int columns(final int width) {
         return width >= 200 ? 2 : 1;
+    }
+
+    /** Footer rows: one (slider | progress) in two columns; stacked, the progress under the slider, in one. */
+    private static int footerRows(final int width) {
+        return columns(width) == 2 ? 1 : 2;
     }
 
     /** Controls shown for {@code m}: its parameters, plus the corner-distance-in-the-air slider for modes that put corners in the air. */
@@ -55,11 +64,12 @@ final class ModeOptions {
         return m.params().size() + (ClientModeState.airAllowed(m) ? 1 : 0);
     }
 
-    /** Height the panel needs for {@code m} at {@code width}. */
+    /** Height the panel needs for {@code m} at {@code width}: the parameter rows (or the "nothing to set" line), then the footer. */
     static int heightFor(final @Nullable BuildMode m, final int width) {
-        if (m == null || controls(m) == 0) return TITLE_H + 12;
-        final int rows = (controls(m) + columns(width) - 1) / columns(width);
-        return TITLE_H + rows * (CELL_H + ROW_GAP) + 1;
+        final int footer = footerRows(width) * (CELL_H + ROW_GAP);
+        if (m == null || m.params().isEmpty()) return TITLE_H + (m == null || controls(m) == 0 ? 12 : 0) + footer + 1;
+        final int rows = (m.params().size() + columns(width) - 1) / columns(width);
+        return TITLE_H + rows * (CELL_H + ROW_GAP) + footer + 1;
     }
 
     List<AbstractWidget> widgets() { return widgets; }
@@ -92,14 +102,16 @@ final class ModeOptions {
             if (w instanceof SlateWidget sw) sw.tip(List.of(p.displayName(), p.description().copy().withStyle(net.minecraft.ChatFormatting.GRAY)));
             widgets.add(w);
         }
+        // The footer, from the panel's bottom up: the slider's row, and in one column the progress row under it.
+        final int lastRowY = r.bottom() - CELL_H;
+        final int sliderY = cols == 2 ? lastRowY : lastRowY - (CELL_H + ROW_GAP);
+        progressX = cols == 2 ? r.x() + colW + COL_GAP : r.x();
+        progressY = lastRowY;
         if (ClientModeState.airAllowed(m)) {
             // The corner distance in the air is one setting for every mode (modes.airDistance), edited here where the
-            // mode is picked, so nothing rides on the scroll wheel in the world.
-            final int i = m.params().size();
-            final int cx = r.x() + (i % cols) * (colW + COL_GAP);
-            final int cy = r.y() + TITLE_H + (i / cols) * (CELL_H + ROW_GAP);
+            // mode is picked, so nothing rides on the scroll wheel in the world. Always the bottom-left cell.
             final Component label = Component.translatable("slate_building.settings.modes.air_distance");
-            final SlateSlider air = new SlateSlider(cx, cy, colW, label, 1, 16, 1, ClientModeState.airDistance(),
+            final SlateSlider air = new SlateSlider(r.x(), sliderY, colW, label, 1, 16, 1, ClientModeState.airDistance(),
                 d -> Integer.toString((int) Math.round(d)), d -> ClientModeState.setAirDistance((int) Math.round(d))).compact(true);
             air.tip(List.of(label, Component.translatable("slate_building.settings.modes.air_distance.desc").withStyle(net.minecraft.ChatFormatting.GRAY)));
             widgets.add(air);
@@ -135,8 +147,9 @@ final class ModeOptions {
     }
 
     /**
-     * Bottom right of the panel, drawn live every frame (never a rebuild): the running operation's progress with a
-     * bar, else the last result. Kept inside the panel's rounded corner: the corner sits to the right of it.
+     * The footer's progress cell (right of the corner-distance slider), drawn live every frame (never a rebuild): the
+     * running operation's progress with a bar, else the last result. Right-aligned inside the cell, kept clear of the
+     * panel's rounded corner, and shortened rather than overflowing to the left.
      */
     private void renderProgress(final GuiGraphics g, final float alpha, final boolean vanilla, final Palette p) {
         final ClientModeState.Progress progress = ClientModeState.progress();
@@ -144,17 +157,42 @@ final class ModeOptions {
         if (progress == null && last == null) return;
         final int inset = Theme.current().radius() + 6;
         final int right = area.right() - inset;
-        final int textY = area.bottom() - 11;
+        final int room = right - progressX;
+        if (room <= 8) return;
+        final int textY = progressY + CELL_H - 9;
         if (progress != null) {
-            final Component text = Component.translatable("slate_building.ui.menu.progress", progress.done(), progress.total());
+            final Component text = fit(Component.translatable("slate_building.ui.menu.progress", progress.done(), progress.total()),
+                Component.literal(progress.done() + " / " + progress.total()), room);
             SlateDraw.textRight(g, text, right, textY, Colors.scaleAlpha(vanilla ? 0xFFFFFFFF : p.text(), alpha));
-            final int barW = Math.min(120, Math.max(40, area.w() / 3)), barX = right - barW, barY = textY - 5;
+            final int barW = Math.min(room, Math.min(120, Math.max(40, area.w() / 3))), barX = right - barW, barY = textY - 5;
             SlateDraw.rect(g, barX, barY, barW, 3, Colors.scaleAlpha(vanilla ? 0xFF404040 : p.bg2(), alpha));
             SlateDraw.rect(g, barX, barY, Math.round(barW * progress.fraction()), 3, Colors.scaleAlpha(vanilla ? 0xFF55FF55 : p.accent(), alpha));
         } else {
-            final Component text = Component.translatable("slate_building.ui.menu.result", last.placed(), last.broken());
-            SlateDraw.textRight(g, text, right, textY, Colors.scaleAlpha(vanilla ? 0xFF909090 : p.textDim(), alpha));
+            final int color = Colors.scaleAlpha(vanilla ? 0xFF909090 : p.textDim(), alpha);
+            final Component line = Component.translatable("slate_building.ui.menu.result", last.placed(), last.broken());
+            if (SlateDraw.width(line) <= room) {
+                SlateDraw.textRight(g, line, right, textY, color);
+                return;
+            }
+            // Too wide for one line: placed over broken, level with the slider's label and its track.
+            final Component placed = fit(Component.translatable("slate_building.ui.menu.result_placed", last.placed()),
+                Component.translatable("slate_building.ui.menu.result_placed_short", last.placed()), room);
+            SlateDraw.textRight(g, placed, right, textY - 10, color);
+            SlateDraw.textRight(g, fit(Component.translatable("slate_building.ui.menu.result_broken", last.broken()),
+                Component.literal(String.valueOf(last.broken())), room), right, textY, color);
         }
+    }
+
+    /** {@code full} when it fits {@code width}, else {@code shorter}, cut with an ellipsis as a last resort. */
+    private static Component fit(final Component full, final Component shorter, final int width) {
+        if (SlateDraw.width(full) <= width) return full;
+        if (SlateDraw.width(shorter) <= width) return shorter;
+        final StringBuilder out = new StringBuilder();
+        SlateDraw.truncate(shorter, width).accept((index, style, codePoint) -> {
+            out.appendCodePoint(codePoint);
+            return true;
+        });
+        return Component.literal(out.toString());
     }
 
     /** Title row and the labels of segmented controls. */

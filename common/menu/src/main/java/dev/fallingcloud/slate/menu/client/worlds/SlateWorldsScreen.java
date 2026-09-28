@@ -68,6 +68,10 @@ public final class SlateWorldsScreen extends SlateScreen {
     private final Map<WorldEntry, WorldCard> cards = new IdentityHashMap<>();
     private Rect listRect = new Rect(0, 0, 0, 0), detailsRect = new Rect(0, 0, 0, 0);
     private boolean showDetails;
+    /** Details text stays above this y: the top of the panel's action buttons, less a gap. */
+    private int detailsTextBottom;
+    /** Shortest details panel: its header block (10 + 48 icon + 6 gap) above the 126 px action-button stack. */
+    private static final int DETAILS_MIN_H = 190;
     private int gridCols = 1;
     private final List<SlateButton> selectionButtons = new ArrayList<>();
     @Nullable private SlateButton emptyCta;
@@ -109,9 +113,11 @@ public final class SlateWorldsScreen extends SlateScreen {
 
         // Body: list area, optional details panel, bottom bar
         final int bottomH = 30;
-        showDetails = cfg.worldsShowDetails && width >= 600;
+        final int listH = c.h() - 4 - bottomH;
+        // A window too short for the panel's header block plus its action buttons keeps the compact bottom bar.
+        showDetails = cfg.worldsShowDetails && width >= 600 && listH >= DETAILS_MIN_H;
         final int detailsW = showDetails ? 204 : 0;
-        listRect = new Rect(c.x(), c.y() + 4, c.w() - detailsW - (showDetails ? 10 : 0), c.h() - 4 - bottomH);
+        listRect = new Rect(c.x(), c.y() + 4, c.w() - detailsW - (showDetails ? 10 : 0), listH);
         detailsRect = new Rect(listRect.right() + 10, listRect.y(), detailsW, listRect.h());
         if (view == View.GRID) {
             grid = add(new SlateScrollPanel(listRect.x(), listRect.y(), listRect.w(), listRect.h()).scrollStep(40));
@@ -153,6 +159,7 @@ public final class SlateWorldsScreen extends SlateScreen {
             py -= 26;
             selectionButtons.add(add(new SlateButton(px, py, pw, Component.translatable("selectWorld.select"), () -> { if (selected != null) play(selected); })
                 .variant(SlateButton.Variant.PRIMARY).icon(Icon.PLAY)));
+            detailsTextBottom = py - 6;
         }
         emptyCta = add(new SlateButton(listRect.centerX() - 84, listRect.centerY() + 12, 168, Component.translatable("slate_menu.worlds.create_first"), () -> WorldActions.createNew(this))
             .variant(SlateButton.Variant.PRIMARY).icon(Icon.NEW_WORLD));
@@ -416,17 +423,26 @@ public final class SlateWorldsScreen extends SlateScreen {
         if (showDetails) renderDetails(g, mouseX, mouseY);
     }
 
-    private void renderDetails(final GuiGraphics g, final int mouseX, final int mouseY) {
-        final Theme t = Theme.current();
-        final Palette p = t.palette();
-        final boolean van = t.isVanilla();
+    @Override
+    public void renderBackground(final GuiGraphics g, final int mouseX, final int mouseY, final float partialTick) {
+        super.renderBackground(g, mouseX, mouseY, partialTick);
+        // The details plate goes under the widgets: the panel's action buttons sit on it, and renderContent (which
+        // runs after the widgets) would paint it over them.
+        if (!showDetails) return;
         final Rect r = detailsRect;
-        if (van) {
+        if (Theme.current().isVanilla()) {
             SlateDraw.vanillaListBackground(g, r.x(), r.y(), r.w(), r.h(), minecraft.level != null);
             SlateDraw.outline(g, r.x(), r.y(), r.w(), r.h(), 0xFF000000, 0);
         } else {
             SlateDraw.floatingPanel(g, r.x(), r.y(), r.w(), r.h(), 1f);
         }
+    }
+
+    private void renderDetails(final GuiGraphics g, final int mouseX, final int mouseY) {
+        final Theme t = Theme.current();
+        final Palette p = t.palette();
+        final boolean van = t.isVanilla();
+        final Rect r = detailsRect;
         final int muted = van ? 0xFFC0C0C0 : p.textMuted();
         if (selected == null) {
             SlateDraw.textCentered(g, Component.translatable("slate_menu.worlds.select_one"), r.centerX(), r.centerY() - 4, muted);
@@ -456,36 +472,45 @@ public final class SlateWorldsScreen extends SlateScreen {
 
         int y = iy + is + 10;
         final int lx = r.x() + 10, lw = r.w() - 20;
-        SlateDraw.sectionRule(g, Component.translatable("slate_menu.worlds.details"), lx, y, lw, 1f);
-        y += 14;
-        y = row(g, lx, y, lw, Component.translatable("slate_menu.worlds.last_played"), Component.literal(Fmt.date(s.getLastPlayed())), muted);
-        y = row(g, lx, y, lw, Component.translatable("slate_menu.worlds.version"), s.getWorldVersionName(), muted);
-        y = row(g, lx, y, lw, Component.translatable("slate_menu.worlds.size"), Component.literal(e.size >= 0 ? Fmt.bytes(e.size) : "..."), muted);
-        y = row(g, lx, y, lw, Component.translatable("slate_menu.worlds.mode"), s.getGameMode().getLongDisplayName(), muted);
-        y = row(g, lx, y, lw, Component.translatable("slate_menu.worlds.cheats"), Component.translatable(s.hasCommands() ? "options.on" : "options.off"), muted);
-        if (s.isExperimental()) y = row(g, lx, y, lw, Component.translatable("slate_menu.worlds.experimental"), Component.translatable("options.on"), muted);
-        if (!e.tags.isEmpty()) {
+        // Everything below stops above the action buttons. A warning (locked, needs conversion, backup advised) keeps
+        // its lines; the detail rows get what is left and drop from the end, so game mode and cheats, which the chips
+        // above already show, are the first to go on a short window.
+        final List<net.minecraft.util.FormattedCharSequence> warning =
+            s.isLocked() || s.isDisabled() || s.requiresManualConversion() || s.backupStatus().shouldBackup()
+                ? font.split(s.isLocked() ? Component.translatable("selectWorld.locked") : s.getInfo(), lw) : List.of();
+        final int limit = detailsTextBottom, rowLimit = limit - warning.size() * 10;
+        if (y + 14 + font.lineHeight <= rowLimit) {
+            SlateDraw.sectionRule(g, Component.translatable("slate_menu.worlds.details"), lx, y, lw, 1f);
+            y += 14;
+        }
+        y = row(g, lx, y, lw, rowLimit, Component.translatable("slate_menu.worlds.last_played"), Component.literal(Fmt.date(s.getLastPlayed())), muted);
+        y = row(g, lx, y, lw, rowLimit, Component.translatable("slate_menu.worlds.version"), s.getWorldVersionName(), muted);
+        y = row(g, lx, y, lw, rowLimit, Component.translatable("slate_menu.worlds.size"), Component.literal(e.size >= 0 ? Fmt.bytes(e.size) : "..."), muted);
+        if (s.isExperimental()) y = row(g, lx, y, lw, rowLimit, Component.translatable("slate_menu.worlds.experimental"), Component.translatable("options.on"), muted);
+        y = row(g, lx, y, lw, rowLimit, Component.translatable("slate_menu.worlds.mode"), s.getGameMode().getLongDisplayName(), muted);
+        y = row(g, lx, y, lw, rowLimit, Component.translatable("slate_menu.worlds.cheats"), Component.translatable(s.hasCommands() ? "options.on" : "options.off"), muted);
+        if (!e.tags.isEmpty() && y + 11 + 12 <= rowLimit) {
             g.drawString(font, Component.translatable("slate_menu.worlds.tags"), lx, y, muted, van);
             y += 11;
             int tx2 = lx;
             for (final String tag : e.tags) {
                 final int bw = SlateDraw.width(tag) + 8;
                 if (tx2 + bw > r.right() - 10) { tx2 = lx; y += 12; }
+                if (y + 12 > rowLimit) break;
                 tx2 += SlateBadge.draw(g, Component.literal(tag), tx2, y, van ? 0xFF8B8B8B : p.borderStrong()) + 3;
             }
             y += 14;
         }
-        if (s.isLocked() || s.isDisabled() || s.requiresManualConversion() || s.backupStatus().shouldBackup()) {
-            final Component info = s.isLocked() ? Component.translatable("selectWorld.locked") : s.getInfo();
-            for (final net.minecraft.util.FormattedCharSequence line : font.split(info, lw)) {
-                if (y > r.bottom() - 130) break;
-                g.drawString(font, line, lx, y, p.warning(), van);
-                y += 10;
-            }
+        for (final net.minecraft.util.FormattedCharSequence line : warning) {
+            if (y + font.lineHeight > limit) break;
+            g.drawString(font, line, lx, y, p.warning(), van);
+            y += 10;
         }
     }
 
-    private int row(final GuiGraphics g, final int x, final int y, final int w, final Component label, final Component value, final int muted) {
+    /** One label/value line; left out (y unchanged) when it would run past {@code limit}. */
+    private int row(final GuiGraphics g, final int x, final int y, final int w, final int limit, final Component label, final Component value, final int muted) {
+        if (y + font.lineHeight > limit) return y;
         final boolean van = Theme.current().isVanilla();
         g.drawString(font, label, x, y, muted, van);
         final net.minecraft.util.FormattedCharSequence v = SlateDraw.truncate(value, w - font.width(label) - 6);

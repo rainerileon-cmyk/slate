@@ -1,6 +1,7 @@
 package dev.fallingcloud.slate.config.page;
 
 import dev.fallingcloud.slate.config.option.KeyBinding;
+import dev.fallingcloud.slate.config.option.KeySearch;
 import dev.fallingcloud.slate.config.resolver.VanillaOptions;
 import dev.fallingcloud.slate.config.ui.OptionPageBase;
 import dev.fallingcloud.slate.config.ui.OptionRow;
@@ -9,7 +10,6 @@ import dev.fallingcloud.slate.core.gfx.Icon;
 import dev.fallingcloud.slate.config.ui.ConfigSearchField;
 import dev.fallingcloud.slate.core.layout.ui.Rect;
 import dev.fallingcloud.slate.core.screen.SidebarScreen;
-import java.util.Locale;
 import dev.fallingcloud.slate.core.widget.SlateButton;
 import dev.fallingcloud.slate.core.widget.SlateKeybindButton;
 import dev.fallingcloud.slate.core.widget.SlateModal;
@@ -39,7 +39,7 @@ public final class ControlsPage extends OptionPageBase {
     public static final String KEYS_TAB = "keys";
 
     private boolean unboundOnly;
-    /** The key binds tab's own search: name, bound key ("left alt", "f5") or category, every word must match. */
+    /** The key binds tab's own search: a key ("r", "left alt", "ctrl+r", "mouse 4") or words of a name / category ({@link KeySearch}). */
     private String keySearch = "";
     private boolean keySearchFocus;
     @Nullable private ConfigSearchField keyField;
@@ -49,13 +49,9 @@ public final class ControlsPage extends OptionPageBase {
         super("controls", Component.translatable("slate_config.page.controls"), Icon.KEYBOARD);
     }
 
-    /** Whether {@code m} matches every word of the key search. */
+    /** Whether {@code m} matches the key search. */
     static boolean keyMatches(final KeyMapping m, final String query) {
-        if (query.isEmpty()) return true;
-        final String hay = (Component.translatable(m.getName()).getString() + " " + m.getTranslatedKeyMessage().getString() + " "
-            + m.saveString().replace('.', ' ') + " " + Component.translatable(m.getCategory()).getString()).toLowerCase(Locale.ROOT);
-        for (final String tok : query.toLowerCase(Locale.ROOT).trim().split("\\s+")) if (!tok.isEmpty() && !hay.contains(tok)) return false;
-        return true;
+        return KeySearch.matches(m, query, "");
     }
 
     @Override

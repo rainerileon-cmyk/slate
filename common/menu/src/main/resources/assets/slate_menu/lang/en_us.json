@@ -130,6 +130,7 @@
   "slate_menu.options.menu.pause_screen": "Pause menu",
   "slate_menu.options.menu.options_screen": "Options",
   "slate_menu.options.menu.disconnected_screen": "Disconnected screen",
+  "slate_menu.options.menu.loading_screens": "Loading screens",
   "slate_menu.options.menu.panorama": "Panorama background",
   "slate_menu.options.menu.splash": "Splash text",
   "slate_menu.options.menu.show_logo": "Minecraft logo (off = Slate wordmark)",
@@ -183,5 +184,10 @@
   "slate_menu.action.open_options": "Open options",
   "slate_menu.action.play_last": "Continue last game",
   "slate_menu.action.open_world": "Open world",
-  "slate_menu.action.arg.folder": "World folder"
+  "slate_menu.action.arg.folder": "World folder",
+  "slate_menu.loading.world": "Loading world",
+  "slate_menu.loading.spawn": "Preparing the spawn area",
+  "slate_menu.loading.joining": "Joining %s",
+  "slate_menu.loading.joining_server": "Joining server",
+  "slate_menu.loading.generic": "Loading"
 }

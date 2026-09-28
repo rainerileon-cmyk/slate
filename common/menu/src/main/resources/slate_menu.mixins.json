@@ -5,10 +5,17 @@
   "compatibilityLevel": "JAVA_21",
   "mixins": [],
   "client": [
+    "ConnectScreenAccessor",
+    "ConnectScreenMixin",
     "DisconnectedScreenAccessor",
+    "GenericMessageScreenMixin",
     "JoinMultiplayerScreenAccessor",
+    "LevelLoadingScreenAccessor",
+    "LevelLoadingScreenMixin",
     "MinecraftOnboardingMixin",
     "OptionsScreenAccessor",
+    "ProgressScreenMixin",
+    "ReceivingLevelScreenMixin",
     "SelectWorldScreenAccessor",
     "SplashRendererAccessor"
   ],

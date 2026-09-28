@@ -266,6 +266,11 @@ final class UiHarness {
                 .screenshot("menu-" + k + "-options")
                 .run(() -> { if (Minecraft.getInstance().screen instanceof BuildMenuScreen m) m.debugSelect("stack"); }).wait(25)
                 .screenshot("menu-" + k + "-stack")
+                // The options footer: the corner-distance slider bottom left, a big last result to its right (sphere has
+                // four options, so a full grid above them); the two used to run into each other.
+                .run(() -> ClientModeState.onResult(new OpResult(0, "sphere", 26745, 0, 0, "slate_building.result.placed", List.of("26745"))))
+                .run(() -> { if (Minecraft.getInstance().screen instanceof BuildMenuScreen m) m.debugSelect("sphere"); }).wait(25)
+                .screenshot("menu-" + k + "-footer")
                 .run(() -> { if (Minecraft.getInstance().screen instanceof BuildMenuScreen m) m.debugSearch("slab"); }).wait(25)
                 .screenshot("menu-" + k + "-search")
                 // A search remembered across openings matches like a typed one ("Stairs" finds the stairs slice).

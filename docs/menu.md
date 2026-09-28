@@ -33,6 +33,23 @@ it on, every screen can still be switched back to vanilla individually in `confi
   with zoom and pan, and View / Copy / Rename / Delete / Open folder / Share (to friends, when Multiplayer
   is installed).
 - **Disconnected** — the reason in a card with Reconnect and Back.
+- **Loading screens** — loading a world (with the spawn-area chunk map), joining a server ("Joining &lt;server&gt;",
+  its status and Cancel), loading terrain (a portal trip keeps its portal behind the card), saving, and the generic
+  progress screen: one floating card with a spinner, the title, the status and a progress bar. Vanilla's screens
+  stay and are only drawn over, since the game drives them (`loadingScreens` in `menu.json`, Options › Menu ›
+  Loading screens).
+- **Start-up window (NeoForge)** — the window NeoForge shows while the game starts, drawn by Slate: a "Minecraft"
+  wordmark with the accent cap and the game version, one floating card as the in-game loading screens draw it
+  (spinner, what is loading, the latest log line, the accent progress bar with its percentage, up to two sub-steps)
+  and a footer with the NeoForge version and memory, in the dark palette with the accent, corner radius and pixel
+  font (`pixelFont`; Monocraft when the heading font is off) from `core.json`, all text on the game's pixel grid. It carries on as the game's own loading overlay until the title screen, and is drawn at the window's
+  real size (FML's own canvas is a fixed 854 x 480, stretched). It comes from a small companion jar,
+  `slate-earlywindow-neoforge` (a service jar FML runs before any mod, like Drippy Loading Screen's early-window jar;
+  not a mod), and takes over only while `config/fml.toml` names NeoForge's default window (`fmlearlywindow`) and
+  Slate's loading screens are on (custom layout, the dark menu style and `loadingScreens`, read from the settings files
+  at start-up); a pack that chose another window keeps it, and fml.toml is never changed. Drippy Loading Screen's mod
+  replaces the in-game half with its own overlay, so remove it with its early-window jar. Should drawing fail,
+  NeoForge's own screen takes over in Slate's colours.
 
 Dev-mode extras: element types `slate_menu:continue_card`, `slate_menu:world_list`,
 `slate_menu:server_status`; actions `slate_menu:open_screenshots`, `open_worlds`, `open_servers`,

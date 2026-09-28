@@ -28,8 +28,6 @@ public final class ModeSettings {
     public boolean labels = true;
     /** Arrow keys (and Page Up / Page Down) nudge the selection, the paste point or the symmetry centre. */
     public boolean arrowNudge = true;
-    /** Esc clears a pending selection before it opens the pause menu (the mode itself stays on). */
-    public boolean escapeCancels = true;
     /** Right-clicking a container (chest, barrel, ...) with nothing selected opens it instead of starting a selection. */
     public boolean openContainers = true;
 

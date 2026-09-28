@@ -35,6 +35,8 @@ public final class PlanBuilder {
     private final boolean blockEntities;
     private final boolean free;
     private final boolean gameMaster;
+    /** A left-click selection: every position the geometry places or replaces is broken instead (see {@link #breaksAt}). */
+    private final boolean destructive;
     private final List<Change> changes = new ArrayList<>();
     private int requested;
     private @Nullable AABB bounds;
@@ -47,6 +49,7 @@ public final class PlanBuilder {
         this.blockEntities = Palette.mayUseBlockEntities(ctx.player());
         this.free = ToolboxAccess.of(ctx.player()).creative();
         this.gameMaster = ctx.player().canUseGameMasterBlocks();
+        this.destructive = ctx.destructive();
     }
 
     /** The bounds shown for the plan (the selection box); defaults to the bounds of the changes. */
@@ -96,7 +99,27 @@ public final class PlanBuilder {
 
     /** Cheap pre-check before computing a placement state: whether {@code policy} lets anything go to {@code pos}. */
     public boolean open(final BlockPos pos, final ReplacePolicy policy) {
+        if (destructive) return breaksAt(pos);
         return readable(pos) && policy.allows(level.getBlockState(pos));
+    }
+
+    /**
+     * A breaking plan: whether the block at {@code pos} is one to break. Only the geometry decides the positions; the
+     * held block and the replace policy must not (the policy keeps just air and plants, and a block like the held one
+     * counts as already placed, so solid blocks were never broken). Air and pure fluids are left alone, as Clear keeps
+     * fluids.
+     */
+    private boolean breaksAt(final BlockPos pos) {
+        if (!readable(pos)) return false;
+        final BlockState existing = level.getBlockState(pos);
+        return !existing.isAir() && !Plans.isFluid(existing) && breakable(pos, existing);
+    }
+
+    /** A breaking plan's change at {@code pos}: the block goes, a waterlogged block's water stays. */
+    private boolean breakHere(final BlockPos pos) {
+        if (!breaksAt(pos)) return false;
+        add(new Change(pos.immutable(), Plans.leftBehind(level.getBlockState(pos), true), null, Change.Kind.BREAK));
+        return true;
     }
 
     /**
@@ -112,6 +135,7 @@ public final class PlanBuilder {
      * PLACE when the position is replaceable, REPLACE otherwise. Returns whether a change was added.
      */
     public boolean place(final BlockPos pos, final @Nullable BlockState target, final @Nullable Variant variant, final ReplacePolicy policy) {
+        if (destructive) return breakHere(pos);
         final BlockState existing = placeable(pos, target, variant, policy);
         if (existing == null) return false;
         add(new Change(pos, target, variant, existing.canBeReplaced() ? Change.Kind.PLACE : Change.Kind.REPLACE));
@@ -120,6 +144,7 @@ public final class PlanBuilder {
 
     /** Whether {@link #place} would add a change (the same checks, nothing added). */
     public boolean wouldPlace(final BlockPos pos, final @Nullable BlockState target, final @Nullable Variant variant, final ReplacePolicy policy) {
+        if (destructive) return breaksAt(pos);
         return placeable(pos, target, variant, policy) != null;
     }
 
@@ -136,6 +161,7 @@ public final class PlanBuilder {
 
     /** Overwrites the (non-air, breakable) block at {@code pos} with {@code target}; a REPLACE. */
     public boolean replace(final BlockPos pos, final @Nullable BlockState target, final @Nullable Variant variant) {
+        if (destructive) return breakHere(pos);
         if (target == null || target.isAir() || !readable(pos) || !mayPlace(target, variant)) return false;
         final BlockState existing = level.getBlockState(pos);
         if (existing.isAir() || isSame(pos, existing, target, variant) || !breakable(pos, existing)) return false;

@@ -213,6 +213,22 @@ public final class OpsSelfTest {
             apply(p, BuildModes.REPLACE_BLOCKS, params(BuildModes.REPLACE_BLOCKS), Direction.UP, fillA, fillB);
         }, p -> firstProblem(expect(count(p, fillA, fillB, Blocks.OAK_PLANKS), 125, "planks"), expect(count(p, fillA, fillB, Blocks.STONE), 0, "stone left"))));
 
+        // A left-click (breaking) Fill: only the geometry decides. Holding the very block the box is made of, with the
+        // default replace policy (air and plants), used to break nothing: both filtered every solid position out.
+        s.add(new Stage("breaking fill, held block, default replace", p -> apply(p, BuildModes.FILL, params(BuildModes.FILL), Direction.UP, true, fillA, fillB),
+            p -> expect(nonAir(p, fillA, fillB), 0, "blocks left")));
+
+        // ... and with an empty hand (the geometry runs with a stone stand-in, which used to skip stone as already there).
+        final BlockPos emptyB = fillA.offset(2, 2, 2);
+        s.add(new Stage("breaking fill, empty hand", p -> {
+            for (final BlockPos pos : BlockPos.betweenClosed(fillA, emptyB)) p.serverLevel().setBlockAndUpdate(pos, Blocks.STONE.defaultBlockState());
+            final int slot = p.getInventory().selected;
+            final ItemStack held = p.getInventory().getItem(slot);
+            p.getInventory().setItem(slot, ItemStack.EMPTY);
+            apply(p, BuildModes.FILL, params(BuildModes.FILL), Direction.UP, true, fillA, emptyB);
+            p.getInventory().setItem(slot, held);          // planned at once; later stages keep their block
+        }, p -> expect(nonAir(p, fillA, emptyB), 0, "blocks left")));
+
         s.add(new Stage("clear hollow box", p -> apply(p, BuildModes.CLEAR, params(BuildModes.CLEAR), Direction.UP, hollowA, hollowB),
             p -> expect(nonAir(p, hollowA, hollowB), 0, "blocks left")));
 
@@ -546,9 +562,15 @@ public final class OpsSelfTest {
 
     /** Stands the player a few blocks in front of (north of) the site, then applies like an {@code ApplyOp}. */
     private static void apply(final ServerPlayer p, final BuildMode mode, final ModeParams params, final Direction face, final BlockPos... anchors) {
+        apply(p, mode, params, face, false, anchors);
+    }
+
+    /** {@code destructive}: a left-click selection, the plan breaks what it would have placed. */
+    private static void apply(final ServerPlayer p, final BuildMode mode, final ModeParams params, final Direction face, final boolean destructive,
+                              final BlockPos... anchors) {
         final BlockPos a = anchors[0];
         p.teleportTo(p.serverLevel(), a.getX() + 0.5, Y, Math.min(a.getZ(), anchors[anchors.length - 1].getZ()) - 5.5, 0F, 30F);
-        OpsServer.apply(p, mode.id(), params.toTag(), List.of(anchors), face, p.getInventory().selected, false);
+        OpsServer.apply(p, mode.id(), params.toTag(), List.of(anchors), face, p.getInventory().selected, destructive);
     }
 
     private static int count(final ServerPlayer p, final BlockPos a, final BlockPos b, final Block block) {

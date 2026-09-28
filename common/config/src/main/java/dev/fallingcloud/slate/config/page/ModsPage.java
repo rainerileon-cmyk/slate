@@ -82,6 +82,11 @@ public final class ModsPage extends SidebarPage implements dev.fallingcloud.slat
         search = text == null ? "" : text;
     }
 
+    /** What the page filters by right now. */
+    public String search() {
+        return search;
+    }
+
     @Override
     public void enterFrom(final int dir) {
         enterDir = Integer.signum(dir);
@@ -116,15 +121,16 @@ public final class ModsPage extends SidebarPage implements dev.fallingcloud.slat
             final boolean open = expanded.contains(m.id());
             final int textW = Math.max(60, w - 40 - 140);           // icon column, Configure button, chevron
             final String description = m.description() == null ? "" : m.description().trim();
-            final List<net.minecraft.util.FormattedCharSequence> desc = SlateDraw.font().split(Component.literal(description), textW);
-            final int h = open ? 44 + Math.max(1, desc.size()) * 10 + 4 : 44;
+            // Wrapped only for an open card: the page rebuilds per search keystroke, with a card for every mod.
+            final int lines = open ? SlateDraw.font().split(Component.literal(description), textW).size() : 0;
+            final int h = open ? 44 + Math.max(1, lines) * 10 + 4 : 44;
             final SlateCard card = new SlateCard(0, y, w, h).flat();
             card.add(new ModIcon(m), 8, 10);
             card.add(new SlateLabel(40, 7, textW, Component.literal(m.name())).style(SlateLabel.Style.TITLE), 40, 7);
             final String meta = "v" + m.version() + (m.authors().isEmpty() ? "" : "  ·  " + String.join(", ", m.authors()));
             card.add(new SlateLabel(40, 19, textW, Component.literal(meta)).style(SlateLabel.Style.CAPTION), 40, 19);
             if (!open) {
-                final Component first = desc.isEmpty() ? Component.empty() : Component.literal(description.split("\\r?\\n")[0]);
+                final Component first = description.isEmpty() ? Component.empty() : Component.literal(description.split("\\r?\\n")[0]);
                 card.add(new SlateLabel(40, 30, textW, first).style(SlateLabel.Style.MUTED), 40, 30);
             } else {
                 card.add(new SlateLabel(40, 32, textW, Component.literal(description)).style(SlateLabel.Style.MUTED).wrap(true), 40, 32);

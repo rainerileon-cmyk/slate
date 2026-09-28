@@ -116,12 +116,12 @@ public class ShapeFenceBlock extends FenceBlock implements ShapeBlock, EntityBlo
 
     @Override
     protected VoxelShape getShape(final BlockState state, final BlockGetter level, final BlockPos pos, final CollisionContext context) {
-        return diagonalShapes.get(state, DiagonalShapes.mask(level, pos), super.getShape(state, level, pos, context));
+        return diagonalShapes.get(state, DiagonalShapes.mask(state, level, pos), super.getShape(state, level, pos, context));
     }
 
     @Override
     protected VoxelShape getCollisionShape(final BlockState state, final BlockGetter level, final BlockPos pos, final CollisionContext context) {
-        return diagonalCollisions.get(state, DiagonalShapes.mask(level, pos), super.getCollisionShape(state, level, pos, context));
+        return diagonalCollisions.get(state, DiagonalShapes.mask(state, level, pos), super.getCollisionShape(state, level, pos, context));
     }
 
     private static List<AABB> computeBoxes(final int bits) {

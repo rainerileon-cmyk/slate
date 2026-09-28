@@ -25,10 +25,8 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Constant;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
-import org.spongepowered.asm.mixin.injection.ModifyConstant;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
@@ -146,14 +144,18 @@ public abstract class ChatComponentMixin implements ChatAccess {
         return ChatLayout.rows(message, this.slate$wrappingMeta, wrapped, this.slate$wrappingStart, ChatLayout.Geometry.of(this.getLineHeight()));
     }
 
-    /** Headers and cards eat lines: raise vanilla's 100-line cap. */
-    @ModifyConstant(method = "addMessageToDisplayQueue", constant = @Constant(intValue = 100))
+    /**
+     * Headers and cards eat lines: raise vanilla's 100-line cap. Chained modifiers rather than {@code @ModifyConstant}
+     * (here and below): longer-chat-history mods modify these same constants, and a constant takes one
+     * {@code @ModifyConstant} only.
+     */
+    @ModifyExpressionValue(method = "addMessageToDisplayQueue", at = @At(value = "CONSTANT", args = "intValue=100"))
     private int slate$maxLines(final int vanilla) {
         return Math.max(vanilla, ChatClient.maxLines());
     }
 
     /** More messages kept than vanilla's 100 (the history size). */
-    @ModifyConstant(method = "addMessageToQueue", constant = @Constant(intValue = 100))
+    @ModifyExpressionValue(method = "addMessageToQueue", at = @At(value = "CONSTANT", args = "intValue=100"))
     private int slate$maxMessages(final int vanilla) {
         return Math.max(vanilla, ChatConfig.get().historySize);
     }

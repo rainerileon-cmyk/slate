@@ -130,6 +130,7 @@ final class SmokeTest {
                 shot(skin + "-search");
                 Popups.closeAll();
                 hub.debugSearch("");
+                if (pass == 0) searchChecks(mc);
                 hub.open("interface");
                 if (hub.currentPage() instanceof TabHost th) th.cycleTab(1, false);
                 animShot = skin + "-transition";
@@ -190,6 +191,40 @@ final class SmokeTest {
             }
             default -> {}
         }
+    }
+
+    /**
+     * The Mods tab keeps what is typed into its own box (the category around it rebuilds on every keystroke and used to
+     * hand the empty header search back), and key binds are found by their key without every name matching a letter.
+     */
+    private static void searchChecks(final Minecraft mc) {
+        hub.open("customization/mods");
+        if (hub.leaf() instanceof dev.fallingcloud.slate.config.page.ModsPage m) {
+            m.filter("slate");                             // what its own search box does on a keystroke
+            check("the mods tab keeps its own search through the rebuild", "slate".equals(m.search()), m.search());
+            m.filter("");
+        } else {
+            check("customization/mods opens the mods tab", false, hub.leaf());
+        }
+        final net.minecraft.client.KeyMapping[] all = mc.options.keyMappings;
+        int tried = 0;
+        for (final net.minecraft.client.KeyMapping k : all) {
+            final String key = k.getTranslatedKeyMessage().getString().toLowerCase(java.util.Locale.ROOT);
+            if (key.codePointCount(0, key.length()) != 1 || tried++ >= 6) continue;
+            int hits = 0, onKey = 0;
+            for (final net.minecraft.client.KeyMapping o : all) {
+                if (dev.fallingcloud.slate.config.option.KeySearch.matches(o, key, "")) hits++;
+                if (o.getTranslatedKeyMessage().getString().equalsIgnoreCase(key)) onKey++;
+            }
+            check("'" + key + "' finds only the binds on that key", dev.fallingcloud.slate.config.option.KeySearch.matches(k, key, "") && hits == onKey,
+                hits + " found, " + onKey + " on the key");
+        }
+        check("'jump' finds the jump bind by name", dev.fallingcloud.slate.config.option.KeySearch.matches(mc.options.keyJump, "jump", ""), null);
+    }
+
+    private static void check(final String name, final boolean ok, final Object detail) {
+        if (ok) SlateConfig.LOGGER.info("[smoke] CHECK ok: {}", name);
+        else SlateConfig.LOGGER.error("[smoke] CHECK FAIL: {} ({})", name, detail);
     }
 
     private SmokeTest() {}

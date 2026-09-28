@@ -38,7 +38,7 @@ import org.lwjgl.glfw.GLFW;
  *   <li>Release the key: apply the hovered slice ({@code SwapHeld} / {@code ChiselHeld}, or {@code ReshapeTarget} /
  *       {@code ChiselTarget} in the world). Tapping without moving does nothing; any nudge of the cursor arms the
  *       centre, so a nudge and release (or coming back to the middle from a slice) picks the full block.</li>
- *   <li>LMB / RMB: previous / next page. Scroll: step along the ring. Hotbar keys 1-9: pick a slice. Esc: cancel.</li>
+ *   <li>LMB / RMB: previous / next page. Scroll: step along the ring. Hotbar keys 1-9: pick a slice. Esc: closes it unapplied and opens the pause menu as usual.</li>
  *   <li>{@code releaseToSelect = false}: LMB applies (and the wheel stays open), release just closes.</li>
  * </ul>
  * The swap key is claimed through {@link ExclusiveKeys} exactly when this would open, so the six other Alt mods of
@@ -316,8 +316,9 @@ public final class WheelOverlay implements BuildInput.Handler {
         if (!open || action == GLFW.GLFW_RELEASE) return false;
         final Minecraft mc = Minecraft.getInstance();
         if (key == GLFW.GLFW_KEY_ESCAPE) {
+            // Esc only ever opens the pause menu: the wheel closes without applying and the key goes on to vanilla.
             if (action == GLFW.GLFW_PRESS) close(false);
-            return true;                       // no pause menu for the Esc that cancels the wheel
+            return false;
         }
         for (int i = 0; i < 9; i++) {
             if (!mc.options.keyHotbarSlots[i].matches(key, scancode)) continue;

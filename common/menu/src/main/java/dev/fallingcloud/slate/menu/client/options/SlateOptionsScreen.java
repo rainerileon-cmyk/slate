@@ -373,6 +373,7 @@ public final class SlateOptionsScreen extends SidebarScreen {
                 c.add(cfgToggle(c.w, "pause_screen", m.pauseScreen, v -> m.pauseScreen = v));
                 c.add(cfgToggle(c.w, "options_screen", m.optionsScreen, v -> m.optionsScreen = v));
                 c.add(cfgToggle(c.w, "disconnected_screen", m.disconnectedScreen, v -> m.disconnectedScreen = v));
+                c.add(cfgToggle(c.w, "loading_screens", m.loadingScreens, v -> m.loadingScreens = v));
                 c.section(Component.translatable("slate_menu.options.menu.section.title"));
                 c.add(cfgToggle(c.w, "panorama", m.panorama, v -> m.panorama = v));
                 c.add(cfgToggle(c.w, "splash", m.splash, v -> m.splash = v));

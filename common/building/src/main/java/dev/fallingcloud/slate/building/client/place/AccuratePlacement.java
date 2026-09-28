@@ -17,6 +17,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
@@ -63,10 +64,17 @@ import org.jetbrains.annotations.Nullable;
  *       last placement; scaffolding on scaffolding; a compostable item on a composter.</li>
  *   <li>While the key is held: a block goes down when the crosshair is on a new block that is not the one just placed,
  *       or on the one just placed after the player moved at least 0.99 along the face's axis away from it (bridging
- *       backwards). The first 4 ticks after a fresh press wait for vanilla's cooldown unless the mouse moved at least
+ *       backwards). The first 4 ticks after a fresh press wait (vanilla's cooldown) unless the mouse moved at least
  *       a tenth of the screen; spots passed while waiting are back-filled when the wait ends.</li>
  *   <li>Each placement is vanilla's own {@code startUseItem} (so every mod hook, the swing and the item animation
  *       still happen); it counts as placed when the block at the placement position changed.</li>
+ * </ul>
+ * Two departures from the mod, both for placement mods running alongside (Bridging Mod's reach-around above all):
+ * <ul>
+ *   <li>The 4 ticks are counted here. The mod reads vanilla's cooldown, which Bridging Mod sets again after every
+ *       reach-around block, so the wait could last until the mouse moved far: a pause, then every spot passed at once.</li>
+ *   <li>A block the player placed any other way (vanilla's repeat, a reach-around) is "the one just placed" as well,
+ *       so the crosshair landing on it does not at once put another block against it.</li>
  * </ul>
  * Fast breaking (off by default) removes vanilla's 5-tick pause between blocks while attack is held
  * ({@code FastBreakGameModeMixin}). Both have an unbound toggle key ({@link BuildKeys}) with a chat line.
@@ -77,7 +85,9 @@ import org.jetbrains.annotations.Nullable;
 public final class AccuratePlacement {
 
     private static final String ORIGINAL_MOD = "accurateblockplacement";
-    /** Vanilla's right-click cooldown after a placement, the wait a fresh press honours. */
+    /** Vanilla's right-click cooldown after a placement, the wait a fresh press honours (counted in client ticks here). */
+    private static final int FRESH_PRESS_WAIT_TICKS = 4;
+    /** How far the mouse must move (a fraction of the window) to end that wait early. */
     private static final double MOUSE_MOVE_FRACTION = 0.1;
     private static final double BACKSTEP_BLOCKS = 0.99;
     private static final double BLOCK_ENTITY_DISTANCE = 0.6;
@@ -91,6 +101,13 @@ public final class AccuratePlacement {
     private static InteractionHand handOfCurrentItemInUse = InteractionHand.MAIN_HAND;
     /** While true, vanilla's own {@code startUseItem} is cancelled: this class places instead ({@code BuildMinecraftMixin}). */
     private static boolean suppressVanillaUse;
+    /** Client ticks so far, and the tick of the last fresh press (the wait after it is counted from there). */
+    private static int clientTicks, freshPressTick;
+    /** True while {@link #placeNow} places: {@link #afterUseOn} then leaves the bookkeeping to {@link #afterPick}. */
+    private static boolean placingNow;
+    /** A placement in progress by some other path: where its block goes and what stood there before. */
+    private static @Nullable BlockPos useOnTarget;
+    private static @Nullable BlockState useOnBefore;
 
     private static @Nullable Boolean yields;
 
@@ -127,6 +144,7 @@ public final class AccuratePlacement {
     }
 
     private static void pollKeys() {
+        clientTicks++;
         final Minecraft mc = Minecraft.getInstance();
         while (BuildKeys.TOGGLE_ACCURATE_PLACEMENT.consumeClick()) {
             settings().accurate = !settings().accurate;
@@ -192,6 +210,7 @@ public final class AccuratePlacement {
         if (freshKeyPress) {
             reset();
             lastFreshPressMouseRatio = mouseRatio(mc);
+            freshPressTick = clientTicks;
         }
         if (item == null || !(item instanceof BlockItem)) return;
         if (overridesItemUse(item)) return;
@@ -249,7 +268,7 @@ public final class AccuratePlacement {
         }
         final boolean mouseMoved = mouse != null && lastFreshPressMouseRatio != null
             && lastFreshPressMouseRatio.distanceTo(mouse) >= MOUSE_MOVE_FRACTION;
-        final boolean waiting = autoRepeatWaitingOnCooldown && acc.slateBuilding$rightClickDelay() > 0 && !mouseMoved;
+        final boolean waiting = autoRepeatWaitingOnCooldown && clientTicks - freshPressTick < FRESH_PRESS_WAIT_TICKS && !mouseMoved;
 
         if (freshKeyPress || (newSpot && !waiting)) {
             if (autoRepeatWaitingOnCooldown && !freshKeyPress) {
@@ -294,8 +313,39 @@ public final class AccuratePlacement {
     private static void placeNow(final MinecraftAccessor acc) {
         final boolean saved = suppressVanillaUse;
         suppressVanillaUse = false;
-        acc.slateBuilding$startUseItem();
-        suppressVanillaUse = saved;
+        placingNow = true;
+        try {
+            acc.slateBuilding$startUseItem();
+        } finally {
+            placingNow = false;
+            suppressVanillaUse = saved;
+        }
+    }
+
+    // ------------------------------------------------------------------ placements made some other way
+
+    /** {@code MultiPlayerGameMode.useItemOn} HEAD: remembers where a block item would go and what stands there. */
+    public static void beforeUseOn(final LocalPlayer player, final InteractionHand hand, final BlockHitResult hit) {
+        useOnTarget = null;
+        useOnBefore = null;
+        if (placingNow || !enabled() || !(player.getItemInHand(hand).getItem() instanceof BlockItem)) return;
+        final BlockPos target = new BlockPlaceContext(new UseOnContext(player, hand, hit)).getClickedPos();
+        useOnTarget = target;
+        useOnBefore = player.level().getBlockState(target);
+    }
+
+    /**
+     * {@code MultiPlayerGameMode.useItemOn} RETURN: a block that went down some other way (vanilla's repeat, a
+     * reach-around mod) becomes "the one just placed", so looking at it next does not put another block against it.
+     */
+    public static void afterUseOn(final LocalPlayer player) {
+        final BlockPos target = useOnTarget;
+        final BlockState before = useOnBefore;
+        useOnTarget = null;
+        useOnBefore = null;
+        if (target == null || before == null || player.level().getBlockState(target) == before) return;
+        lastPlacedBlockPos = target;
+        lastPlayerPlacedBlockPos = player.position();
     }
 
     private static @Nullable Vec3 mouseRatio(final Minecraft mc) {

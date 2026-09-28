@@ -85,6 +85,8 @@ public final class Planners {
      * A left-click selection: the same geometry, but every place / replace becomes a break of the block standing
      * there (air is skipped, breaks stay breaks). Fill clears the box, Walls tears them down, Replace removes the
      * matching blocks, Overlay strips the top layer. Drops and the harvest rules are the executor's, as for Clear.
+     * {@link dev.fallingcloud.slate.building.ops.plan.PlanBuilder} already plans the breaks for a destructive context
+     * (ignoring the held block and the replace policy); this pass is the safety net for anything planned around it.
      */
     static Plan destructive(final Plan plan, final PlanContext ctx) {
         if (plan == null || !plan.ok()) return plan;

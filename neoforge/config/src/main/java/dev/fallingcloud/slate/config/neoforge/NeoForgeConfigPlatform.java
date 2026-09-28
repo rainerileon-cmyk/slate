@@ -26,6 +26,16 @@ public final class NeoForgeConfigPlatform implements ConfigPlatform {
     }
 
     @Override
+    public String keyModifier(final net.minecraft.client.KeyMapping mapping) {
+        return switch (mapping.getKeyModifier()) {
+            case CONTROL -> "ctrl";
+            case SHIFT -> "shift";
+            case ALT -> "alt";
+            default -> "";
+        };
+    }
+
+    @Override
     public Optional<FileDocument> nativeConfig(final String fileName) {
         try {
             final ModConfig mc = ModConfigs.getFileMap().get(fileName);

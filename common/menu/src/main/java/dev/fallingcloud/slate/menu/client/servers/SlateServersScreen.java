@@ -50,6 +50,7 @@ public final class SlateServersScreen extends SlateScreen {
     public enum Sort { MANUAL, NAME, PING, PLAYERS }
 
     private static final Set<String> COLLAPSED = new HashSet<>();
+    private static final long RETRY_UNREACHABLE_MS = 5 * 60_000L;
 
     @Nullable private ServerList servers;
     private final ServerPinger pinger = new ServerPinger();
@@ -67,6 +68,8 @@ public final class SlateServersScreen extends SlateScreen {
     private long lastClickMs;
     private int lastMx, lastMy;
     private long lastRefreshMs = Clock.nowMs();
+    /** When servers that could not be reached were last tried again (see {@link #refreshAll}). */
+    private long lastRetryMs = Clock.nowMs();
 
     // quick connect
     @Nullable private SlateTextField quickField;
@@ -427,15 +430,26 @@ public final class SlateServersScreen extends SlateScreen {
         rebuildList();
     }
 
-    private void refreshAll(final boolean reloadFiles) {
-        lastRefreshMs = Clock.nowMs();
-        if (reloadFiles) CommunityServers.reload();
+    /**
+     * Pings every server again; {@code manual} (the refresh button, F5) also re-reads the community file. The automatic
+     * refresh tries servers that could not be reached only every {@link #RETRY_UNREACHABLE_MS}: a dead or misspelt
+     * address fails every time, and vanilla's pinger logs an error for each try.
+     */
+    private void refreshAll(final boolean manual) {
+        final long now = Clock.nowMs();
+        lastRefreshMs = now;
+        final boolean retry = manual || now - lastRetryMs > RETRY_UNREACHABLE_MS;
+        if (retry) lastRetryMs = now;
+        if (manual) CommunityServers.reload();
         final List<ServerData> all = new ArrayList<>();
         if (servers != null) for (int i = 0; i < servers.size(); i++) all.add(servers.get(i));
         all.addAll(recentData.values());
         all.addAll(communityData.values());
         if (quickData != null) all.add(quickData);
-        for (final ServerData d : all) if (d.state() != ServerData.State.PINGING) d.setState(ServerData.State.INITIAL);
+        for (final ServerData d : all) {
+            if (d.state() == ServerData.State.PINGING || d.state() == ServerData.State.UNREACHABLE && !retry) continue;
+            d.setState(ServerData.State.INITIAL);
+        }
         rebuildList();
     }
 
