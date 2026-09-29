@@ -353,7 +353,7 @@ Status values: `TODO` → `IN PROGRESS (<agent/branch>)` → `DONE (<commit>)`.
 | B3 | World creation, Custom and Overhaul | Menu | A1 (+ A3) | TODO |
 | B4 | Mod-loading screen, Overhaul | earlywindow, Menu | A1 | TODO |
 | B5 | Filling the gaps: pause, disconnected, world loading, screenshots | Menu | A1 A2 A3 | TODO |
-| C1 | Options, Overhaul (+ Custom regrouping) | Config | A1 A2 | TODO |
+| C1 | Options, Overhaul (+ Custom regrouping) | Config | A1 A2 | DONE (nine categories in both layouts: General with Essentials, Video, Controls with a Controller tab when a controller mod is present, Audio, Multiplayer, Interface, Language & accessibility, Customization, Advanced; the `advanced` flag on bindings and sections with vanilla and Sodium rows curated, and Advanced showing each page's advanced rows with the same structure plus Favourites, Presets, Config files and curated pages; the Overhaul presentation puts the categories in a strip across the top and, in a world, the real game frame above General and Video through Core's `GameView` hook, foldable to a bar; Config provides the Overhaul options slot. Verified by harness at 1280×720 in both layouts and styles, on the title and in a world) |
 | D1 | Friends, Overhaul | Multiplayer | A1 A2 A3, D2 | TODO |
 | D2 | Friends, Custom layout updates | Multiplayer, Core | A1 | TODO |
 | E1 | Player customization module: skeleton and global store | Profile (new) | A1 | TODO |

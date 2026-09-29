@@ -57,6 +57,13 @@ public interface OptionBinding {
     /** False greys the row out (dependency not met, server config not loaded...). */
     default boolean enabled() { return true; }
 
+    /**
+     * An option most players never touch (chunk builder threads, biome blend, telemetry...). The category pages hide
+     * these; the Advanced category shows them, with the same structure. A {@link dev.fallingcloud.slate.config.ui.Section}
+     * can override the flag for all of its rows.
+     */
+    default boolean advanced() { return false; }
+
     /** The action of an ACTION binding. */
     @Nullable
     default Runnable action() { return null; }

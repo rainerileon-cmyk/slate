@@ -216,6 +216,7 @@ public class CategoryPage extends SidebarPage implements TabHost, CategoryHost {
             try {
                 if (k instanceof OptionPageBase o) out.addAll(o.searchEntries(path, title(), k.title()));
                 else if (k instanceof ModsPage m) out.addAll(m.searchEntries(path, title(), k.title()));
+                else if (k instanceof PresetsPage pr) out.addAll(pr.searchEntries());
             } catch (final Exception e) {
                 SlateConfig.LOGGER.warn("[Slate Config] cannot index {}: {}", path, e.toString());
             }

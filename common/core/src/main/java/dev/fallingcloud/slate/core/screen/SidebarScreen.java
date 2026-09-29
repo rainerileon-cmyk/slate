@@ -11,6 +11,7 @@ import dev.fallingcloud.slate.core.theme.Palette;
 import dev.fallingcloud.slate.core.theme.Theme;
 import dev.fallingcloud.slate.core.widget.SlateBadge;
 import dev.fallingcloud.slate.core.widget.SlateSounds;
+import dev.fallingcloud.slate.core.widget.SlateTabStrip;
 import dev.fallingcloud.slate.core.widget.SlateTooltips;
 import dev.fallingcloud.slate.core.widget.popup.Popups;
 import java.util.ArrayList;
@@ -38,9 +39,13 @@ public abstract class SidebarScreen extends SlateScreen {
     /** Height of the page title row (title + page actions) above the page area. */
     public static final int PAGE_TITLE_H = 22;
 
+    /** Height of the tab strip in {@link #topNav() top-nav} mode (the strip plus its breathing room). */
+    public static final int TOP_NAV_H = 30;
+
     private final List<SidebarPage> pages = new ArrayList<>();
     private final List<AbstractWidget> pageWidgets = new ArrayList<>();
     private final List<AbstractWidget> pageActions = new ArrayList<>();
+    @Nullable private SlateTabStrip topStrip;
     private int current;
     private final Anim navHighlight = new Anim(0, 200, Ease.OUT_CUBIC);
     private int hoverRow = -1;
@@ -65,6 +70,13 @@ public abstract class SidebarScreen extends SlateScreen {
     protected boolean narrow() { return width < 420; }
 
     /**
+     * Where the page list sits: the left rail (default) or a strip of tabs across the top, right under the header
+     * (the Overhaul settings hub). With the strip the page area spans the whole width and the strip scrolls when
+     * the tabs do not fit; Ctrl+Tab and Ctrl+1..9 work the same.
+     */
+    protected boolean topNav() { return false; }
+
+    /**
      * The nav column's width: as wide as its longest label needs ({@link #NAV_W} at least, at most two fifths of the
      * screen), icons only when {@link #narrow()}. Subclasses may widen it; the labels always get at least what they
      * need within that bound, so "Language &amp; Accessibility" is never cut to "Language &amp; Acces…".
@@ -73,6 +85,7 @@ public abstract class SidebarScreen extends SlateScreen {
 
     /** {@link #navWidth()}, but never narrower than the labels need (a subclass may only widen the column). */
     private int navW() {
+        if (topNav()) return 0;
         if (narrow()) return NAV_W_NARROW;
         return Math.max(navWidth(), labelFitWidth());
     }
@@ -97,11 +110,14 @@ public abstract class SidebarScreen extends SlateScreen {
     private int fitWidthFor = -1;
     private int fitWidth = NAV_W;
 
-    public Rect navRect() { return new Rect(0, HEADER_H, navW(), height - HEADER_H); }
+    public Rect navRect() {
+        return topNav() ? new Rect(0, HEADER_H, width, TOP_NAV_H) : new Rect(0, HEADER_H, navW(), height - HEADER_H);
+    }
 
     /** The row holding the page title and the page actions. */
     public Rect pageTitleRect() {
-        return new Rect(navW() + PAD, HEADER_H + 6, width - navW() - PAD * 2, PAGE_TITLE_H);
+        final int top = topNav() ? HEADER_H + TOP_NAV_H : HEADER_H + 6;
+        return new Rect(navW() + PAD, top, width - navW() - PAD * 2, PAGE_TITLE_H);
     }
 
     /**
@@ -125,6 +141,15 @@ public abstract class SidebarScreen extends SlateScreen {
         navHighlight.snap(current);
         pageWidgets.clear();
         pageActions.clear();
+        topStrip = null;
+        if (topNav() && !pages.isEmpty()) {
+            final List<SlateTabStrip.Tab> tabs = new ArrayList<>();
+            for (final SidebarPage p : pages) tabs.add(new SlateTabStrip.Tab(p.title(), p.icon(), p.badge()));
+            final SlateTabStrip strip = new SlateTabStrip(PAD, HEADER_H + 4, width - PAD * 2, tabs, current, this::showPage)
+                .style(SlateTabStrip.Style.UNDERLINE);
+            addRenderableWidget(strip);
+            topStrip = strip;
+        }
         final SidebarPage page = currentPage();
         if (page != null) page.build(this, pageRect());
     }
@@ -163,6 +188,7 @@ public abstract class SidebarScreen extends SlateScreen {
         current = index;
         LAST_PAGE.put(rememberKey, index);
         navHighlight.set(index);
+        if (topStrip != null && topStrip.index() != index) topStrip.setIndex(index);
         SlateSounds.tick();
         final SidebarPage page = currentPage();
         if (page != null) page.build(this, pageRect());
@@ -197,6 +223,7 @@ public abstract class SidebarScreen extends SlateScreen {
     }
 
     private int rowAt(final double mx, final double my) {
+        if (topNav()) return -1;                                 // the strip widget takes the clicks
         final Rect nav = navRect();
         if (!nav.contains(mx, my) || my < nav.y() + NAV_TOP) return -1;
         final int i = (int) ((my - nav.y() - NAV_TOP) / ROW_H);
@@ -242,6 +269,11 @@ public abstract class SidebarScreen extends SlateScreen {
         final Theme t = Theme.current();
         final Palette p = t.palette();
         final Rect nav = navRect();
+        if (topNav()) {
+            // The strip widget draws the tabs; the rule under it is the divider between the nav and the page.
+            SlateDraw.hline(g, PAD, nav.bottom() - 1, width - PAD * 2, t.isVanilla() ? 0xFF6F6F6F : Colors.withAlpha(p.border(), 0xC0));
+            return;
+        }
         final boolean icons = narrow();
         if (t.isVanilla()) {
             SlateDraw.vanillaListBackground(g, nav.x(), nav.y(), nav.w(), nav.h(), this.minecraft.level != null);

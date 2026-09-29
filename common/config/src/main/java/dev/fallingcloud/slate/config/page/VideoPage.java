@@ -1,5 +1,6 @@
 package dev.fallingcloud.slate.config.page;
 
+import dev.fallingcloud.slate.config.option.AdvancedBinding;
 import dev.fallingcloud.slate.config.option.OptionBinding;
 import dev.fallingcloud.slate.config.resolver.VanillaOptions;
 import dev.fallingcloud.slate.config.sodium.SodiumBridge;
@@ -64,7 +65,9 @@ public final class VideoPage extends OptionPageBase {
                 continue;
             }
             final Map<String, Section> byTopic = new LinkedHashMap<>();
-            for (final OptionBinding b : page.options()) {
+            final boolean pageAdvanced = advancedPage(page.title().getString());
+            for (final OptionBinding raw : page.options()) {
+                final OptionBinding b = pageAdvanced || advancedOption(idPath(raw.id()), raw.label().getString()) ? AdvancedBinding.of(raw) : raw;
                 final String topic = VideoTopics.topicOf(idPath(b.id()), b.label().getString(), page.title().getString());
                 byTopic.computeIfAbsent(topic, t -> Section.of(base + "." + t, header).tab(t, VideoTopics.title(t))).add(b);
             }
@@ -75,6 +78,24 @@ public final class VideoPage extends OptionPageBase {
             }
         }
         return out;
+    }
+
+    // Sodium's "Advanced" and "Performance" pages are advanced wholesale; elsewhere the option's own words decide
+    // (chunk builder threads, culling, translucency sorting, buffers... are tuning knobs, not everyday settings).
+    private static final String[] ADVANCED_WORDS = { "chunk_update", "chunk_build", "thread", "cull", "occlusion", "defer", "no_error", "buffer",
+        "sorting", "translucen", "entity_distance", "biome_blend", "mipmap", "persistent", "async", "memory", "cpu", "gpu", "light_update",
+        "render_ahead", "prevent_shaders", "linear_flat", "fast_random", "steady_debug", "use_fog_occlusion", "block_face", "compact_vertex",
+        "always_defer", "allocator", "leaves_quality" };
+
+    static boolean advancedPage(final String pageTitle) {
+        final String t = pageTitle.toLowerCase(java.util.Locale.ROOT);
+        return t.contains("advanced") || t.contains("performance");
+    }
+
+    static boolean advancedOption(final String idPath, final String label) {
+        final String hay = idPath.toLowerCase(java.util.Locale.ROOT) + " " + label.toLowerCase(java.util.Locale.ROOT).replace(' ', '_');
+        for (final String w : ADVANCED_WORDS) if (hay.contains(w)) return true;
+        return false;
     }
 
     /** {@code sodium:sodium:render_distance} → {@code render_distance}. */

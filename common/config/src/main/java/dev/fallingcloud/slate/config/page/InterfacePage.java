@@ -71,12 +71,12 @@ public final class InterfacePage extends OptionPageBase {
         out.add(look);
         out.add(Section.of("motion", Component.translatable("slate_config.interface.motion"), CoreBindings.all("motion", "transitions", "uiSounds", "toasts")));
         out.add(Section.of("restyle", Component.translatable("slate_config.interface.restyle"),
-            CoreBindings.all("reskinScope", "reskinAllowlist", "reskinDenylist")));
+            CoreBindings.all("reskinScope", "reskinAllowlist", "reskinDenylist")).advanced());
         out.add(Section.of("vanilla", Component.translatable("slate_config.interface.vanilla"), VanillaOptions.all(
             // Narrator/contrast/fonts live under Language & Accessibility, main hand and the operator tab under Gameplay.
             "guiScale", "darkMojangStudiosBackground", "hideSplashTexts", "panoramaScrollSpeed", "reducedDebugInfo")));
         if (Modules.isLoaded("slate_menu")) out.add(SimplePages.slateModule("menu", "slate_menu", "slate_config.interface.menu"));
-        final Section dev = Section.of("dev", Component.translatable("slate_config.interface.dev"), CoreBindings.all("devMode", "devGrid", "devSnap"));
+        final Section dev = Section.of("dev", Component.translatable("slate_config.interface.dev"), CoreBindings.all("devMode", "devGrid", "devSnap")).advanced();
         dev.add(Binding.of("interface:open_config_folder", OptionType.ACTION, Component.translatable("slate.settings.open_config_folder"))
             .actionIcon(Icon.FOLDER)
             .action(Component.translatable("slate_config.row.open"), () -> net.minecraft.Util.getPlatform().openPath(JsonConfig.dir()))

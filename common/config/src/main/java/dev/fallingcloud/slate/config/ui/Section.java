@@ -29,6 +29,11 @@ public final class Section {
     /** The top tab this section belongs to; null = a tab of its own. */
     @Nullable public String tabId;
     @Nullable public Component tabTitle;
+    /** Which of its rows count as advanced: each row for itself (default), all of them, or none of them. */
+    public Level level = Level.PER_ROW;
+
+    /** How a section answers "is this row advanced?" for the category / Advanced split. */
+    public enum Level { PER_ROW, BASIC, ADVANCED }
 
     public Section(final String id, final Component title, @Nullable final Component description) {
         this.id = id;
@@ -62,6 +67,32 @@ public final class Section {
     }
 
     public Section fixed() { this.collapsible = false; return this; }
+
+    /** Every row of this section is advanced (shown in the Advanced category only). */
+    public Section advanced() { this.level = Level.ADVANCED; return this; }
+
+    /** Every row of this section stays on its category page, whatever the bindings say (accessibility, curated pages). */
+    public Section basic() { this.level = Level.BASIC; return this; }
+
+    /** Whether {@code item} belongs to the Advanced category, by the section's level or the binding's own flag. */
+    public boolean isAdvanced(final Item item) {
+        return switch (level) {
+            case ADVANCED -> true;
+            case BASIC -> false;
+            case PER_ROW -> item.binding() != null && item.binding().advanced();
+        };
+    }
+
+    /** A copy with the same identity, tab, description and folding, holding only the items {@code keep} accepts. */
+    public Section filtered(final java.util.function.Predicate<Item> keep) {
+        final Section s = new Section(id, title, description);
+        s.collapsible = collapsible;
+        s.tabId = tabId;
+        s.tabTitle = tabTitle;
+        s.level = level;
+        for (final Item i : items) if (keep.test(i)) s.items.add(i);
+        return s;
+    }
 
     /** Put this section into the top tab {@code id} (sections with the same tab id share it). */
     public Section tab(final String id, final Component title) {

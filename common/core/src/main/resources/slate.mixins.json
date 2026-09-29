@@ -24,7 +24,8 @@
     "TabButtonMixin",
     "TabNavigationBarMixin",
     "TitleScreenMixin",
-    "ScreenLayoutMixin"
+    "ScreenLayoutMixin",
+    "GameRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 1
