@@ -87,7 +87,7 @@ public final class SlateSetupScreen extends SlateScreen {
         final int previewW = wide ? inner - cardsW - GAP : inner;
 
         int y = 0;
-        y = optionCard(panel, 0, y, cardsW, Icon.LAYERS, "layout", cfg.customLayout, v -> apply(c -> c.customLayout = v));
+        y = optionCard(panel, 0, y, cardsW, Icon.LAYERS, "layout", cfg.hasCustomLayout(), v -> apply(c -> c.setCustomLayout(v)));
         y = optionCard(panel, 0, y, cardsW, Icon.PALETTE, "style", cfg.customStyle(), v -> apply(c -> c.setCustomStyle(v)));
         y = optionCard(panel, 0, y, cardsW, Icon.BLOCK, "containers", cfg.reskinContainers, v -> apply(c -> c.reskinContainers = v));
         final int cardsBottom = y - GAP;
@@ -175,13 +175,13 @@ public final class SlateSetupScreen extends SlateScreen {
             final int x = getX(), y = getY() + enterOffset(), w = getWidth(), h = getHeight();
             final CoreConfig cfg = Slate.config();
             final Component caption = kind == Kind.MENUS
-                ? Component.translatable("slate.setup.preview.menus." + (cfg.customLayout ? "custom" : "vanilla") + (cfg.customStyle() ? "_custom" : "_vanilla"))
+                ? Component.translatable("slate.setup.preview.menus." + (cfg.hasCustomLayout() ? "custom" : "vanilla") + (cfg.customStyle() ? "_custom" : "_vanilla"))
                 : Component.translatable("slate.setup.preview.containers." + (cfg.reskinContainers ? "custom" : "vanilla"));
             SlateDraw.sectionRule(g, caption, x, y, w, a);
             final Rect frame = new Rect(x, y + CAPTION_H, w, h - CAPTION_H);
             SlateDraw.floatingPanel(g, frame.x(), frame.y(), frame.w(), frame.h(), a);
             final Rect in = frame.inset(3);
-            if (kind == Kind.MENUS) SetupPreview.menus(g, in, cfg.customLayout, cfg.customStyle(), a);
+            if (kind == Kind.MENUS) SetupPreview.menus(g, in, cfg.hasCustomLayout(), cfg.customStyle(), a);
             else SetupPreview.container(g, in, cfg.reskinContainers, a);
         }
     }

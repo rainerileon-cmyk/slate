@@ -36,7 +36,7 @@ public final class InterfacePage extends OptionPageBase {
         final List<Section> out = new ArrayList<>();
         // The three switches of the setup screen: layout, menu style, container style, plus the way back to that screen.
         final Section modes = Section.of("modes", Component.translatable("slate_config.interface.modes"));
-        modes.addAll(CoreBindings.all("customLayout"));
+        modes.addAll(CoreBindings.all("layout"));
         modes.custom(w -> new SlateSegmented<>(0, 0, Math.min(w, 260), List.of("DARK", "VANILLA"), Slate.config().isVanillaSkin() ? "VANILLA" : "DARK",
             s -> Component.translatable("slate.skin." + s.toLowerCase(java.util.Locale.ROOT)),
             s -> { CoreBindings.get("skin").ifPresent(b -> b.set(s)); refreshRows(); }));

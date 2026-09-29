@@ -10,13 +10,17 @@ import java.util.List;
  */
 public final class MenuConfig {
 
-    // ---- which vanilla screens are replaced (false = vanilla screen, Core still restyles it)
+    // ---- LEGACY per-screen layout flags. Since the layout model (core.json: layout + screens overrides) they are
+    // read once, by MenuClient.migrateScreenFlags(), and moved into Core's overrides; the Menus table under
+    // Options > Interface edits those. Kept so older files still migrate.
     public boolean titleScreen = true;
     public boolean worldsScreen = true;
     public boolean serversScreen = true;
     public boolean pauseScreen = true;
     public boolean optionsScreen = true;
     public boolean disconnectedScreen = true;
+    /** The one-time move of the flags above into Core's per-menu overrides ran. */
+    public boolean layoutFlagsMigrated = false;
     /**
      * Slate's look for the loading screens (loading a world, joining a server, loading terrain, saving, progress). They
      * are drawn over, not replaced: the game drives them, so vanilla's screen and its logic stay. Also read, as text, by

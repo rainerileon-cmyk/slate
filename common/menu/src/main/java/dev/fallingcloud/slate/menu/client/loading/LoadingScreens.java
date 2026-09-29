@@ -6,7 +6,9 @@ import dev.fallingcloud.slate.core.theme.Palette;
 import dev.fallingcloud.slate.core.theme.Theme;
 import dev.fallingcloud.slate.core.widget.SlateSpinner;
 import dev.fallingcloud.slate.menu.SlateMenu;
-import dev.fallingcloud.slate.menu.client.MenuClient;
+import dev.fallingcloud.slate.core.screen.slot.CoreSlots;
+import dev.fallingcloud.slate.core.screen.slot.Layout;
+import dev.fallingcloud.slate.core.screen.slot.MenuSlots;
 import dev.fallingcloud.slate.menu.mixin.LevelLoadingScreenAccessor;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import java.util.List;
@@ -44,9 +46,12 @@ public final class LoadingScreens {
     private static float shownProgress;
     private static long lastFrameMs;
 
-    /** Whether Slate draws the loading screens: Core's layout switch and menu.json's {@code loadingScreens}. */
+    /**
+     * Whether Slate draws the loading screens: the {@code minecraft:level_loading} slot resolves to a Slate layout (the
+     * global layout or its override, and menu.json's {@code loadingScreens} keeps the Custom mark on the slot).
+     */
     public static boolean active() {
-        return MenuClient.custom() && SlateMenu.config().loadingScreens;
+        return MenuSlots.effective(CoreSlots.LEVEL_LOADING) != Layout.VANILLA;
     }
 
     /**

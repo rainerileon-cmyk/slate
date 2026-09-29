@@ -31,6 +31,7 @@ import net.minecraft.world.level.levelgen.presets.WorldPresets;
  *       fixed seed) and capture {@code slate.autoWorldScreens} (default {@code hud,minecraft:pause,minecraft:chat,slate:hub};
  *       {@code hud} = no screen) with a few seeded chat lines.</li>
  *   <li>{@code slate.autoSkin} — {@code DARK} or {@code VANILLA}, applied in memory (not saved).</li>
+ *   <li>{@code slate.autoLayout} — {@code VANILLA}, {@code CUSTOM} or {@code OVERHAUL}, applied in memory (not saved).</li>
  *   <li>{@code slate.autoDir} — output base; PNGs land in {@code <autoDir>/screenshots/<id>-<skin>.png}.</li>
  *   <li>{@code slate.autoFrames} — frames to wait before each capture (default 45).</li>
  *   <li>{@code slate.autoQuit} — {@code true} stops the game after the last capture.</li>
@@ -45,6 +46,7 @@ public final class DevHarness {
     private static int frames;
     private static int waitFrames = 45;
     private static boolean started;
+    private static boolean overridesApplied;
     private static Phase phase = Phase.MENU;
     private static File dir;
     private static boolean wantWorld;
@@ -58,8 +60,8 @@ public final class DevHarness {
         worldQueue = new ArrayList<>(List.of(System.getProperty("slate.autoWorldScreens", "hud,minecraft:pause,minecraft:chat,slate:hub").split(",")));
         waitFrames = Integer.getInteger("slate.autoFrames", 45);
         dir = new File(System.getProperty("slate.autoDir", SlatePlatform.get().gameDir().resolve("slate-shots").toString()));
-        final String skin = System.getProperty("slate.autoSkin");
-        if (skin != null) { Slate.config().skin = skin; Theme.reload(); }
+        // Skin and layout are applied on the first frame, after every module ran its config migrations, so a
+        // migration save cannot persist the harness override into the run directory's config.
         // Capture after whatever is drawn last: the screen when one is open (SCREEN_RENDER_POST runs after
         // it), else the HUD. The HUD event fires BEFORE a screen renders, so it must not clock screen frames.
         SlateEvents.SCREEN_RENDER_POST.register((screen, g, mx, my, pt) -> onFrame());
@@ -69,6 +71,14 @@ public final class DevHarness {
 
     private static void onFrame() {
         final Minecraft mc = Minecraft.getInstance();
+        if (!overridesApplied) {
+            overridesApplied = true;
+            final String skin = System.getProperty("slate.autoSkin");
+            final String layout = System.getProperty("slate.autoLayout");
+            if (skin != null) Slate.config().skin = skin;
+            if (layout != null) Slate.config().setLayout(dev.fallingcloud.slate.core.screen.slot.Layout.parse(layout, Slate.config().layout()));
+            if (skin != null || layout != null) { Theme.reload(); dev.fallingcloud.slate.core.screen.Reskin.invalidate(); }
+        }
         switch (phase) {
             case MENU -> {
                 if (mc.getOverlay() != null || mc.screen == null) return;

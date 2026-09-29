@@ -84,8 +84,8 @@ public final class SlateHubScreen extends SlateScreen {
             // The three switches (layout, menu style, container style), two per row when the card is wide enough.
             final boolean twoCols = inner >= 300;
             final int colW = twoCols ? (inner - 8) / 2 : inner;
-            final SlateToggle layout = new SlateToggle(0, 0, colW, Component.translatable("slate.setup.layout"), Slate.config().customLayout,
-                v -> { Slate.configFile().update(cfg -> cfg.customLayout = v); Theme.reload(); });
+            final SlateToggle layout = new SlateToggle(0, 0, colW, Component.translatable("slate.setup.layout"), Slate.config().hasCustomLayout(),
+                v -> { Slate.configFile().update(cfg -> cfg.setCustomLayout(v)); Theme.reload(); });
             layout.tip(Component.translatable("slate.setup.layout.desc"));
             final SlateToggle style = new SlateToggle(0, 0, colW, Component.translatable("slate.setup.style"), Slate.config().customStyle(),
                 v -> { Slate.configFile().update(cfg -> cfg.setCustomStyle(v)); Theme.reload(); Reskin.invalidate(); });

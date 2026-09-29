@@ -12,12 +12,14 @@ loom {
                 // for this run (it would open a second world and quit underneath the scenarios).
                 vmArg "-Dslate.building.harness=${project.buildingHarness}"
                 if (project.hasProperty('autoSkin')) vmArg "-Dslate.autoSkin=${project.autoSkin}"
+                if (project.hasProperty('autoLayout')) vmArg "-Dslate.autoLayout=${project.autoLayout}"
             } else if (project.hasProperty('autoScreens') || project.hasProperty('autoWorld')) {
                 // Unattended screenshot runs: -PautoScreens=slate:hub,slate:settings [-PautoSkin=VANILLA] [-PautoQuit=true]
                 if (project.hasProperty('autoScreens')) vmArg "-Dslate.autoScreens=${project.autoScreens}"
                 vmArg "-Dslate.autoDir=${file('run').absolutePath}"
                 vmArg "-Dslate.autoQuit=${project.hasProperty('autoQuit') ? project.autoQuit : 'true'}"
                 if (project.hasProperty('autoSkin')) vmArg "-Dslate.autoSkin=${project.autoSkin}"
+                if (project.hasProperty('autoLayout')) vmArg "-Dslate.autoLayout=${project.autoLayout}"
                 if (project.hasProperty('autoWorld')) vmArg "-Dslate.autoWorld=${project.autoWorld}"
                 if (project.hasProperty('autoFrames')) vmArg "-Dslate.autoFrames=${project.autoFrames}"
             }

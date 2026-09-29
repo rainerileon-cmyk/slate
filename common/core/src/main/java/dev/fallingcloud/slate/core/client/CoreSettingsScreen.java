@@ -105,7 +105,7 @@ public final class CoreSettingsScreen extends SlateScreen {
 
         // The three switches of the setup screen: layout, menu style, container style.
         final Section modes = new Section(w, Component.translatable("slate.settings.section.modes"));
-        switchRow(modes, "layout", cfg.customLayout, v -> save(x -> x.customLayout = v));
+        switchRow(modes, "layout", cfg.hasCustomLayout(), v -> save(x -> x.setCustomLayout(v)));
         switchRow(modes, "style", cfg.customStyle(), v -> save(x -> x.setCustomStyle(v)));
         switchRow(modes, "containers", cfg.reskinContainers, v -> { save(x -> x.reskinContainers = v); Reskin.invalidate(); });
         modes.row(new SlateButton(0, 0, 130, 16, Component.translatable("slate.settings.run_setup"),

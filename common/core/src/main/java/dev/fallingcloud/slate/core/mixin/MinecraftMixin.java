@@ -36,6 +36,8 @@ public abstract class MinecraftMixin {
         Screen candidate = guiScreen;
         if (candidate == null && this.level == null) candidate = new TitleScreen();   // vanilla's substitution
         final Screen swapped = ScreenSwaps.apply(candidate);
+        // The style the new screen's menu slot asks for is switched to before init runs, so nothing flickers.
+        SlateClient.beforeScreenShown(swapped != null ? swapped : candidate);
         if (swapped != null && swapped != candidate) {
             ci.cancel();
             slate$reentering = true;

@@ -25,6 +25,7 @@ public final class Slate {
         if (initialised) return;
         initialised = true;
         config = JsonConfig.of("core", CoreConfig.class, CoreConfig::new);
+        if (config.get().migrate()) config.save();        // customLayout -> layout, once
         dev.fallingcloud.slate.core.net.blob.BlobChannel.register();
         LOGGER.info("[Slate] core {} on {}", version(), SlatePlatform.get().loader());
     }

@@ -15,6 +15,9 @@ import dev.fallingcloud.slate.core.module.SlateModule;
 import dev.fallingcloud.slate.core.platform.SlatePlatform;
 import dev.fallingcloud.slate.core.screen.ScreenIds;
 import dev.fallingcloud.slate.core.screen.ScreenSwaps;
+import dev.fallingcloud.slate.core.screen.slot.CoreSlots;
+import dev.fallingcloud.slate.core.screen.slot.Layout;
+import dev.fallingcloud.slate.core.screen.slot.MenuSlots;
 import java.util.List;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
@@ -70,6 +73,9 @@ public final class SlateConfig implements SlateModule {
         ScreenIds.register(ConfigHubScreen.class, "slate_config:hub", "Slate settings");
         ScreenIds.register(FileEditorScreen.class, "slate_config:editor", "Config file editor");
         CoreActions.SCREEN_FACTORIES.put("slate_config:hub", p -> new ConfigHubScreen(p, null));
+        // The Custom layout of the options menu is this hub; it outranks Slate Menu's own options screen. setScreen has
+        // not switched when the swap runs, so the current screen is the one that opened the options.
+        MenuSlots.provide(CoreSlots.OPTIONS, Layout.CUSTOM, 10, s -> new ConfigHubScreen(Minecraft.getInstance().screen, null));
         // slate_config:hub/<path> opens a page directly (screenshot harness: -PautoScreens=slate_config:hub/video,...).
         for (final String path : PAGE_IDS) CoreActions.SCREEN_FACTORIES.put("slate_config:hub/" + path, p -> new ConfigHubScreen(p, path));
         SlateEvents.CLIENT_TICK_END.register(ApplyQueue::tick);
@@ -78,7 +84,11 @@ public final class SlateConfig implements SlateModule {
         if (System.getenv("SLATE_CONFIG_SMOKE") != null || String.valueOf(System.getProperty("slate.autoScreens")).contains("slate_config:smoke")) SmokeTest.install();
     }
 
-    /** Vanilla option sub-screens open the matching hub page and tab; Sodium's screen too. Switched off by config.json. */
+    /**
+     * Vanilla option sub-screens open the matching hub page and tab; Sodium's screen too. Switched off by config.json,
+     * and only while the options menu itself shows in a Slate layout: with the {@code minecraft:options} slot on its
+     * vanilla layout (globally, per menu, or because Slate UI is absent) every vanilla sub-screen stays as well.
+     */
     private static void installSwaps() {
         if (!ConfigSettings.get().swapVanillaScreens) return;
         swap(VideoSettingsScreen.class, "video");
@@ -89,12 +99,17 @@ public final class SlateConfig implements SlateModule {
         swap(LanguageSelectScreen.class, "language_accessibility/language");
         swap(AccessibilityOptionsScreen.class, "language_accessibility/accessibility");
         swap(OnlineOptionsScreen.class, "multiplayer/online");
-        if (SlatePlatform.get().isModLoaded("sodium")) SodiumBridge.installScreenSwap((parent, page) -> new ConfigHubScreen(parent, page));
+        if (SlatePlatform.get().isModLoaded("sodium")) SodiumBridge.installScreenSwap((parent, page) -> redirecting() ? new ConfigHubScreen(parent, page) : null);
+    }
+
+    /** Whether vanilla's option sub-screens are redirected into the hub right now (the options slot is not vanilla). */
+    public static boolean redirecting() {
+        return MenuSlots.effective(CoreSlots.OPTIONS) != Layout.VANILLA;
     }
 
     private static void swap(final Class<? extends Screen> cls, final String page) {
         // setScreen has not switched yet when the swap runs, so the current screen is the sub-screen's parent.
-        ScreenSwaps.register(cls, original -> new ConfigHubScreen(Minecraft.getInstance().screen, page));
+        ScreenSwaps.register(cls, original -> redirecting() ? new ConfigHubScreen(Minecraft.getInstance().screen, page) : null);
     }
 
     @Override

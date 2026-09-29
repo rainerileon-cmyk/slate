@@ -9,6 +9,7 @@ import dev.fallingcloud.slate.config.option.OptionValues;
 import dev.fallingcloud.slate.core.Slate;
 import dev.fallingcloud.slate.core.config.CoreConfig;
 import dev.fallingcloud.slate.core.screen.Reskin;
+import dev.fallingcloud.slate.core.screen.slot.Layout;
 import dev.fallingcloud.slate.core.theme.Colors;
 import dev.fallingcloud.slate.core.theme.Palette;
 import dev.fallingcloud.slate.core.theme.PixelFont;
@@ -47,7 +48,13 @@ public final class CoreBindings {
     }
 
     static {
-        bool("customLayout", c -> c.customLayout, (c, v) -> c.customLayout = v);
+        // The legacy two-state switch (curated pages may still bind slate:core:customLayout) and the three-way layout.
+        bool("customLayout", CoreConfig::hasCustomLayout, CoreConfig::setCustomLayout);
+        DEFS.put("layout", () -> base("layout", OptionType.CHOICE)
+            .choices(layouts())
+            .getter(() -> Slate.config().layout().name())
+            .setter(v -> save(c -> c.setLayout(Layout.parse(OptionValues.asString(v), Layout.CUSTOM))))
+            .def(DEFAULTS.layout));
         DEFS.put("skin", () -> base("skin", OptionType.CHOICE)
             .choices(List.of(Choice.of("DARK", Component.translatable("slate.skin.dark").getString()), Choice.of("VANILLA", Component.translatable("slate.skin.vanilla").getString())))
             .getter(() -> Slate.config().isVanillaSkin() ? "VANILLA" : "DARK")
@@ -98,6 +105,13 @@ public final class CoreBindings {
     private static List<Choice> pixelFonts() {
         final List<Choice> out = new ArrayList<>();
         for (final PixelFont f : PixelFont.values()) out.add(new Choice(f.key(), f.label()));
+        return out;
+    }
+
+    /** The three layouts; the ones the installed modules cannot show are still listed (the Interface page disables them). */
+    private static List<Choice> layouts() {
+        final List<Choice> out = new ArrayList<>();
+        for (final Layout l : Layout.values()) out.add(new Choice(l.name(), Component.translatable("slate.layout." + l.key())));
         return out;
     }
 
