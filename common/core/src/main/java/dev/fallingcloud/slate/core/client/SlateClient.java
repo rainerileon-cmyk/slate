@@ -51,6 +51,8 @@ public final class SlateClient {
         ScreenIds.register(SlateHubScreen.class, "slate:hub", "Slate hub");
         ScreenIds.register(CoreSettingsScreen.class, "slate:settings", "Slate settings");
         ScreenIds.register(dev.fallingcloud.slate.core.client.setup.SlateSetupScreen.class, "slate:setup", "Slate setup");
+        ScreenIds.register(FeatureTestScreen.class, "slate:feature_test", "Feature gates (harness)");
+        CoreActions.SCREEN_FACTORIES.put("slate:feature_test", FeatureTestScreen::new);
         CoreActions.SCREEN_FACTORIES.put("slate:setup", p -> new dev.fallingcloud.slate.core.client.setup.SlateSetupScreen(p));
         VanillaScreenButtons.init();
         SlateEvents.CLIENT_TICK_END.register(SlateClient::tick);

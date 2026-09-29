@@ -124,11 +124,11 @@
   "slate_config.interface.motion": "Motion",
   "slate_config.interface.restyle": "Restyle",
   "slate_config.interface.vanilla": "Vanilla",
-  "slate_config.interface.menu": "Slate Menu",
+  "slate_config.interface.menu": "Slate UI",
   "slate_config.interface.dev": "Developer",
 
   "slate_config.core.customLayout": "Custom layout",
-  "slate_config.core.customLayout.tip": "Slate Menu's rebuilt screens (title, worlds, servers, pause, options) replace vanilla's. Off: vanilla's own screens and button placement, with a Slate button on the title and pause screens.",
+  "slate_config.core.customLayout.tip": "Slate UI's rebuilt screens (title, worlds, servers, pause, options) replace vanilla's. Off: vanilla's own screens and button placement, with a Slate button on the title and pause screens.",
   "slate_config.core.skin": "Menu style",
   "slate_config.core.skin.tip": "Dark: the modern pixel look. Vanilla: stone buttons, still animated.",
   "slate_config.core.accent": "Accent colour",

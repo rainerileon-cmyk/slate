@@ -5,7 +5,7 @@ license = "MIT"
 [[mods]]
 modId = "slate_menu"
 version = "${version}"
-displayName = "Slate Menu"
+displayName = "Slate UI"
 authors = "falling_colud"
 logoFile = "assets/slate_menu/icon.png"
 displayTest = "IGNORE_ALL_VERSION"

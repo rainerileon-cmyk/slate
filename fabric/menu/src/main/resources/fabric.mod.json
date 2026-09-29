@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "slate_menu",
   "version": "${version}",
-  "name": "Slate Menu",
+  "name": "Slate UI",
   "description": "Slate's rebuilt main menus: title, worlds, servers, pause, options, and a screenshot gallery - favourites, search, live pings, quick connect, animated and themed.",
   "authors": ["falling_colud"],
   "license": "MIT",

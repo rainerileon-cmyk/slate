@@ -31,14 +31,26 @@ def harnessProperties = { run, File gameDir ->
     }
 }
 
+// Which modules are on the dev runtime: all of them, or the ones named in -PslateModules=core,menu,config (the
+// install matrix of docs/LAYOUTS-PLAN.md §7; a module left out is absent, exactly like a missing jar). Core is
+// always on, and the modules a listed one depends on are added (chat needs multiplayer).
+def slateModules = { ->
+    def all = ['core', 'menu', 'multiplayer', 'chat', 'config', 'building']
+    if (!project.hasProperty('slateModules')) return all
+    def wanted = project.slateModules.toString().split(',').collect { it.trim() }.findAll { it }.toSet()
+    wanted.add('core')
+    if (wanted.contains('chat')) wanted.add('multiplayer')
+    def unknown = wanted - all.toSet()
+    if (unknown) throw new GradleException("unknown Slate module(s) in -PslateModules: ${unknown} (known: ${all})")
+    return all.findAll { wanted.contains(it) }
+}
+ext.slateModuleIds = ['core': 'slate', 'menu': 'slate_menu', 'multiplayer': 'slate_multiplayer', 'chat': 'slate_chat', 'config': 'slate_config', 'building': 'slate_building']
+
 neoForge {
     mods {
-        slate { sourceSet project(':core').sourceSets.main }
-        slate_menu { sourceSet project(':menu').sourceSets.main }
-        slate_multiplayer { sourceSet project(':multiplayer').sourceSets.main }
-        slate_chat { sourceSet project(':chat').sourceSets.main }
-        slate_config { sourceSet project(':config').sourceSets.main }
-        slate_building { sourceSet project(':building').sourceSets.main }
+        slateModules().each { m ->
+            "${slateModuleIds[m]}" { sourceSet project(":${m}").sourceSets.main }
+        }
     }
     runs {
         client {
@@ -66,12 +78,7 @@ neoForge {
 }
 
 dependencies {
-    implementation project(':core')
-    implementation project(':menu')
-    implementation project(':multiplayer')
-    implementation project(':chat')
-    implementation project(':config')
-    implementation project(':building')
+    slateModules().each { m -> implementation project(":${m}") }
 }
 
 // Nothing to ship from here.

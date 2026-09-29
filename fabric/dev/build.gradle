@@ -31,13 +31,21 @@ loom {
     }
 }
 
+// Which modules are on the dev runtime: all, or the ones named in -PslateModules=core,menu,config (the install matrix
+// of docs/LAYOUTS-PLAN.md §7). Core is always on; chat brings multiplayer.
+def slateModules = { ->
+    def all = ['core', 'menu', 'multiplayer', 'chat', 'config', 'building']
+    if (!project.hasProperty('slateModules')) return all
+    def wanted = project.slateModules.toString().split(',').collect { it.trim() }.findAll { it }.toSet()
+    wanted.add('core')
+    if (wanted.contains('chat')) wanted.add('multiplayer')
+    def unknown = wanted - all.toSet()
+    if (unknown) throw new GradleException("unknown Slate module(s) in -PslateModules: ${unknown} (known: ${all})")
+    return all.findAll { wanted.contains(it) }
+}
+
 dependencies {
-    implementation project(path: ':core', configuration: 'namedElements')
-    implementation project(path: ':menu', configuration: 'namedElements')
-    implementation project(path: ':multiplayer', configuration: 'namedElements')
-    implementation project(path: ':chat', configuration: 'namedElements')
-    implementation project(path: ':config', configuration: 'namedElements')
-    implementation project(path: ':building', configuration: 'namedElements')
+    slateModules().each { m -> implementation project(path: ":${m}", configuration: 'namedElements') }
 }
 
 tasks.named('jar') { enabled = false }
