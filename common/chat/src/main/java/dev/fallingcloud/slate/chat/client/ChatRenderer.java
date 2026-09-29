@@ -168,7 +168,7 @@ public final class ChatRenderer {
         }
 
         if (content instanceof ChatRows.HeaderRow hr) {
-            drawHeader(g, font, hr.meta(), y, h, alpha, k, geo, cfg, t, p);
+            drawHeader(g, font, hr.meta(), y, h, alpha, k, geo, cfg, t, p, focused && cfg.hoverActions && hovered == r.message);
         } else if (content instanceof ChatRows.GapRow) {
             // nothing
         } else if (content instanceof ChatRows.AttachmentRow ar) {
@@ -196,8 +196,10 @@ public final class ChatRenderer {
         }
     }
 
+    /** {@code actionsShown}: the hover pill sits over the row's right end, so the history tag steps aside for it. */
     private static void drawHeader(final GuiGraphics g, final Font font, final ChatMeta.Meta meta, final int y, final int h, final float alpha,
-                                   final int k, final ChatLayout.Geometry geo, final ChatConfig cfg, final Theme t, final Palette p) {
+                                   final int k, final ChatLayout.Geometry geo, final ChatConfig cfg, final Theme t, final Palette p,
+                                   final boolean actionsShown) {
         int x = 0;
         if (geo.heads()) {
             SlateAvatar.draw(g, skinFor(meta), 0, y + (h - geo.avatar()) / 2, geo.avatar(), SlateAvatar.Status.NONE, alpha);
@@ -212,7 +214,7 @@ public final class ChatRenderer {
             final String ts = ChatLayout.time(meta.timeMs);
             if (x + font.width(ts) <= k) g.drawString(font, ts, x, ty, Colors.scaleAlpha(t.isVanilla() ? 0xFFA0A0A0 : p.textDim(), alpha), t.isVanilla());
         }
-        if (meta.history) {
+        if (meta.history && !actionsShown) {
             final Component hist = Component.translatable("slate_chat.history.tag");
             final int hw = font.width(hist);
             if (k - hw > x + 40) g.drawString(font, hist, k - hw, ty, Colors.scaleAlpha(p.textDim(), alpha * 0.8f), t.isVanilla());
