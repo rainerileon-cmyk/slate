@@ -1,6 +1,7 @@
 package dev.fallingcloud.slate.menu.client.screenshots;
 
 import dev.fallingcloud.slate.core.gfx.Clock;
+import dev.fallingcloud.slate.core.media.ClipboardImages;
 import dev.fallingcloud.slate.core.gfx.Fonts;
 import dev.fallingcloud.slate.core.gfx.Icon;
 import dev.fallingcloud.slate.core.gfx.SlateDraw;

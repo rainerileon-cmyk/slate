@@ -157,5 +157,6 @@
   "slate_multiplayer.action.share_screen": "Share screen",
   "slate_multiplayer.action.arg.mode": "Mode",
   "slate_multiplayer.action.toggle_mute": "Toggle voice mute",
-  "slate_multiplayer.action.toggle_deafen": "Toggle voice deafen"
+  "slate_multiplayer.action.toggle_deafen": "Toggle voice deafen",
+  "slate_multiplayer.settings.section.look": "Look"
 }

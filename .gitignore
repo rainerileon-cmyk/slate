@@ -12,3 +12,4 @@ eclipse/
 bin/
 *.log
 tools/__pycache__/
+.claude/worktrees/

@@ -14,7 +14,7 @@ import dev.fallingcloud.slate.core.theme.Theme;
 import dev.fallingcloud.slate.core.widget.SlateBadge;
 import dev.fallingcloud.slate.core.widget.SlateButton;
 import dev.fallingcloud.slate.core.widget.SlateList;
-import dev.fallingcloud.slate.config.ui.FilePicker;
+import dev.fallingcloud.slate.core.media.FilePicker;
 import dev.fallingcloud.slate.core.widget.SlateToasts;
 import java.nio.file.Files;
 import java.nio.file.Path;

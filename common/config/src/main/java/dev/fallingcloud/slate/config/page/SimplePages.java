@@ -65,7 +65,8 @@ public final class SimplePages {
                 .tooltip(Component.translatable("slate_config.multiplayer.skip_warning.tip"))
                 .getter(() -> Minecraft.getInstance().options.skipMultiplayerWarning)
                 .setter(v -> { Minecraft.getInstance().options.skipMultiplayerWarning = Boolean.TRUE.equals(v); Minecraft.getInstance().options.save(); })
-                .def(Boolean.FALSE));
+                .def(Boolean.FALSE)
+                .advanced(true));
             out.add(online);
             if (Modules.isLoaded("slate_multiplayer")) out.add(slateModule("multiplayer", "slate_multiplayer", "slate_config.multiplayer.slate"));
             return out;
@@ -80,14 +81,15 @@ public final class SimplePages {
         protected List<Section> sections() {
             final List<Section> out = new ArrayList<>();
             // forceUnicodeFont lives on the Language tab (Font).
+            // Accessibility keeps every row it lists, advanced or not: an aid is never hidden from the people who need it.
             out.add(Section.of("reading", Component.translatable("slate_config.accessibility.reading"), VanillaOptions.all(
                 "narrator", "narratorHotkey", "showSubtitles", "highContrast", "textBackgroundOpacity", "backgroundForChatOnly", "chatOpacity",
-                "chatLineSpacing", "chatDelay", "notificationDisplayTime", "menuBackgroundBlurriness")));
+                "chatLineSpacing", "chatDelay", "notificationDisplayTime", "menuBackgroundBlurriness")).basic());
             final Section motion = Section.of("motion", Component.translatable("slate_config.accessibility.motion"), VanillaOptions.all(
                 "screenEffectScale", "fovEffectScale", "darknessEffectScale", "damageTiltStrength", "glintSpeed", "glintStrength",
                 "hideLightningFlashes", "bobView", "panoramaScrollSpeed", "darkMojangStudiosBackground", "hideSplashTexts"));
             motion.addAll(CoreBindings.all("motion", "transitions"));
-            out.add(motion);
+            out.add(motion.basic());
             // Auto-jump and the sprint / sneak toggles are Controls › Movement only.
             return out;
         }

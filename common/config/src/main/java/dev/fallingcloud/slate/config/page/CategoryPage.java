@@ -15,7 +15,6 @@ import dev.fallingcloud.slate.core.layout.ui.Rect;
 import dev.fallingcloud.slate.core.screen.SidebarPage;
 import dev.fallingcloud.slate.core.screen.SidebarScreen;
 import dev.fallingcloud.slate.core.widget.SlateTabStrip;
-import dev.fallingcloud.slate.core.widget.SlateTabs;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -110,8 +109,8 @@ public class CategoryPage extends SidebarPage implements TabHost, CategoryHost {
         strip = null;
         Rect sub = area;
         if (kids.size() > 1) {
-            final List<SlateTabs.Tab> tabs = new ArrayList<>();
-            for (final SidebarPage k : kids) tabs.add(new SlateTabs.Tab(k.title(), k.icon()));
+            final List<SlateTabStrip.Tab> tabs = new ArrayList<>();
+            for (final SidebarPage k : kids) tabs.add(new SlateTabStrip.Tab(k.title(), k.icon()));
             final SlateTabStrip s = new SlateTabStrip(area.x(), area.y(), area.w(), tabs, idx, this::select);
             s.animateFrom(stripFrom >= 0 ? stripFrom : idx, scroll);
             screen.addPageWidget(s);
@@ -217,6 +216,7 @@ public class CategoryPage extends SidebarPage implements TabHost, CategoryHost {
             try {
                 if (k instanceof OptionPageBase o) out.addAll(o.searchEntries(path, title(), k.title()));
                 else if (k instanceof ModsPage m) out.addAll(m.searchEntries(path, title(), k.title()));
+                else if (k instanceof PresetsPage pr) out.addAll(pr.searchEntries());
             } catch (final Exception e) {
                 SlateConfig.LOGGER.warn("[Slate Config] cannot index {}: {}", path, e.toString());
             }

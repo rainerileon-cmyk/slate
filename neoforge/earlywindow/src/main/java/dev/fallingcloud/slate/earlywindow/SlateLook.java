@@ -7,6 +7,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Properties;
 import java.util.concurrent.Semaphore;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -44,6 +45,9 @@ final class SlateLook {
     private static final Pattern PIXEL_FONT = Pattern.compile("\"pixelFont\"\\s*:\\s*\"(\\w+)\"");
 
     private static String coreJson, menuJson;
+    /** {@code config/slate/earlywindow.properties}, written by Core whenever its settings change; null when absent. */
+    private static Properties props;
+    private static boolean propsRead;
     /** The window fml.toml named before {@link #choose} replaced it in memory. */
     private static String replaced;
 
@@ -53,7 +57,37 @@ final class SlateLook {
      * Each is on while its file does not exist yet, as the settings' defaults.
      */
     static boolean enabled() {
+        final Properties p = props();
+        if (p != null) return !"VANILLA".equalsIgnoreCase(p.getProperty("layout", "CUSTOM")) && !"VANILLA".equalsIgnoreCase(p.getProperty("style", "SLATE"));
         return darkSkin() && flag(LAYOUT, core()) && flag(LOADING, menu());
+    }
+
+    /** The layout of the start-up window slot ({@code VANILLA}, {@code CUSTOM} or {@code OVERHAUL}) as Core resolved it last. */
+    static String layout() {
+        final Properties p = props();
+        final String v = p == null ? null : p.getProperty("layout");
+        if (v != null) return v.trim().toUpperCase(Locale.ROOT);
+        return flag(LAYOUT, core()) ? "CUSTOM" : "VANILLA";
+    }
+
+    /**
+     * The flat settings file Core writes for this window (the effective layout and style of its slot, accent, radius
+     * and fonts), preferred over the JSON files because their structure moves between releases; null when it does
+     * not exist yet (a first launch, or an older Core), in which case the regexes below are the fallback.
+     */
+    private static Properties props() {
+        if (propsRead) return props;
+        propsRead = true;
+        try {
+            final Path file = FMLPaths.CONFIGDIR.get().resolve("slate").resolve("earlywindow.properties");
+            if (!Files.isRegularFile(file)) return null;
+            final Properties p = new Properties();
+            try (var in = Files.newBufferedReader(file)) { p.load(in); }
+            props = p;
+        } catch (final Exception e) {
+            LOGGER.warn("[Slate] could not read earlywindow.properties: {}", e.toString());
+        }
+        return props;
     }
 
     private static boolean darkSkin() {
@@ -68,6 +102,11 @@ final class SlateLook {
 
     /** The accent colour chosen in Slate's settings, ARGB. */
     static int accent() {
+        final Properties p = props();
+        if (p != null) {
+            final String v = p.getProperty("accent", "").trim().replace("#", "");
+            if (v.matches("[0-9a-fA-F]{6}")) return 0xFF000000 | Integer.parseInt(v, 16);
+        }
         final Matcher m = ACCENT.matcher(core());
         return m.find() ? 0xFF000000 | Integer.parseInt(m.group(1), 16) : DEFAULT_ACCENT;
     }
@@ -78,14 +117,20 @@ final class SlateLook {
      * this early: Monocraft, modelled on it, stands in.
      */
     static String pixelFont() {
-        if (!flag(HEADING_FONT, core())) return "monocraft";
+        final Properties p = props();
+        final boolean headingFont = p != null ? Boolean.parseBoolean(p.getProperty("headingFont", "true")) : flag(HEADING_FONT, core());
+        if (!headingFont) return "monocraft";
         final Matcher m = PIXEL_FONT.matcher(core());
-        final String key = m.find() ? m.group(1).toLowerCase(Locale.ROOT) : "";
+        final String key = p != null ? p.getProperty("pixelFont", "").trim().toLowerCase(Locale.ROOT) : m.find() ? m.group(1).toLowerCase(Locale.ROOT) : "";
         return key.equals("monocraft") || key.equals("pixelify") ? key : "pixeloid";
     }
 
     /** The dark skin's corner radius (0-4). */
     static int radius() {
+        final Properties p = props();
+        if (p != null) {
+            try { return Math.max(0, Math.min(4, Integer.parseInt(p.getProperty("radius", "3").trim()))); } catch (final NumberFormatException ignored) {}
+        }
         final Matcher m = RADIUS.matcher(core());
         return m.find() ? Math.min(4, Integer.parseInt(m.group(1))) : DEFAULT_RADIUS;
     }

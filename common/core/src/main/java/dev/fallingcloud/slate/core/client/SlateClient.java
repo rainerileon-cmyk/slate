@@ -8,6 +8,8 @@ import dev.fallingcloud.slate.core.gfx.Clock;
 import dev.fallingcloud.slate.core.layout.LayoutApplier;
 import dev.fallingcloud.slate.core.layout.editor.LayoutEditor;
 import dev.fallingcloud.slate.core.screen.ScreenIds;
+import dev.fallingcloud.slate.core.screen.slot.EarlyWindowProps;
+import dev.fallingcloud.slate.core.screen.slot.MenuSlots;
 import dev.fallingcloud.slate.core.screen.Transitions;
 import dev.fallingcloud.slate.core.theme.Theme;
 import dev.fallingcloud.slate.core.widget.SlateToasts;
@@ -29,12 +31,18 @@ public final class SlateClient {
     public static final KeyMapping HUB_KEY = new KeyMapping("key.slate.hub", InputConstants.Type.KEYSYM, InputConstants.UNKNOWN.getValue(), SlateKeys.CATEGORY);
 
     private static boolean initialised;
+    private static boolean propsWritten;
     @Nullable private static Screen lastScreen;
 
     public static synchronized void init() {
         if (initialised) return;
         initialised = true;
         Slate.init();
+        // Menu slots: the open screen's slot decides the style variant, and the start-up window's settings file
+        // follows every change of theme, slot or provider.
+        Theme.setActiveStyleResolver(() -> MenuSlots.styleFor(Minecraft.getInstance().screen));
+        Theme.onChange(EarlyWindowProps::write);
+        MenuSlots.onChange(EarlyWindowProps::write);
         Theme.reload();
         SlateKeys.register(EDITOR_KEY);
         SlateKeys.register(HUB_KEY);
@@ -43,18 +51,24 @@ public final class SlateClient {
         ScreenIds.register(SlateHubScreen.class, "slate:hub", "Slate hub");
         ScreenIds.register(CoreSettingsScreen.class, "slate:settings", "Slate settings");
         ScreenIds.register(dev.fallingcloud.slate.core.client.setup.SlateSetupScreen.class, "slate:setup", "Slate setup");
+        ScreenIds.register(FeatureTestScreen.class, "slate:feature_test", "Feature gates (harness)");
+        CoreActions.SCREEN_FACTORIES.put("slate:feature_test", FeatureTestScreen::new);
         CoreActions.SCREEN_FACTORIES.put("slate:setup", p -> new dev.fallingcloud.slate.core.client.setup.SlateSetupScreen(p));
         VanillaScreenButtons.init();
+        DevModeButton.init();
         SlateEvents.CLIENT_TICK_END.register(SlateClient::tick);
         SlateEvents.KEY_PRESSED.register((key, scan, mods) -> {
             if (HUB_KEY.matches(key, scan) && !HUB_KEY.isUnbound()) { Minecraft.getInstance().setScreen(new SlateHubScreen(null)); return true; }
             return false;
         });
         DevHarness.init();
+        dev.fallingcloud.slate.core.stage.StageBootstrap.init();
         Slate.LOGGER.info("[Slate] client ready ({} skin)", Theme.current().skin());
     }
 
     private static void tick() {
+        // Once every module has provided its layouts: the settings file the NeoForge start-up window reads.
+        if (!propsWritten) { propsWritten = true; EarlyWindowProps.write(); }
         // The editor key works in-game (no screen) and on screens (handled in ScreenInput).
         while (EDITOR_KEY.consumeClick()) {
             if (Minecraft.getInstance().screen == null && Slate.config().devMode) LayoutEditor.toggle();
@@ -62,6 +76,11 @@ public final class SlateClient {
     }
 
     // ------------------------------------------------------------------ hooks called by mixins
+
+    /** Minecraft.setScreen decided which screen shows (before its init): switch the theme to its slot's style. */
+    public static void beforeScreenShown(@Nullable final Screen screen) {
+        Theme.activate(screen == null ? null : MenuSlots.styleFor(screen));
+    }
 
     /** Minecraft.setScreen completed. */
     public static void onScreenChanged(@Nullable final Screen screen) {

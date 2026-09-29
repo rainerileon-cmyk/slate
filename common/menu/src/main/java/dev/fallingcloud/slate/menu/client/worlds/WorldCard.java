@@ -11,6 +11,7 @@ import dev.fallingcloud.slate.core.widget.SlateCard;
 import dev.fallingcloud.slate.core.widget.SlateIconButton;
 import dev.fallingcloud.slate.core.widget.SlateTooltips;
 import dev.fallingcloud.slate.menu.client.Fmt;
+import dev.fallingcloud.slate.menu.client.play.model.WorldEntry;
 import java.util.List;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;

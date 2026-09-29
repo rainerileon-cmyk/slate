@@ -1,0 +1,36 @@
+{
+  "__comment": "Slate's own cogwheel (Blockbench-style Java block model): a hub and eight teeth, four axis-aligned and four rotated 45 degrees. Textures are vanilla copper.",
+  "textures": {
+    "particle": "minecraft:block/copper_block",
+    "tooth": "minecraft:block/copper_block",
+    "hub": "minecraft:block/cut_copper",
+    "core": "minecraft:block/oxidized_cut_copper"
+  },
+  "elements": [
+    { "from": [4, 6, 4], "to": [12, 10, 12],
+      "faces": { "north": {"texture": "#hub"}, "south": {"texture": "#hub"}, "east": {"texture": "#hub"}, "west": {"texture": "#hub"},
+                 "up": {"texture": "#hub"}, "down": {"texture": "#hub"} } },
+    { "from": [6.5, 10, 6.5], "to": [9.5, 11, 9.5],
+      "faces": { "north": {"texture": "#core"}, "south": {"texture": "#core"}, "east": {"texture": "#core"}, "west": {"texture": "#core"}, "up": {"texture": "#core"} } },
+    { "from": [6.5, 5, 6.5], "to": [9.5, 6, 9.5],
+      "faces": { "north": {"texture": "#core"}, "south": {"texture": "#core"}, "east": {"texture": "#core"}, "west": {"texture": "#core"}, "down": {"texture": "#core"} } },
+
+    { "from": [6.5, 6.5, 0], "to": [9.5, 9.5, 4],
+      "faces": { "north": {"texture": "#tooth"}, "east": {"texture": "#tooth"}, "west": {"texture": "#tooth"}, "up": {"texture": "#tooth"}, "down": {"texture": "#tooth"} } },
+    { "from": [6.5, 6.5, 12], "to": [9.5, 9.5, 16],
+      "faces": { "south": {"texture": "#tooth"}, "east": {"texture": "#tooth"}, "west": {"texture": "#tooth"}, "up": {"texture": "#tooth"}, "down": {"texture": "#tooth"} } },
+    { "from": [0, 6.5, 6.5], "to": [4, 9.5, 9.5],
+      "faces": { "west": {"texture": "#tooth"}, "north": {"texture": "#tooth"}, "south": {"texture": "#tooth"}, "up": {"texture": "#tooth"}, "down": {"texture": "#tooth"} } },
+    { "from": [12, 6.5, 6.5], "to": [16, 9.5, 9.5],
+      "faces": { "east": {"texture": "#tooth"}, "north": {"texture": "#tooth"}, "south": {"texture": "#tooth"}, "up": {"texture": "#tooth"}, "down": {"texture": "#tooth"} } },
+
+    { "from": [6.5, 6.5, 0], "to": [9.5, 9.5, 4], "rotation": { "origin": [8, 8, 8], "axis": "y", "angle": 45 },
+      "faces": { "north": {"texture": "#tooth"}, "east": {"texture": "#tooth"}, "west": {"texture": "#tooth"}, "up": {"texture": "#tooth"}, "down": {"texture": "#tooth"} } },
+    { "from": [6.5, 6.5, 12], "to": [9.5, 9.5, 16], "rotation": { "origin": [8, 8, 8], "axis": "y", "angle": 45 },
+      "faces": { "south": {"texture": "#tooth"}, "east": {"texture": "#tooth"}, "west": {"texture": "#tooth"}, "up": {"texture": "#tooth"}, "down": {"texture": "#tooth"} } },
+    { "from": [0, 6.5, 6.5], "to": [4, 9.5, 9.5], "rotation": { "origin": [8, 8, 8], "axis": "y", "angle": 45 },
+      "faces": { "west": {"texture": "#tooth"}, "north": {"texture": "#tooth"}, "south": {"texture": "#tooth"}, "up": {"texture": "#tooth"}, "down": {"texture": "#tooth"} } },
+    { "from": [12, 6.5, 6.5], "to": [16, 9.5, 9.5], "rotation": { "origin": [8, 8, 8], "axis": "y", "angle": 45 },
+      "faces": { "east": {"texture": "#tooth"}, "north": {"texture": "#tooth"}, "south": {"texture": "#tooth"}, "up": {"texture": "#tooth"}, "down": {"texture": "#tooth"} } }
+  ]
+}

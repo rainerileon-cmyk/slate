@@ -44,6 +44,16 @@ public final class VanillaOptions {
         "enableVsync", "maxFps", "bobView", "attackIndicator", "showAutosaveIndicator", "graphicsMode", "renderClouds", "particles", "ao",
         "biomeBlendRadius", "entityShadows", "entityDistanceScaling", "mipmapLevels");
 
+    /**
+     * Vanilla options most players never touch: the category pages hide them and the Advanced category shows them
+     * (accessibility sections list some of these too, and keep them: a section can force its rows basic).
+     */
+    public static final Set<String> ADVANCED = Set.of("simulationDistance", "biomeBlendRadius", "entityDistanceScaling", "mipmapLevels",
+        "prioritizeChunkUpdates", "screenEffectScale", "fovEffectScale", "darknessEffectScale", "damageTiltStrength", "glintSpeed",
+        "glintStrength", "showAutosaveIndicator", "menuBackgroundBlurriness", "rawMouseInput", "discrete_mouse_scroll", "mouseWheelSensitivity",
+        "touchscreen", "allowServerListing", "telemetryOptInExtra", "chatDelay", "chatLineSpacing", "hideMatchedNames", "onlyShowSecureChat",
+        "autoSuggestions", "reducedDebugInfo", "panoramaScrollSpeed", "darkMojangStudiosBackground", "hideSplashTexts", "notificationDisplayTime");
+
     private static Options opts() { return Minecraft.getInstance().options; }
 
     public static Optional<OptionBinding> get(final String key) {
@@ -79,7 +89,8 @@ public final class VanillaOptions {
     }
 
     private static Binding base(final String key, final String caption, final OptionType type) {
-        return Binding.of("optionsTxt:" + key, type, Component.translatable(caption)).tooltip(tip(key, caption)).searchWords("vanilla " + key);
+        return Binding.of("optionsTxt:" + key, type, Component.translatable(caption)).tooltip(tip(key, caption)).searchWords("vanilla " + key)
+            .advanced(ADVANCED.contains(key));
     }
 
     private static void bool(final String key, final String caption, final Function<Options, OptionInstance<Boolean>> f, final boolean def) {

@@ -19,6 +19,7 @@ public final class FavouritesPage extends OptionPageBase {
     public FavouritesPage() {
         super("favourites", Component.translatable("slate_config.page.favourites"), Icon.STAR);
         emptyText(Component.translatable("slate_config.favourites.empty"));
+        level(Level.ALL);
     }
 
     /** Resolve the pinned ids; unknown ones show as info rows so they can be un-pinned. */

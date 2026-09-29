@@ -14,8 +14,8 @@ import dev.fallingcloud.slate.core.screen.SidebarScreen;
 import dev.fallingcloud.slate.core.theme.Theme;
 import dev.fallingcloud.slate.core.widget.SlateLabel;
 import dev.fallingcloud.slate.core.widget.SlateScrollPanel;
+import dev.fallingcloud.slate.core.widget.SlateSectionHeader;
 import dev.fallingcloud.slate.core.widget.SlateTabStrip;
-import dev.fallingcloud.slate.core.widget.SlateTabs;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -42,6 +42,12 @@ public abstract class OptionPageBase extends SidebarPage implements TabHost, Ent
     /** A top tab: its memory key, label and the sections it shows. */
     public record Tab(String key, Component title, List<Section> sections) {}
 
+    /**
+     * Which rows a page instance shows: the everyday ones (a category page), the advanced ones (the same page under
+     * the Advanced category, with the same tab structure), or all of them (curated pages, favourites).
+     */
+    public enum Level { BASIC, ADVANCED, ALL }
+
     private static final int STRIP_GAP = 6;
 
     protected SidebarScreen screen;
@@ -53,6 +59,8 @@ public abstract class OptionPageBase extends SidebarPage implements TabHost, Ent
     @Nullable private String pendingFocus;
     private double keepScroll = -1;
     @Nullable private Component emptyText;
+    private Level level = Level.BASIC;
+    private boolean indexed = true;
 
     // Hosting inside a category page
     @Nullable private String hostPath;
@@ -90,6 +98,17 @@ public abstract class OptionPageBase extends SidebarPage implements TabHost, Ent
     /** Optional line under the rows when nothing is there (e.g. "No favourites yet"). */
     protected OptionPageBase emptyText(final Component c) { this.emptyText = c; return this; }
 
+    /** Which rows this instance shows ({@link Level}); a page is built twice to serve a category and Advanced. */
+    public OptionPageBase level(final Level l) { this.level = l; return this; }
+
+    public Level level() { return level; }
+
+    /**
+     * Whether the header search indexes this page. The Essentials page repeats rows that have a home elsewhere, so it
+     * stays out of the index (one hit per option).
+     */
+    public OptionPageBase indexed(final boolean on) { this.indexed = on; return this; }
+
     public List<OptionRow> rows() { return rows; }
 
     /** Every section of the page (all tabs), as last built. */
@@ -114,19 +133,35 @@ public abstract class OptionPageBase extends SidebarPage implements TabHost, Ent
 
     private String memKey() { return path(); }
 
-    /** The page's sections plus tabs other modules contributed to it through {@link SettingsTabs}. */
+    /**
+     * The page's sections plus tabs other modules contributed to it through {@link SettingsTabs}, cut down to the rows
+     * of this instance's {@link Level}. A section that loses every row is dropped, so the tab structure only shows what
+     * it holds.
+     */
     private List<Section> collect() {
-        final List<Section> out = new ArrayList<>(sections());
+        final List<Section> all = new ArrayList<>(sections());
         if (!isHosted()) {
             for (final SettingsTabs.Tab t : SettingsTabs.tabs(id())) {
                 try {
-                    for (final Section s : t.sections().get()) if (s != null) out.add(s.tab(t.id(), t.title()));
+                    for (final Section s : t.sections().get()) if (s != null) all.add(s.tab(t.id(), t.title()));
                 } catch (final Exception e) {
                     SlateConfig.LOGGER.warn("[Slate Config] tab {} of {} failed to build: {}", t.id(), id(), e.toString());
                 }
             }
         }
+        if (level == Level.ALL) return all;
+        final boolean wantAdvanced = level == Level.ADVANCED;
+        final List<Section> out = new ArrayList<>(all.size());
+        for (final Section s : all) {
+            final Section f = s.filtered(it -> s.isAdvanced(it) == wantAdvanced);
+            if (!f.isEmpty()) out.add(f);
+        }
         return out;
+    }
+
+    /** The sections this instance shows right now (its level applied), for pages that compose other pages. */
+    public List<Section> sectionsNow() {
+        return collect();
     }
 
     private static List<Tab> group(final List<Section> visible) {
@@ -219,8 +254,8 @@ public abstract class OptionPageBase extends SidebarPage implements TabHost, Ent
             if (si >= 0) ConfigSettings.setLastTab(subKey, shown.get(si).id);
             else si = sectionIndex(shown, ConfigSettings.lastTab(subKey));
             subIndex = Math.max(0, si);
-            final List<SlateTabs.Tab> labels = new ArrayList<>();
-            for (final Section s : shown) labels.add(new SlateTabs.Tab(s.title));
+            final List<SlateTabStrip.Tab> labels = new ArrayList<>();
+            for (final Section s : shown) labels.add(new SlateTabStrip.Tab(s.title));
             final SlateTabStrip ss = new SlateTabStrip(area.x(), y, area.w(), labels, subIndex, this::selectSub).style(SlateTabStrip.Style.PILLS);
             ss.animateFrom(subFrom >= 0 ? subFrom : subIndex, subChanged ? 0 : subScroll);
             screen.addPageWidget(ss);
@@ -238,7 +273,10 @@ public abstract class OptionPageBase extends SidebarPage implements TabHost, Ent
         panel = p;
         final int w = area.w() - 8;
         int cy = 0;
-        for (final Section s : shown) cy = layoutSection(p, s, cy, w, headers, false, null);
+        // A hosted page folds every tab onto one scroll: when its sections came from several tabs, the header says which
+        // ("Graphics › Vanilla"), so two sections that share a title stay apart.
+        final boolean groupedHeaders = isHosted() && groups.size() > 1;
+        for (final Section s : shown) cy = layoutSection(p, s, cy, w, headers, false, groupedHeaders ? groupedTitle(s) : null);
         if (rows.isEmpty() && emptyText != null) {
             final SlateLabel l = new SlateLabel(0, cy + 8, w - 16, emptyText).style(SlateLabel.Style.MUTED).wrap(true);
             p.add(l, 8, cy + 8);
@@ -247,9 +285,9 @@ public abstract class OptionPageBase extends SidebarPage implements TabHost, Ent
         finish(p, cy);
     }
 
-    private static List<SlateTabs.Tab> labels(final List<Tab> ts) {
-        final List<SlateTabs.Tab> out = new ArrayList<>();
-        for (final Tab t : ts) out.add(new SlateTabs.Tab(t.title()));
+    private static List<SlateTabStrip.Tab> labels(final List<Tab> ts) {
+        final List<SlateTabStrip.Tab> out = new ArrayList<>();
+        for (final Tab t : ts) out.add(new SlateTabStrip.Tab(t.title()));
         return out;
     }
 
@@ -287,10 +325,10 @@ public abstract class OptionPageBase extends SidebarPage implements TabHost, Ent
         final boolean foldable = !filtering && s.collapsible;
         final boolean collapsed = headers && titled && foldable && ConfigSettings.isCollapsed(key);
         if (headers && titled) {
-            final SectionHeader h = new SectionHeader(0, y, w, headerTitle != null ? headerTitle : s.title, s.bindings().size(), collapsed,
+            final SlateSectionHeader h = new SlateSectionHeader(0, y, w, headerTitle != null ? headerTitle : s.title, s.bindings().size(), collapsed,
                 foldable ? () -> { ConfigSettings.setCollapsed(key, !ConfigSettings.isCollapsed(key)); rebuild(); } : null, 0);
             p.add(h, 0, y);
-            y += SectionHeader.HEIGHT + 2;
+            y += SlateSectionHeader.HEIGHT + 2;
         }
         if (s.description != null && !collapsed && !filtering) {
             final SlateLabel d = new SlateLabel(0, y, w - 8, s.description).style(SlateLabel.Style.MUTED).wrap(true);
@@ -336,6 +374,13 @@ public abstract class OptionPageBase extends SidebarPage implements TabHost, Ent
                 if (r.binding().id().equals(id)) { p.ensureVisible(r); r.flash(); break; }
             }
         }
+    }
+
+    /** "Tab › Section", or just the section when the two read the same. */
+    private static Component groupedTitle(final Section s) {
+        final String tab = s.tabLabel().getString(), title = s.title.getString();
+        if (title.isEmpty()) return Component.literal(tab);
+        return tab.equals(title) ? s.title : Component.literal(tab + " › " + title);
     }
 
     /** Pages with one section normally skip the header; override to keep it (e.g. curated pages). */
@@ -521,6 +566,7 @@ public abstract class OptionPageBase extends SidebarPage implements TabHost, Ent
     /** Entries under {@code path}; {@code tabTitle} is the category tab this page is (null for a top-level page). */
     public List<SearchIndex.Entry> searchEntries(final String path, final Component pageTitle, @Nullable final Component tabTitle) {
         final List<SearchIndex.Entry> out = new ArrayList<>();
+        if (!indexed) return out;
         final List<Section> visible = new ArrayList<>();
         for (final Section s : collect()) if (!s.isEmpty()) visible.add(s);
         final List<Tab> groups = group(visible);

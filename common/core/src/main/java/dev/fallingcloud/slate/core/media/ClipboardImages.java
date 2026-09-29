@@ -195,5 +195,48 @@ public final class ClipboardImages {
         return out.toByteArray();
     }
 
+    /**
+     * Puts an image file on the system clipboard as an image (the screenshot gallery's Copy). Minecraft has no image
+     * clipboard of its own, so this goes through AWT on a worker thread; where AWT is headless (macOS with LWJGL) or
+     * anything throws, {@code onResult} gets false, on the render thread.
+     */
+    public static void copy(final java.nio.file.Path file, final Consumer<Boolean> onResult) {
+        final Thread worker = new Thread(() -> {
+            boolean ok = false;
+            try {
+                if (!java.awt.GraphicsEnvironment.isHeadless()) {
+                    final BufferedImage read = javax.imageio.ImageIO.read(file.toFile());
+                    if (read != null) {
+                        // Clipboards on Windows drop alpha badly; flatten onto opaque RGB first.
+                        final BufferedImage rgb = new BufferedImage(read.getWidth(), read.getHeight(), BufferedImage.TYPE_INT_RGB);
+                        final java.awt.Graphics2D g2 = rgb.createGraphics();
+                        g2.drawImage(read, 0, 0, null);
+                        g2.dispose();
+                        java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new ImageTransferable(rgb), null);
+                        ok = true;
+                    }
+                }
+            } catch (final Throwable t) {
+                dev.fallingcloud.slate.core.Slate.LOGGER.warn("[Slate] clipboard image copy failed: {}", t.toString());
+            }
+            final boolean result = ok;
+            net.minecraft.client.Minecraft.getInstance().execute(() -> onResult.accept(result));
+        }, "slate-clipboard-copy");
+        worker.setDaemon(true);
+        worker.start();
+    }
+
+    private record ImageTransferable(BufferedImage image) implements java.awt.datatransfer.Transferable {
+        @Override public java.awt.datatransfer.DataFlavor[] getTransferDataFlavors() { return new java.awt.datatransfer.DataFlavor[] { java.awt.datatransfer.DataFlavor.imageFlavor }; }
+
+        @Override public boolean isDataFlavorSupported(final java.awt.datatransfer.DataFlavor flavor) { return java.awt.datatransfer.DataFlavor.imageFlavor.equals(flavor); }
+
+        @Override
+        public Object getTransferData(final java.awt.datatransfer.DataFlavor flavor) throws java.awt.datatransfer.UnsupportedFlavorException {
+            if (!isDataFlavorSupported(flavor)) throw new java.awt.datatransfer.UnsupportedFlavorException(flavor);
+            return image;
+        }
+    }
+
     private ClipboardImages() {}
 }

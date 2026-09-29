@@ -8,6 +8,9 @@ import dev.fallingcloud.slate.core.gfx.Icon;
 import dev.fallingcloud.slate.core.layout.Placeholders;
 import dev.fallingcloud.slate.core.layout.action.ActionType;
 import dev.fallingcloud.slate.core.module.SlateModule;
+import dev.fallingcloud.slate.core.screen.slot.CoreSlots;
+import dev.fallingcloud.slate.core.screen.slot.Layout;
+import dev.fallingcloud.slate.core.screen.slot.MenuSlots;
 import dev.fallingcloud.slate.multiplayer.MultiplayerConfigs;
 import dev.fallingcloud.slate.multiplayer.SlateMultiplayer;
 import dev.fallingcloud.slate.multiplayer.client.stream.ScreenShare;
@@ -42,6 +45,10 @@ public final class MultiplayerClient {
         Placeholders.register("friends_total", () -> Integer.toString(SocialClient.get().friends().size()));
         Placeholders.register("unread_messages", () -> Integer.toString(SocialClient.get().unreadTotal()));
         CoreActions.SCREEN_FACTORIES.put("slate_multiplayer:hub", FriendsHubScreen::new);
+        for (final String page : List.of("friends", "requests", "groups", "messages", "settings")) {
+            CoreActions.SCREEN_FACTORIES.put("slate_multiplayer:hub/" + page, p -> FriendsHubScreen.create(p, page));
+        }
+        MenuSlots.provide(CoreSlots.FRIENDS, Layout.CUSTOM, FriendsHubScreen::new);
         SlateEvents.CLIENT_TICK_END.register(MultiplayerClient::tick);
         MenuBridge.install();
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {

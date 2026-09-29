@@ -1,5 +1,7 @@
 package dev.fallingcloud.slate.multiplayer.client.ui;
 
+import dev.fallingcloud.slate.core.client.settings.LayoutStyleRows;
+import dev.fallingcloud.slate.core.client.settings.SettingRow;
 import dev.fallingcloud.slate.core.gfx.Icon;
 import dev.fallingcloud.slate.core.layout.ui.Flow;
 import dev.fallingcloud.slate.core.layout.ui.Rect;
@@ -73,6 +75,10 @@ final class SettingsPage extends FriendsHubScreen.HubPage {
         final Flow f = Flow.column(area.x(), y, 6);
         panel.add(f.place(new SlateLabel(0, 0, w, UiUtil.t("settings.home_hub.help")).style(SlateLabel.Style.CAPTION).wrap(true)));
         panel.add(f.place(new SlateToggle(0, 0, w, UiUtil.t("settings.hub_auth"), cfg.hubAuth, v -> save(c -> c.hubAuth = v))));
+
+        // The menu style stays reachable from every module's own settings (R6), Slate UI or not.
+        panel.add(f.place(new SlateSeparator(0, 0, w, UiUtil.t("settings.section.look"))));
+        panel.add(f.place(SettingRow.of(w, LayoutStyleRows.styleLabel(), null, LayoutStyleRows.styleSegmented(0, 0, SettingRow.controlWidth(w), null))));
 
         panel.add(f.place(new SlateSeparator(0, 0, w, UiUtil.t("settings.section.presence"))));
         panel.add(f.place(new SlateToggle(0, 0, w, UiUtil.t("settings.share_server"), cfg.shareServer, v -> savePresence(c -> c.shareServer = v))));
