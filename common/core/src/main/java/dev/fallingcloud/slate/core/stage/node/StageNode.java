@@ -158,8 +158,16 @@ public abstract class StageNode {
 
     // ------------------------------------------------------------------ per frame
 
+    /** Continuous rotation around Y in degrees per second (0 = none); honours {@code Theme.motion()}. */
+    public StageNode spin(final float degPerSec) { this.spinDegPerSec = degPerSec; return this; }
+
+    private float spinDegPerSec;
+
     /** Rebuilds the model matrix with the hover/press feel applied. Called by the stage before picking and drawing. */
     public void prepare(final StageRenderContext ctx) {
+        if (spinDegPerSec != 0f && dev.fallingcloud.slate.core.theme.Theme.current().motion() > 0f) {
+            yaw = (yaw + spinDegPerSec * ctx.deltaMs / 1000f) % 360f;
+        }
         final float h = hoverAnim.get();
         final float p = pressAnim.get();
         final float s = 1f + (hoverScale - 1f) * h - 0.04f * p;
@@ -189,6 +197,24 @@ public abstract class StageNode {
 
     /** Draw in local space. */
     protected abstract void draw(StageRenderContext ctx);
+
+    /** True when the node has translucent content to draw after the opaque batch (water, clouds). */
+    public boolean hasTranslucentPass() { return false; }
+
+    /** Pushes the model transform and calls {@link #drawTranslucent}; the stage runs this after the opaque batch. */
+    public void renderTranslucent(final StageRenderContext ctx) {
+        if (!visible || alpha <= 0.004f || !hasTranslucentPass()) return;
+        ctx.pose.pushPose();
+        ctx.pose.mulPose(model);
+        try {
+            drawTranslucent(ctx);
+        } finally {
+            ctx.pose.popPose();
+        }
+    }
+
+    /** Translucent content, drawn with depth test on and (by convention) depth writes off. */
+    protected void drawTranslucent(final StageRenderContext ctx) {}
 
     /** Release GPU or level resources; the node is not used afterwards. */
     public void dispose() {}

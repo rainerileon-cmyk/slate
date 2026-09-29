@@ -124,10 +124,11 @@ public final class StageRegistries {
     }
 
     private static void wolf(final MappedRegistry<WolfVariant> registry, final ResourceKey<WolfVariant> key, final String name) {
+        // The renderer wraps these as textures/<path>.png, like vanilla's WolfVariants bootstrap does.
         Registry.register(registry, key, new WolfVariant(
-            ResourceLocation.withDefaultNamespace("textures/entity/wolf/" + name + ".png"),
-            ResourceLocation.withDefaultNamespace("textures/entity/wolf/" + name + "_tame.png"),
-            ResourceLocation.withDefaultNamespace("textures/entity/wolf/" + name + "_angry.png"),
+            ResourceLocation.withDefaultNamespace("entity/wolf/" + name),
+            ResourceLocation.withDefaultNamespace("entity/wolf/" + name + "_tame"),
+            ResourceLocation.withDefaultNamespace("entity/wolf/" + name + "_angry"),
             HolderSet.empty()));
     }
 

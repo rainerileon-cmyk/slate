@@ -114,6 +114,7 @@ public final class Stage implements AutoCloseable {
     @Nullable private VertexSorting savedSorting;
 
     public Stage() {
+        StageResources.ensureRegistered();
         synchronized (LIVE) { LIVE.add(this); }
     }
 
@@ -440,6 +441,15 @@ public final class Stage implements AutoCloseable {
             }
         }
         ctx.buffers.endBatch();
+        // Translucent pass: water layers, clouds, sparkles; over the opaque depth, no depth writes.
+        for (final StageNode n : nodes) {
+            if (!n.visible() || !n.hasTranslucentPass()) continue;
+            if (n.alpha() < 1f) RenderSystem.setShaderColor(b, b, b, n.alpha());
+            n.renderTranslucent(ctx);
+            if (n.alpha() < 1f) RenderSystem.setShaderColor(b, b, b, 1f);
+        }
+        ctx.buffers.endBatch();
+        RenderSystem.depthMask(true);
         drawFocusOutline();
     }
 
