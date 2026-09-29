@@ -55,6 +55,11 @@ public final class InterfacePage extends OptionPageBase {
                 mc.setScreen(new dev.fallingcloud.slate.core.client.setup.SlateSetupScreen(mc.screen));
             })
             .searchWords("setup layout style containers vanilla custom"));
+        modes.add(Binding.of("interface:open_hub", OptionType.ACTION, Component.translatable("slate.hub.title"))
+            .tooltip(Component.translatable("slate_config.interface.hub.tip"))
+            .actionIcon(Icon.SLATE)
+            .action(Component.translatable("slate_config.row.open"), () -> dev.fallingcloud.slate.core.client.CoreActions.openScreen("slate:hub"))
+            .searchWords("hub slate modules"));
         out.add(modes);
         // The Menus table: every menu Slate touches, each with its own layout and style (or the global ones).
         final Section menus = new Section("menus", Component.translatable("slate.settings.menus"), Component.translatable("slate.settings.menus.desc"));

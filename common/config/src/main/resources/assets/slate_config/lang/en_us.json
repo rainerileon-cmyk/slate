@@ -317,5 +317,6 @@
   "slate_config.opt.allowServerListing.tip": "Let servers show your name in their public player list.",
   "slate_config.opt.telemetryOptInExtra.tip": "Send optional telemetry (performance and game mode data) to Mojang.",
   "slate_config.core.layout": "Layout",
-  "slate_config.core.layout.tip": "Which screens the menus show: Minecraft's own (Vanilla), Slate's rebuilt ones (Custom) or the scene-based ones (Overhaul, with Slate UI). Each menu can differ in the Menus table below."
+  "slate_config.core.layout.tip": "Which screens the menus show: Minecraft's own (Vanilla), Slate's rebuilt ones (Custom) or the scene-based ones (Overhaul, with Slate UI). Each menu can differ in the Menus table below.",
+  "slate_config.interface.hub.tip": "The Slate hub: every installed module on one screen, with its shortcuts."
 }

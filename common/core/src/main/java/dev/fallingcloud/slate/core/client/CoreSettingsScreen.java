@@ -119,31 +119,42 @@ public final class CoreSettingsScreen extends SlateScreen {
         panel.add(preview.finish(), 0, y);
         y += preview.card.getHeight() + CARD_GAP;
 
-        // The three rows of the setup screen: layout, menu style, container style (Core's own controls, applied live;
-        // a change rebuilds the page so the descriptions follow, keeping the scroll position).
-        final Section modes = new Section(w, Component.translatable("slate.settings.section.modes"));
-        modes.row(SettingRow.of(modes.rowW, LayoutStyleRows.layoutLabel(), null,
-            LayoutStyleRows.layoutSegmented(0, 0, SettingRow.controlWidth(modes.rowW), l -> rebuildWidgets()), LayoutStyleRows.layoutDescription(cfg.layout())));
-        modes.flow.skip(2);
-        modes.row(SettingRow.of(modes.rowW, LayoutStyleRows.styleLabel(), null,
-            LayoutStyleRows.styleSegmented(0, 0, SettingRow.controlWidth(modes.rowW), s -> rebuildWidgets()), LayoutStyleRows.styleDescription(cfg.style())));
-        modes.flow.skip(2);
-        modes.row(LayoutStyleRows.containersToggle(0, 0, modes.rowW, v -> rebuildWidgets()));
-        modes.row(new SlateLabel(0, 0, modes.rowW, Component.translatable("slate.setup.containers.desc")).style(SlateLabel.Style.MUTED).wrap(true));
-        modes.flow.skip(4);
-        modes.row(new SlateButton(0, 0, 130, 16, Component.translatable("slate.settings.run_setup"),
-            () -> minecraft.setScreen(new dev.fallingcloud.slate.core.client.setup.SlateSetupScreen(this)))
-            .icon(Icon.SPARKLE).variant(SlateButton.Variant.GHOST).leftAligned());
-        panel.add(modes.finish(), 0, y);
-        y += modes.card.getHeight() + CARD_GAP;
+        // With Slate Config installed these rows live on its Interface page (one place, A6.8); this page then only points there.
+        if (dev.fallingcloud.slate.core.module.Modules.isLoaded("slate_config")) {
+            final Section modes = new Section(w, Component.translatable("slate.settings.section.modes"));
+            modes.row(new SlateLabel(0, 0, modes.rowW, Component.translatable("slate.settings.in_config")).style(SlateLabel.Style.MUTED).wrap(true));
+            modes.flow.skip(2);
+            modes.row(new SlateButton(0, 0, 200, Component.translatable("slate.settings.open_interface"), () -> CoreActions.openScreen("slate_config:hub/interface"))
+                .icon(Icon.SLIDERS).variant(SlateButton.Variant.SECONDARY));
+            panel.add(modes.finish(), 0, y);
+            y += modes.card.getHeight() + CARD_GAP;
+        } else {
+            // The three rows of the setup screen: layout, menu style, container style (Core's own controls, applied live;
+            // a change rebuilds the page so the descriptions follow, keeping the scroll position).
+            final Section modes = new Section(w, Component.translatable("slate.settings.section.modes"));
+            modes.row(SettingRow.of(modes.rowW, LayoutStyleRows.layoutLabel(), null,
+                LayoutStyleRows.layoutSegmented(0, 0, SettingRow.controlWidth(modes.rowW), l -> rebuildWidgets()), LayoutStyleRows.layoutDescription(cfg.layout())));
+            modes.flow.skip(2);
+            modes.row(SettingRow.of(modes.rowW, LayoutStyleRows.styleLabel(), null,
+                LayoutStyleRows.styleSegmented(0, 0, SettingRow.controlWidth(modes.rowW), s -> rebuildWidgets()), LayoutStyleRows.styleDescription(cfg.style())));
+            modes.flow.skip(2);
+            modes.row(LayoutStyleRows.containersToggle(0, 0, modes.rowW, v -> rebuildWidgets()));
+            modes.row(new SlateLabel(0, 0, modes.rowW, Component.translatable("slate.setup.containers.desc")).style(SlateLabel.Style.MUTED).wrap(true));
+            modes.flow.skip(4);
+            modes.row(new SlateButton(0, 0, 130, 16, Component.translatable("slate.settings.run_setup"),
+                () -> minecraft.setScreen(new dev.fallingcloud.slate.core.client.setup.SlateSetupScreen(this)))
+                .icon(Icon.SPARKLE).variant(SlateButton.Variant.GHOST).leftAligned());
+            panel.add(modes.finish(), 0, y);
+            y += modes.card.getHeight() + CARD_GAP;
 
-        // The Menus table: every menu Slate touches, each with its own layout and style (or the global ones).
-        final Section menus = new Section(w, Component.translatable("slate.settings.menus"));
-        menus.row(new SlateLabel(0, 0, menus.rowW, Component.translatable("slate.settings.menus.desc")).style(SlateLabel.Style.MUTED).wrap(true));
-        menus.flow.skip(2);
-        for (final MenuSlot slot : MenuSlots.all()) menus.row(new MenuSlotRow(menus.rowW, slot, this::rebuildWidgets));
-        panel.add(menus.finish(), 0, y);
-        y += menus.card.getHeight() + CARD_GAP;
+            // The Menus table: every menu Slate touches, each with its own layout and style (or the global ones).
+            final Section menus = new Section(w, Component.translatable("slate.settings.menus"));
+            menus.row(new SlateLabel(0, 0, menus.rowW, Component.translatable("slate.settings.menus.desc")).style(SlateLabel.Style.MUTED).wrap(true));
+            menus.flow.skip(2);
+            for (final MenuSlot slot : MenuSlots.all()) menus.row(new MenuSlotRow(menus.rowW, slot, this::rebuildWidgets));
+            panel.add(menus.finish(), 0, y);
+            y += menus.card.getHeight() + CARD_GAP;
+        }
 
         // Look
         final Section look = new Section(w, Component.translatable("slate.settings.section.look"));

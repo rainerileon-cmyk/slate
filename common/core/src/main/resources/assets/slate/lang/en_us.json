@@ -186,5 +186,8 @@
   "slate.setup.row.style": "Menu style",
   "slate.setup.needs_ui": "Install Slate UI to choose the Custom or Overhaul layout; until then every menu is Minecraft's own, in the style chosen below.",
   "slate.setup.no_overhaul_yet": "The Overhaul layout appears here once a menu has an Overhaul screen.",
-  "slate.setup.preview.menus.caption": "Menus · %s layout, %s style"
+  "slate.setup.preview.menus.caption": "Menus · %s layout, %s style",
+  "slate.dev.edit_screen": "Edit this screen's layout (F7)",
+  "slate.settings.in_config": "With Slate Config installed, the layout, the menu style, the container style and the Menus table live on its Interface page.",
+  "slate.settings.open_interface": "Open Options > Interface"
 }

@@ -397,15 +397,7 @@ public final class BuildMenuScreen extends SlateScreen {
     }
 
     private static void panel(final GuiGraphics g, final Rect r, final float a, final Theme t, final Palette p) {
-        if (t.isVanilla()) {
-            SlateDraw.rect(g, r.x(), r.y(), r.w(), r.h(), Colors.scaleAlpha(0xB0000000, a));
-            SlateDraw.outline(g, r.x(), r.y(), r.w(), r.h(), Colors.scaleAlpha(0xFF000000, a), 0);
-            SlateDraw.outline(g, r.x() + 1, r.y() + 1, r.w() - 2, r.h() - 2, Colors.scaleAlpha(0x40FFFFFF, a), 0);
-        } else {
-            SlateDraw.shadow(g, r.x(), r.y(), r.w(), r.h(), 0.6f * a);
-            SlateDraw.pixelRound(g, r.x(), r.y(), r.w(), r.h(), Colors.scaleAlpha(Colors.withAlpha(p.bg(), 0xEC), a), t.radius());
-            SlateDraw.outline(g, r.x(), r.y(), r.w(), r.h(), Colors.scaleAlpha(p.border(), a), t.radius());
-        }
+        SlateDraw.floatingPanel(g, r.x(), r.y(), r.w(), r.h(), a);       // Core's one floating plate, in either style
     }
 
     @Override

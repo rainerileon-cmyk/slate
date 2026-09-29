@@ -6,7 +6,7 @@ import dev.fallingcloud.slate.config.option.OptionBinding;
 import dev.fallingcloud.slate.config.option.OptionResolvers;
 import dev.fallingcloud.slate.config.ui.ApplyQueue;
 import dev.fallingcloud.slate.config.ui.OptionRow;
-import dev.fallingcloud.slate.config.ui.SectionHeader;
+import dev.fallingcloud.slate.core.widget.SlateSectionHeader;
 import dev.fallingcloud.slate.core.gfx.Icon;
 import dev.fallingcloud.slate.core.layout.ui.Rect;
 import dev.fallingcloud.slate.core.screen.SlateScreen;
@@ -88,9 +88,9 @@ public final class FileEditorScreen extends SlateScreen {
             }
             final boolean isCollapsed = q.isEmpty() && collapsed.contains(s.path());
             if (hasHeader) {
-                p.add(new SectionHeader(0, y, w, s.title(), s.options().size(), isCollapsed,
+                p.add(new SlateSectionHeader(0, y, w, s.title(), s.options().size(), isCollapsed,
                     () -> { if (!collapsed.remove(s.path())) collapsed.add(s.path()); rebuild(); }, Math.max(0, s.depth() - 1)), 0, y);
-                y += SectionHeader.HEIGHT + 2;
+                y += SlateSectionHeader.HEIGHT + 2;
                 if (s.comment() != null && !isCollapsed) {
                     final SlateLabel d = new SlateLabel(0, y, w - 8 - s.depth() * 8, s.comment()).style(SlateLabel.Style.MUTED).wrap(true);
                     p.add(d, 4 + Math.max(0, s.depth() - 1) * 8, y);

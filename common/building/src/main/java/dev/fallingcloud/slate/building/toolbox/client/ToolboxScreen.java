@@ -112,9 +112,11 @@ public class ToolboxScreen extends AbstractContainerScreen<ToolboxMenu> {
     private record Look(boolean vanilla, int panel, int border, int well, int wellBorder, int wellHover, int text, int muted, int dim,
                         int accent, int boosted) {
         static Look current() {
+            // A container: it follows the container-style switch (not the menu style) and paints with the container palette,
+            // the way Core restyles every other inventory, so its labels never turn light on a light panel.
             final Theme t = Theme.current();
-            final Palette p = t.palette();
-            if (t.isVanilla()) {
+            final Palette p = t.containerPalette();
+            if (!dev.fallingcloud.slate.core.Slate.config().reskinContainers) {
                 return new Look(true, 0xFFC6C6C6, 0xFF000000, 0xFF8B8B8B, 0xFF373737, 0xFFFFFFFF, 0xFF404040, 0xFF555555, 0xFF7E7E7E,
                     p.accent(), 0xFF1E7A2E);
             }

@@ -1,4 +1,4 @@
-package dev.fallingcloud.slate.config.ui;
+package dev.fallingcloud.slate.core.widget;
 
 import dev.fallingcloud.slate.core.gfx.Anim;
 import dev.fallingcloud.slate.core.gfx.Ease;
@@ -9,14 +9,16 @@ import dev.fallingcloud.slate.core.gfx.SlateDraw;
 import dev.fallingcloud.slate.core.theme.Colors;
 import dev.fallingcloud.slate.core.theme.Palette;
 import dev.fallingcloud.slate.core.theme.Theme;
-import dev.fallingcloud.slate.core.widget.SlateSounds;
-import dev.fallingcloud.slate.core.widget.SlateWidget;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.Nullable;
 
-/** A collapsible section title: chevron, heading, row count and a rule. Enter/Space toggles. */
-public class SectionHeader extends SlateWidget {
+/**
+ * A collapsible section title inside a list or scroll panel: chevron, heading, an optional row count and a rule
+ * running to the right edge. Enter/Space toggles; a null {@code onToggle} makes it a plain caption. The one header
+ * every module uses (the Config module's option pages and file editor, Menu's server groups). Height 20.
+ */
+public class SlateSectionHeader extends SlateWidget {
 
     public static final int HEIGHT = 20;
 
@@ -26,7 +28,12 @@ public class SectionHeader extends SlateWidget {
     private final Anim chevron = new Anim(0, 160, Ease.OUT_CUBIC);
     private final int depth;
 
-    public SectionHeader(final int x, final int y, final int width, final Component title, final int count, final boolean collapsed, @Nullable final Runnable onToggle, final int depth) {
+    /**
+     * @param count   rows under the header, drawn dim after the title ({@code <= 0}: none)
+     * @param depth   nesting level; each level indents by 8 px
+     */
+    public SlateSectionHeader(final int x, final int y, final int width, final Component title, final int count, final boolean collapsed,
+                              @Nullable final Runnable onToggle, final int depth) {
         super(x, y, width, HEIGHT, title);
         this.count = count;
         this.collapsed = collapsed;
@@ -34,6 +41,10 @@ public class SectionHeader extends SlateWidget {
         this.depth = depth;
         this.chevron.snap(collapsed ? 1 : 0);
         if (onToggle == null) this.active = false;
+    }
+
+    public SlateSectionHeader(final int x, final int y, final int width, final Component title, final int count, final boolean collapsed, @Nullable final Runnable onToggle) {
+        this(x, y, width, title, count, collapsed, onToggle, 0);
     }
 
     public boolean collapsed() { return collapsed; }
@@ -53,8 +64,11 @@ public class SectionHeader extends SlateWidget {
     }
 
     @Override
+    public void playDownSound(final net.minecraft.client.sounds.SoundManager handler) {}
+
+    @Override
     public boolean keyPressed(final int keyCode, final int scanCode, final int modifiers) {
-        if (this.active && this.visible && (keyCode == 257 || keyCode == 32)) { toggle(); return true; }
+        if (this.active && this.visible && (keyCode == 257 || keyCode == 32 || keyCode == 335)) { toggle(); return true; }
         return false;
     }
 
@@ -102,5 +116,6 @@ public class SectionHeader extends SlateWidget {
             tx += SlateDraw.width(c) + 8;
         }
         SlateDraw.hline(g, tx, y + HEIGHT / 2, Math.max(0, x + w - 4 - tx), Colors.scaleAlpha(0xFF6F6F6F, a));
+        if (focus() > 0.5f) SlateDraw.outline(g, x, y, w, HEIGHT, Colors.scaleAlpha(0xFFFFFFFF, a), 0);
     }
 }

@@ -14,8 +14,8 @@ import dev.fallingcloud.slate.core.screen.SidebarScreen;
 import dev.fallingcloud.slate.core.theme.Theme;
 import dev.fallingcloud.slate.core.widget.SlateLabel;
 import dev.fallingcloud.slate.core.widget.SlateScrollPanel;
+import dev.fallingcloud.slate.core.widget.SlateSectionHeader;
 import dev.fallingcloud.slate.core.widget.SlateTabStrip;
-import dev.fallingcloud.slate.core.widget.SlateTabs;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -219,8 +219,8 @@ public abstract class OptionPageBase extends SidebarPage implements TabHost, Ent
             if (si >= 0) ConfigSettings.setLastTab(subKey, shown.get(si).id);
             else si = sectionIndex(shown, ConfigSettings.lastTab(subKey));
             subIndex = Math.max(0, si);
-            final List<SlateTabs.Tab> labels = new ArrayList<>();
-            for (final Section s : shown) labels.add(new SlateTabs.Tab(s.title));
+            final List<SlateTabStrip.Tab> labels = new ArrayList<>();
+            for (final Section s : shown) labels.add(new SlateTabStrip.Tab(s.title));
             final SlateTabStrip ss = new SlateTabStrip(area.x(), y, area.w(), labels, subIndex, this::selectSub).style(SlateTabStrip.Style.PILLS);
             ss.animateFrom(subFrom >= 0 ? subFrom : subIndex, subChanged ? 0 : subScroll);
             screen.addPageWidget(ss);
@@ -247,9 +247,9 @@ public abstract class OptionPageBase extends SidebarPage implements TabHost, Ent
         finish(p, cy);
     }
 
-    private static List<SlateTabs.Tab> labels(final List<Tab> ts) {
-        final List<SlateTabs.Tab> out = new ArrayList<>();
-        for (final Tab t : ts) out.add(new SlateTabs.Tab(t.title()));
+    private static List<SlateTabStrip.Tab> labels(final List<Tab> ts) {
+        final List<SlateTabStrip.Tab> out = new ArrayList<>();
+        for (final Tab t : ts) out.add(new SlateTabStrip.Tab(t.title()));
         return out;
     }
 
@@ -287,10 +287,10 @@ public abstract class OptionPageBase extends SidebarPage implements TabHost, Ent
         final boolean foldable = !filtering && s.collapsible;
         final boolean collapsed = headers && titled && foldable && ConfigSettings.isCollapsed(key);
         if (headers && titled) {
-            final SectionHeader h = new SectionHeader(0, y, w, headerTitle != null ? headerTitle : s.title, s.bindings().size(), collapsed,
+            final SlateSectionHeader h = new SlateSectionHeader(0, y, w, headerTitle != null ? headerTitle : s.title, s.bindings().size(), collapsed,
                 foldable ? () -> { ConfigSettings.setCollapsed(key, !ConfigSettings.isCollapsed(key)); rebuild(); } : null, 0);
             p.add(h, 0, y);
-            y += SectionHeader.HEIGHT + 2;
+            y += SlateSectionHeader.HEIGHT + 2;
         }
         if (s.description != null && !collapsed && !filtering) {
             final SlateLabel d = new SlateLabel(0, y, w - 8, s.description).style(SlateLabel.Style.MUTED).wrap(true);

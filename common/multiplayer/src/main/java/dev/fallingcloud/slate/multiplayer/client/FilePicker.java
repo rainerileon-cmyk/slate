@@ -6,18 +6,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.function.Consumer;
 import net.minecraft.client.Minecraft;
-import org.lwjgl.PointerBuffer;
-import org.lwjgl.system.MemoryStack;
-import org.lwjgl.util.tinyfd.TinyFileDialogs;
 
 /**
- * "Attach an image" through the OS file dialog (LWJGL's tinyfd, bundled with Minecraft). The dialog blocks,
- * so it runs on its own thread; the chosen file is read, size-checked (re-encoded down when needed, GIFs
- * kept untouched) and handed back on the main thread as {@code (bytes, kind)}.
+ * "Attach an image": Core's file dialog ({@code core.media.FilePicker}, the one tinyfd dialog of the suite), then
+ * the chosen file is read off-thread, size-checked (re-encoded down when needed, GIFs kept untouched) and handed
+ * back on the main thread as {@code (bytes, kind, name)}.
  */
 public final class FilePicker {
-
-    private static volatile boolean open;
 
     @FunctionalInterface
     public interface Picked {
@@ -25,26 +20,12 @@ public final class FilePicker {
     }
 
     public static void pickImage(final Picked onPicked, final Consumer<String> onError) {
-        if (open) return;
-        open = true;
-        final Path start = MultiplayerConfigsScreenshots.dir();
+        if (!dev.fallingcloud.slate.core.media.FilePicker.available()) return;
+        dev.fallingcloud.slate.core.media.FilePicker.pickImage(path -> load(path, onPicked, onError));
+    }
+
+    private static void load(final Path path, final Picked onPicked, final Consumer<String> onError) {
         final Thread t = new Thread(() -> {
-            String chosen = null;
-            try (MemoryStack stack = MemoryStack.stackPush()) {
-                final PointerBuffer filters = stack.mallocPointer(4);
-                filters.put(stack.UTF8("*.png"));
-                filters.put(stack.UTF8("*.jpg"));
-                filters.put(stack.UTF8("*.jpeg"));
-                filters.put(stack.UTF8("*.gif"));
-                filters.flip();
-                chosen = TinyFileDialogs.tinyfd_openFileDialog("Send an image", start.toAbsolutePath() + java.io.File.separator, filters, "Images", false);
-            } catch (final Throwable e) {
-                SlateMultiplayer.LOGGER.warn("[Slate Multiplayer] file dialog failed: {}", e.toString());
-            } finally {
-                open = false;
-            }
-            if (chosen == null || chosen.isBlank()) return;
-            final Path path = Path.of(chosen);
             try {
                 final byte[] raw = Files.readAllBytes(path);
                 final int maxBytes = Math.max(64, MultiplayerConfigs.client().imageMaxKb) * 1024;
@@ -62,17 +43,9 @@ public final class FilePicker {
                 SlateMultiplayer.LOGGER.warn("[Slate Multiplayer] cannot read {}: {}", path, e.toString());
                 Minecraft.getInstance().execute(() -> onError.accept("Could not read that file"));
             }
-        }, "slate-filepicker");
+        }, "slate-image-load");
         t.setDaemon(true);
         t.start();
-    }
-
-    /** Where the dialog opens: the screenshots folder (what people most often want to send). */
-    static final class MultiplayerConfigsScreenshots {
-        static Path dir() {
-            final Path shots = dev.fallingcloud.slate.core.platform.SlatePlatform.get().gameDir().resolve("screenshots");
-            return Files.isDirectory(shots) ? shots : dev.fallingcloud.slate.core.platform.SlatePlatform.get().gameDir();
-        }
     }
 
     private FilePicker() {}

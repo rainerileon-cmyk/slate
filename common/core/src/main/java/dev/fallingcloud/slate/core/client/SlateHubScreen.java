@@ -76,8 +76,9 @@ public final class SlateHubScreen extends SlateScreen {
         final int inner = w - CARD_PAD * 2;
         int y = 0;
 
-        // Theme card: skin + accent, live.
-        {
+        // Theme card (layout, style, containers, accent): only in the vanilla layout, where the hub is the way to Slate. The
+        // Slate layouts reach the same rows through Options > Interface (A6.8, Q9).
+        if (dev.fallingcloud.slate.core.screen.slot.MenuSlots.globalLayout() == dev.fallingcloud.slate.core.screen.slot.Layout.VANILLA) {
             final SlateCard card = new SlateCard(0, 0, w, 0).flat();
             int cy = CARD_PAD;
             card.add(new SlateLabel(0, 0, inner, Component.translatable("slate.hub.theme")).style(SlateLabel.Style.TITLE), CARD_PAD, cy);

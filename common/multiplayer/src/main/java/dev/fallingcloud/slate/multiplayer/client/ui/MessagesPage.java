@@ -17,7 +17,7 @@ import dev.fallingcloud.slate.core.widget.SlateList;
 import dev.fallingcloud.slate.core.widget.SlateWidget;
 import dev.fallingcloud.slate.core.widget.popup.MenuPopup;
 import dev.fallingcloud.slate.multiplayer.MultiplayerConfigs;
-import dev.fallingcloud.slate.multiplayer.client.ClipboardImages;
+import dev.fallingcloud.slate.core.media.ClipboardImages;
 import dev.fallingcloud.slate.multiplayer.client.FilePicker;
 import dev.fallingcloud.slate.multiplayer.client.Friend;
 import dev.fallingcloud.slate.multiplayer.client.ImageDecoding;
@@ -180,7 +180,8 @@ final class MessagesPage extends FriendsHubScreen.HubPage {
     }
 
     private void pasteImage() {
-        ClipboardImages.tryPasteImage(bytes -> setPending(bytes, "image"), err -> Notifications.plain(err, null));
+        final int max = Math.max(64, MultiplayerConfigs.client().imageMaxKb) * 1024;
+        ClipboardImages.tryPaste(max, bytes -> setPending(bytes, "image"), () -> Notifications.plain("Could not read the clipboard image", null));
     }
 
     private void loadShare(final Path file) {

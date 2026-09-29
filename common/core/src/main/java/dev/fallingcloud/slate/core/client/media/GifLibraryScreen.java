@@ -16,7 +16,7 @@ import dev.fallingcloud.slate.core.theme.Palette;
 import dev.fallingcloud.slate.core.theme.Theme;
 import dev.fallingcloud.slate.core.widget.SlateButton;
 import dev.fallingcloud.slate.core.widget.SlateSounds;
-import dev.fallingcloud.slate.core.widget.SlateTabs;
+import dev.fallingcloud.slate.core.widget.SlateTabStrip;
 import dev.fallingcloud.slate.core.widget.SlateTextField;
 import dev.fallingcloud.slate.core.widget.SlateTooltips;
 import java.util.List;
@@ -47,7 +47,7 @@ public final class GifLibraryScreen extends SlateScreen {
 
     private final Consumer<String> onPick;
     private final Anim scroll = new Anim(0, 160, Ease.OUT_CUBIC);
-    private SlateTabs tabs;
+    private SlateTabStrip tabs;
     private SlateTextField field;
     private SlateButton action;
     private List<String> urls = List.of();
@@ -68,10 +68,10 @@ public final class GifLibraryScreen extends SlateScreen {
     @Override
     protected void build() {
         final Rect c = contentRect();
-        tabs = add(new SlateTabs(c.x(), c.y() + 2, Math.min(c.w(), 240), List.of(
-            new SlateTabs.Tab(Component.translatable("slate.gifs.search"), Icon.SEARCH),
-            new SlateTabs.Tab(Component.translatable("slate.gifs.favorites"), Icon.STAR),
-            new SlateTabs.Tab(Component.translatable("slate.gifs.recent"), Icon.HISTORY)),
+        tabs = add(new SlateTabStrip(c.x(), c.y() + 2, Math.min(c.w(), 240), List.of(
+            new SlateTabStrip.Tab(Component.translatable("slate.gifs.search"), Icon.SEARCH),
+            new SlateTabStrip.Tab(Component.translatable("slate.gifs.favorites"), Icon.STAR),
+            new SlateTabStrip.Tab(Component.translatable("slate.gifs.recent"), Icon.HISTORY)),
             tab.ordinal(), i -> switchTab(Tab.values()[i])));
         final int fy = c.y() + 30;
         field = add(new SlateTextField(c.x(), fy, c.w() - 92, 20, Component.translatable("slate.gifs.title")));

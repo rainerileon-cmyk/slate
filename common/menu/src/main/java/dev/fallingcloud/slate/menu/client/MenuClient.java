@@ -149,15 +149,6 @@ public final class MenuClient {
         SlateMenu.configFile().update(m -> m.layoutFlagsMigrated = true);
     }
 
-    /** The Multiplayer module's friends screen id, when that module registered one. */
-    public static Optional<String> friendsScreenId() {
-        if (!Modules.isLoaded("slate_multiplayer")) return Optional.empty();
-        for (final String id : List.of("slate_multiplayer:friends", "slate_multiplayer:hub", "slate_multiplayer:social")) {
-            if (CoreActions.SCREEN_FACTORIES.containsKey(id)) return Optional.of(id);
-        }
-        return Optional.empty();
-    }
-
     /** Number of files in the screenshots folder, cached for a few seconds (placeholders refresh every frame). */
     private static int screenshotCount() {
         final long now = System.currentTimeMillis();

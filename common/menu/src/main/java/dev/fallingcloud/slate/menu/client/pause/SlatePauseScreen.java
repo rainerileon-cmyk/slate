@@ -7,6 +7,10 @@ import dev.fallingcloud.slate.core.gfx.Fonts;
 import dev.fallingcloud.slate.core.gfx.Icon;
 import dev.fallingcloud.slate.core.gfx.SlateDraw;
 import dev.fallingcloud.slate.core.layout.ui.Rect;
+import dev.fallingcloud.slate.core.module.Features;
+import dev.fallingcloud.slate.core.module.KnownModules;
+import dev.fallingcloud.slate.core.screen.slot.CoreSlots;
+import dev.fallingcloud.slate.core.screen.slot.MenuSlots;
 import dev.fallingcloud.slate.core.screen.SlateScreen;
 import dev.fallingcloud.slate.core.theme.Colors;
 import dev.fallingcloud.slate.core.theme.Palette;
@@ -92,9 +96,10 @@ public final class SlatePauseScreen extends SlateScreen {
         rows.add(new AbstractWidget[] {
             new SlateButton(0, 0, half, Component.translatable("menu.options"), () -> mc.setScreen(new OptionsScreen(this, mc.options))).icon(Icon.SETTINGS), second });
         final SlateButton shots = new SlateButton(0, 0, half, Component.translatable("slate_menu.screenshots.title"), () -> mc.setScreen(new SlateScreenshotsScreen(this))).icon(Icon.CAMERA);
-        final SlateButton friends = MenuClient.friendsScreenId()
-            .map(id -> new SlateButton(0, 0, half, Component.translatable("slate_menu.title.friends"), () -> CoreActions.openScreen(id)).icon(Icon.FRIENDS))
-            .orElse(null);
+        // Friends needs the Multiplayer module: the Custom layout leaves the button out when it is missing (R3).
+        final SlateButton friends = Features.present(KnownModules.MULTIPLAYER)
+            ? new SlateButton(0, 0, half, Component.translatable("slate_menu.title.friends"), () -> MenuSlots.open(CoreSlots.FRIENDS, this)).icon(Icon.FRIENDS)
+            : null;
         if (friends != null) rows.add(new AbstractWidget[] { shots, friends });
         else { shots.setWidth(bw); rows.add(new AbstractWidget[] { shots }); }
         rows.add(null);
@@ -152,12 +157,7 @@ public final class SlatePauseScreen extends SlateScreen {
     public void renderBackground(final GuiGraphics g, final int mouseX, final int mouseY, final float partialTick) {
         super.renderBackground(g, mouseX, mouseY, partialTick);
         final float a = open.get();
-        if (!Theme.current().isVanilla()) {
-            SlateDraw.floatingPanel(g, card.x(), card.y(), card.w(), card.h(), a);
-        } else {
-            // The vanilla skin keeps vanilla's open feel: no plate, only a soft shade under the card so it reads on any world.
-            SlateDraw.rect(g, card.x(), card.y(), card.w(), card.h(), Colors.scaleAlpha(0x30000000, a));
-        }
+        SlateDraw.floatingPanel(g, card.x(), card.y(), card.w(), card.h(), a);     // the one plate, in either style
     }
 
     @Override
