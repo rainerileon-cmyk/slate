@@ -1,4 +1,4 @@
-package dev.fallingcloud.slate.menu.client.worlds;
+package dev.fallingcloud.slate.menu.client.play.model;
 
 import com.mojang.datafixers.util.Pair;
 import dev.fallingcloud.slate.core.gfx.Icon;

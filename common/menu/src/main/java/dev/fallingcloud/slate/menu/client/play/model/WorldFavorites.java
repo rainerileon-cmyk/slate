@@ -1,4 +1,4 @@
-package dev.fallingcloud.slate.menu.client.worlds;
+package dev.fallingcloud.slate.menu.client.play.model;
 
 import dev.fallingcloud.slate.core.config.JsonConfig;
 import java.util.ArrayList;

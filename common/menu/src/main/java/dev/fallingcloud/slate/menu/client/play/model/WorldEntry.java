@@ -1,4 +1,4 @@
-package dev.fallingcloud.slate.menu.client.worlds;
+package dev.fallingcloud.slate.menu.client.play.model;
 
 import dev.fallingcloud.slate.core.gfx.Textures;
 import java.nio.file.Files;

@@ -349,7 +349,7 @@ Status values: `TODO` → `IN PROGRESS (<agent/branch>)` → `DONE (<commit>)`.
 | A6 | Polish and cleanup | all | — | DONE (3a22006: one plate, one section header, one tab strip, one clipboard and file-dialog helper, dead friends-id lookup gone, the dev-mode pencil button, the toolbox on the container style, settings de-duplicated, a hub link; ed1fe74: style audit of 16 screens in both styles, the chat hover pill no longer covers the history tag, Building settings on the shared separators, `docs/screenshots/` refreshed at 1280×720 with the inventory, Building settings and setup added) |
 | A7 | BetterInventory follows Slate's palette | Core | — | TODO |
 | B1 | Main menu, Overhaul | Menu | A1 A2 A3 | TODO |
-| B2 | Play screen, Overhaul (+ shared data layer) | Menu | A1 A2 A3 | TODO |
+| B2 | Play screen, Overhaul (+ shared data layer) | Menu | A1 A2 A3 | IN PROGRESS (step 1 done: the world and server models moved to `client/play/model`, Custom screens unchanged; the ring screen follows A3) |
 | B3 | World creation, Custom and Overhaul | Menu | A1 (+ A3) | TODO |
 | B4 | Mod-loading screen, Overhaul | earlywindow, Menu | A1 | TODO |
 | B5 | Filling the gaps: pause, disconnected, world loading, screenshots | Menu | A1 A2 A3 | TODO |
@@ -1248,8 +1248,8 @@ brackets are approximate line counts on 2026-09-29.
 |---|---|
 | Bootstrap | `client/MenuClient` [160], `MenuConfig` [96] |
 | Title | `client/title/SlateTitleScreen` [287], `NavButton`, `ContinueCard` [190], `AccountCard` |
-| Worlds | `client/worlds/SlateWorldsScreen` [537], `WorldCard`, `WorldEntry`, `WorldActions`, `WorldFavorites` |
-| Servers | `client/servers/SlateServersScreen` [593], `ServerCard`, `ServerDialog`, `ServerActions`, `ServerPinger`, `LanScanner`, `CommunityServers`, `ServerMeta` |
+| Worlds | `client/worlds/SlateWorldsScreen` [537], `WorldCard`; models in `client/play/model`: `WorldEntry`, `WorldActions`, `WorldFavorites` (moved in B2 step 1) |
+| Servers | `client/servers/SlateServersScreen` [593], `ServerCard`, `ServerDialog`; models in `client/play/model`: `ServerActions`, `ServerPinger`, `LanScanner`, `CommunityServers`, `ServerMeta` (moved in B2 step 1) |
 | Pause | `client/pause/SlatePauseScreen` [226] |
 | Options without Config | `client/options/SlateOptionsScreen` [402] |
 | Disconnected | `client/disconnect/SlateDisconnectedScreen` |

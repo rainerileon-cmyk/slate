@@ -1,4 +1,4 @@
-package dev.fallingcloud.slate.menu.client.servers;
+package dev.fallingcloud.slate.menu.client.play.model;
 
 import dev.fallingcloud.slate.menu.SlateMenu;
 import dev.fallingcloud.slate.menu.client.MenuIo;

@@ -5,7 +5,7 @@ import dev.fallingcloud.slate.core.layout.action.ActionType;
 import dev.fallingcloud.slate.core.layout.action.ActionType.Arg;
 import dev.fallingcloud.slate.core.widget.SlateToasts;
 import dev.fallingcloud.slate.menu.client.screenshots.SlateScreenshotsScreen;
-import dev.fallingcloud.slate.menu.client.worlds.WorldActions;
+import dev.fallingcloud.slate.menu.client.play.model.WorldActions;
 import java.util.List;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.multiplayer.JoinMultiplayerScreen;
