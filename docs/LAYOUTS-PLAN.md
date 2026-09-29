@@ -346,7 +346,7 @@ Status values: `TODO` → `IN PROGRESS (<agent/branch>)` → `DONE (<commit>)`.
 | A3 | Stage toolkit and scenes | Core | — (spike first) | IN PROGRESS (agent worktree, merged into claude/stoic-shannon-5lboan) |
 | A4 | Setup v2 and settings surfaces | Core, Config, all modules | A1, A2 | DONE (setup v2 with a live render of the real title screen, Menus table in Options › Interface and Core settings, style row on every module's settings; verified by harness in both styles) |
 | A5 | Vanilla-layout extra buttons | Core (+ modules) | A2 | DONE (VanillaScreenButtons: icon buttons on the accessibility row, half-width pairs on the pause feedback row; verified in both styles) |
-| A6 | Polish and cleanup | all | — | IN PROGRESS (items 1-9 done: one plate, one section header, one tab strip, one clipboard and file-dialog helper, dead friends-id lookup gone, the dev-mode pencil button, the toolbox on the container style, settings de-duplicated, a hub link; the style audit and the screenshot refresh follow) |
+| A6 | Polish and cleanup | all | — | DONE (3a22006: one plate, one section header, one tab strip, one clipboard and file-dialog helper, dead friends-id lookup gone, the dev-mode pencil button, the toolbox on the container style, settings de-duplicated, a hub link; ed1fe74: style audit of 16 screens in both styles, the chat hover pill no longer covers the history tag, Building settings on the shared separators, `docs/screenshots/` refreshed at 1280×720 with the inventory, Building settings and setup added) |
 | A7 | BetterInventory follows Slate's palette | Core | — | TODO |
 | B1 | Main menu, Overhaul | Menu | A1 A2 A3 | TODO |
 | B2 | Play screen, Overhaul (+ shared data layer) | Menu | A1 A2 A3 | TODO |
