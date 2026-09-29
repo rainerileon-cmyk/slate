@@ -51,6 +51,7 @@ public final class SlateClient {
             return false;
         });
         DevHarness.init();
+        dev.fallingcloud.slate.core.stage.StageBootstrap.init();
         Slate.LOGGER.info("[Slate] client ready ({} skin)", Theme.current().skin());
     }
 

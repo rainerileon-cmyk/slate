@@ -124,5 +124,8 @@
   "slate.action.arg.mod": "Mod id",
   "slate.action.arg.then": "Then run action",
   "slate.action.arg.then_arg": "With arguments (k=v ...)",
-  "slate.action.arg.sequence": "Actions (action args; action args)"
+  "slate.action.arg.sequence": "Actions (action args; action args)",
+
+  "slate.stage.test.title": "Stage test",
+  "slate.stage.test.chest_tip": "Click to open or close"
 }
