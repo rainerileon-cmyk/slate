@@ -387,7 +387,9 @@ public final class Stage implements AutoCloseable {
 
         lastFrameNanos = System.nanoTime() - t0;
         final float ms = lastFrameNanos / 1_000_000f;
-        frameMsAvg = frames == 0 ? ms : frameMsAvg * 0.9f + ms * 0.1f;
+        // The first frames build meshes and bake models; keep them out of the steady-state average.
+        if (frames < 3) frameMsAvg = ms;
+        else frameMsAvg = frameMsAvg * 0.9f + ms * 0.1f;
         frames++;
     }
 

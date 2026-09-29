@@ -154,7 +154,10 @@ public final class StageTestScreen extends SlateScreen {
         final int plateW = SlateDraw.width(info) + 8;
         g.fill(r.x() + 2, r.y() + r.h() - 15, r.x() + 2 + plateW, r.y() + r.h() - 2, 0xA0000000);
         SlateDraw.text(g, info, r.x() + 6, r.y() + r.h() - 12, palette().textMuted());
-        SlateDraw.textRight(g, Component.translatable("slate.stage.test.hint"), r.x() + r.w() - 4, r.y() + 4, palette().textDim());
+        final Component hint = Component.translatable("slate.stage.test.hint");
+        final int hintW = SlateDraw.width(hint) + 8;
+        g.fill(r.x() + r.w() - 2 - hintW, r.y() + 2, r.x() + r.w() - 2, r.y() + 15, 0xA0000000);
+        SlateDraw.textRight(g, hint, r.x() + r.w() - 6, r.y() + 5, palette().textMuted());
         final var hovered = stage.hovered();
         if (hovered != null) SlateDraw.text(g, hovered.name(), r.x() + 6, r.y() + 4, palette().text());
     }

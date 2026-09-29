@@ -1,6 +1,5 @@
 package dev.fallingcloud.slate.core.stage.node;
 
-import com.mojang.math.Axis;
 import dev.fallingcloud.slate.core.stage.StageRenderContext;
 import dev.fallingcloud.slate.core.theme.Theme;
 import net.minecraft.client.Minecraft;
@@ -8,6 +7,7 @@ import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.util.Mth;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
+import org.joml.Quaternionf;
 
 /**
  * An item stack drawn through the item renderer with a display context ({@code FIXED} by default: the item-frame
@@ -21,6 +21,7 @@ public class ItemNode extends StageNode {
     private float bobBlocks;
     private float spin;
     private float size = 1f;
+    private final Quaternionf spinRotation = new Quaternionf();
 
     public ItemNode(final ItemStack stack) {
         this.stack = stack;
@@ -59,7 +60,7 @@ public class ItemNode extends StageNode {
         final float bob = bobBlocks > 0f && Theme.current().motion() > 0f ? Mth.sin(ctx.seconds() * 2.2f) * bobBlocks : 0f;
         ctx.pose.pushPose();
         ctx.pose.translate(0f, 0.5f + bob, 0f);
-        if (spin != 0f) ctx.pose.mulPose(Axis.YP.rotationDegrees(spin));
+        if (spin != 0f) ctx.pose.mulPose(spinRotation.rotationY((float) Math.toRadians(spin)));
         if (size != 1f) ctx.pose.scale(size, size, size);
         Minecraft.getInstance().getItemRenderer().renderStatic(stack, context, ctx.light, OverlayTexture.NO_OVERLAY, ctx.pose, ctx.buffers, ctx.level, 0);
         ctx.pose.popPose();

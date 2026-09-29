@@ -1,7 +1,6 @@
 package dev.fallingcloud.slate.core.stage.node;
 
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.mojang.math.Axis;
 import dev.fallingcloud.slate.core.stage.StageRenderContext;
 import dev.fallingcloud.slate.core.stage.StageResources;
 import dev.fallingcloud.slate.core.stage.mesh.StageModels;
@@ -15,6 +14,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.RandomSource;
 import org.jetbrains.annotations.Nullable;
+import org.joml.Quaternionf;
 
 /**
  * A JSON block/item model from resources (a Blockbench Java-model export), baked by {@link StageModels} and drawn
@@ -31,6 +31,7 @@ public class ModelNode extends StageNode {
     private float spin;
     private float spinBoost = 1f;
     private final RandomSource random = RandomSource.create(7L);
+    private final Quaternionf spinRotation = new Quaternionf();
 
     public ModelNode(final ResourceLocation modelId) {
         this.modelId = modelId;
@@ -65,7 +66,7 @@ public class ModelNode extends StageNode {
         }
         if (model == null) return;
         ctx.pose.pushPose();
-        if (spin != 0f) ctx.pose.mulPose(Axis.YP.rotationDegrees(spin));
+        if (spin != 0f) ctx.pose.mulPose(spinRotation.rotationY((float) Math.toRadians(spin)));
         ctx.pose.translate(-0.5f, 0f, -0.5f);
         final VertexConsumer vc = ctx.buffers.getBuffer(alpha < 1f ? RenderType.translucentMovingBlock() : layer);
         for (final Direction d : Direction.values()) {
