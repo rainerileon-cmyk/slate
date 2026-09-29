@@ -43,6 +43,10 @@ public final class ChatSettingsScreen extends SlateScreen {
         int y = 0;
 
         y = section(panel, y, w, "slate_chat.settings.section.look");
+        // The menu style stays reachable from every module's own settings (R6), Slate UI or not.
+        panel.add(dev.fallingcloud.slate.core.client.settings.SettingRow.of(w, dev.fallingcloud.slate.core.client.settings.LayoutStyleRows.styleLabel(), null,
+            dev.fallingcloud.slate.core.client.settings.LayoutStyleRows.styleSegmented(0, 0, dev.fallingcloud.slate.core.client.settings.SettingRow.controlWidth(w), null)), 0, y);
+        y += dev.fallingcloud.slate.core.client.settings.SettingRow.HEIGHT + 6;
         panel.add(new SlateSegmented<>(0, y, w, List.of("COZY", "COMPACT"), cfg.isCompact() ? "COMPACT" : "COZY",
             v -> Component.translatable("slate_chat.density." + v.toLowerCase(java.util.Locale.ROOT)), v -> { cfg.density = v; ChatClient.saveAndApply(); }), 0, y);
         y += 26;

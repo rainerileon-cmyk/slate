@@ -51,6 +51,12 @@ public final class FriendsHubScreen extends SidebarScreen {
 
     // ------------------------------------------------------------------ openers
 
+    /** A hub that opens on {@code page} (the screenshot harness: {@code slate_multiplayer:hub/settings}). */
+    public static FriendsHubScreen create(@Nullable final Screen parent, @Nullable final String page) {
+        pendingPage = page;
+        return new FriendsHubScreen(parent);
+    }
+
     public static void open(@Nullable final String page) {
         final Minecraft mc = Minecraft.getInstance();
         pendingPage = page;

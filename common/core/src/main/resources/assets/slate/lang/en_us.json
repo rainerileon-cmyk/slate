@@ -60,7 +60,7 @@
   "slate.settings.reset.body": "Every option on this page goes back to its default. Layouts and module settings are kept.",
 
   "slate.setup.title": "Set up Slate",
-  "slate.setup.subtitle": "Three switches decide how much Slate changes. Flip them to see the result; everything can be changed later.",
+  "slate.setup.subtitle": "Pick how much Slate changes. Everything can be changed later, per menu too.",
   "slate.setup.hint": "Change these any time in Slate settings.",
   "slate.setup.confirm": "Confirm",
   "slate.setup.layout": "Custom layout",
@@ -172,5 +172,19 @@
   "slate.feature_test.open": "%s",
   "slate.feature_test.installed": "installed",
   "slate.feature_test.missing": "not installed",
-  "slate.feature_test.hidden": "hidden"
+  "slate.feature_test.hidden": "hidden",
+  "slate.settings.layout": "Layout",
+  "slate.settings.style": "Menu style",
+  "slate.settings.menus": "Menus",
+  "slate.settings.menus.desc": "Each menu Slate touches can follow the global layout and style or use its own. A layout a menu cannot show right now is greyed out and says why.",
+  "slate.layout.not_yet": "No menu has an Overhaul screen yet",
+  "slate.slot.no_vanilla": "Minecraft has no such menu",
+  "slate.slot.needs_module": "Install %s to get this menu",
+  "slate.slot.shows": "shows %s",
+  "slate.slot.custom": "own settings",
+  "slate.setup.row.layout": "Layout",
+  "slate.setup.row.style": "Menu style",
+  "slate.setup.needs_ui": "Install Slate UI to choose the Custom or Overhaul layout; until then every menu is Minecraft's own, in the style chosen below.",
+  "slate.setup.no_overhaul_yet": "The Overhaul layout appears here once a menu has an Overhaul screen.",
+  "slate.setup.preview.menus.caption": "Menus · %s layout, %s style"
 }

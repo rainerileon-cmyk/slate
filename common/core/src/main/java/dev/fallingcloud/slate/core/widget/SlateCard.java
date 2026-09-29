@@ -82,7 +82,8 @@ public class SlateCard extends AbstractContainerWidget {
 
     public float hover() { return hoverAnim.get(); }
 
-    private float enterProgress() {
+    /** 0..1 entrance progress (subclasses fade their own drawing with it). */
+    protected float enterProgress() {
         if (enterStartMs != 0) {
             if (Theme.current().motion() <= 0) { enterStartMs = 0; enterAnim.snap(1); return 1f; }
             if (Clock.nowMs() < enterStartMs) return 0f;

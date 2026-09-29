@@ -275,6 +275,16 @@ public final class MenuSlots {
         SlateToasts.show(Component.translatable("slate.slot.unavailable"), Component.literal(slotId), Icon.WARNING);
     }
 
+    /**
+     * The screen a vanilla menu's slot shows right now, built for a preview: the effective layout's screen, or the
+     * vanilla screen {@code vanilla} supplies when the layout is vanilla (or nothing provides the slot).
+     */
+    public static Screen preview(final String slotId, final java.util.function.Supplier<Screen> vanilla) {
+        final Screen v = vanilla.get();
+        final Screen s = swap(slotId, v);
+        return s != null ? s : v;
+    }
+
     /** Builds the effective layout's screen for a new menu (null when nothing provides it). */
     @Nullable
     public static Screen create(final String slotId, @Nullable final Screen parent) {

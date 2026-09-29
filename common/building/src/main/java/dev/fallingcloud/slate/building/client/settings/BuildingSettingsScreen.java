@@ -44,6 +44,12 @@ public final class BuildingSettingsScreen extends SlateScreen {
         panel = sp;
         final int w = sp.innerWidth() - 4;
         int y = 0;
+        // The menu style stays reachable from every module's own settings (R6), Slate UI or not.
+        sp.add(new SlateLabel(0, 0, w, Fonts.heading(Component.translatable("slate.settings.section.look"))).style(SlateLabel.Style.TITLE), 0, y);
+        y += 16;
+        sp.add(dev.fallingcloud.slate.core.client.settings.SettingRow.of(w, dev.fallingcloud.slate.core.client.settings.LayoutStyleRows.styleLabel(), null,
+            dev.fallingcloud.slate.core.client.settings.LayoutStyleRows.styleSegmented(0, 0, dev.fallingcloud.slate.core.client.settings.SettingRow.controlWidth(w), null)), 0, y);
+        y += dev.fallingcloud.slate.core.client.settings.SettingRow.HEIGHT + 10;
         for (final BuildingSettings.Group g : BuildingSettings.groups()) {
             final SlateLabel head = new SlateLabel(0, 0, w, Fonts.heading(g.title())).style(SlateLabel.Style.TITLE);
             sp.add(head, 0, y);

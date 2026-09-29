@@ -3,7 +3,12 @@ package dev.fallingcloud.slate.core.client;
 import dev.fallingcloud.slate.core.Slate;
 import dev.fallingcloud.slate.core.config.CoreConfig;
 import dev.fallingcloud.slate.core.config.JsonConfig;
+import dev.fallingcloud.slate.core.client.settings.LayoutStyleRows;
+import dev.fallingcloud.slate.core.client.settings.MenuSlotRow;
+import dev.fallingcloud.slate.core.client.settings.SettingRow;
 import dev.fallingcloud.slate.core.gfx.Icon;
+import dev.fallingcloud.slate.core.screen.slot.MenuSlot;
+import dev.fallingcloud.slate.core.screen.slot.MenuSlots;
 import dev.fallingcloud.slate.core.layout.ui.Flow;
 import dev.fallingcloud.slate.core.layout.ui.Rect;
 import dev.fallingcloud.slate.core.screen.Reskin;
@@ -79,11 +84,22 @@ public final class CoreSettingsScreen extends SlateScreen {
         }
     }
 
+    /** The page's scroll panel, kept so a rebuild can restore the scroll position. */
+    @org.jetbrains.annotations.Nullable private SlateScrollPanel panel;
+
+    /** Rebuilds the page after a setting changed, keeping the scroll position. */
+    @Override
+    public void rebuildWidgets() {
+        final double scroll = panel != null ? panel.scrollAmount() : 0;
+        super.rebuildWidgets();
+        if (panel != null && scroll > 0) panel.snapScroll(scroll);
+    }
+
     @Override
     protected void build() {
         final Rect c = contentRect();
         final CoreConfig cfg = Slate.config();
-        final SlateScrollPanel panel = add(new SlateScrollPanel(c.x(), c.y(), c.w(), c.h()).padding(4));
+        panel = add(new SlateScrollPanel(c.x(), c.y(), c.w(), c.h()).padding(4));
         final int w = panel.innerWidth();
         int y = 0;
 
@@ -103,16 +119,31 @@ public final class CoreSettingsScreen extends SlateScreen {
         panel.add(preview.finish(), 0, y);
         y += preview.card.getHeight() + CARD_GAP;
 
-        // The three switches of the setup screen: layout, menu style, container style.
+        // The three rows of the setup screen: layout, menu style, container style (Core's own controls, applied live;
+        // a change rebuilds the page so the descriptions follow, keeping the scroll position).
         final Section modes = new Section(w, Component.translatable("slate.settings.section.modes"));
-        switchRow(modes, "layout", cfg.hasCustomLayout(), v -> save(x -> x.setCustomLayout(v)));
-        switchRow(modes, "style", cfg.customStyle(), v -> save(x -> x.setCustomStyle(v)));
-        switchRow(modes, "containers", cfg.reskinContainers, v -> { save(x -> x.reskinContainers = v); Reskin.invalidate(); });
+        modes.row(SettingRow.of(modes.rowW, LayoutStyleRows.layoutLabel(), null,
+            LayoutStyleRows.layoutSegmented(0, 0, SettingRow.controlWidth(modes.rowW), l -> rebuildWidgets()), LayoutStyleRows.layoutDescription(cfg.layout())));
+        modes.flow.skip(2);
+        modes.row(SettingRow.of(modes.rowW, LayoutStyleRows.styleLabel(), null,
+            LayoutStyleRows.styleSegmented(0, 0, SettingRow.controlWidth(modes.rowW), s -> rebuildWidgets()), LayoutStyleRows.styleDescription(cfg.style())));
+        modes.flow.skip(2);
+        modes.row(LayoutStyleRows.containersToggle(0, 0, modes.rowW, v -> rebuildWidgets()));
+        modes.row(new SlateLabel(0, 0, modes.rowW, Component.translatable("slate.setup.containers.desc")).style(SlateLabel.Style.MUTED).wrap(true));
+        modes.flow.skip(4);
         modes.row(new SlateButton(0, 0, 130, 16, Component.translatable("slate.settings.run_setup"),
             () -> minecraft.setScreen(new dev.fallingcloud.slate.core.client.setup.SlateSetupScreen(this)))
             .icon(Icon.SPARKLE).variant(SlateButton.Variant.GHOST).leftAligned());
         panel.add(modes.finish(), 0, y);
         y += modes.card.getHeight() + CARD_GAP;
+
+        // The Menus table: every menu Slate touches, each with its own layout and style (or the global ones).
+        final Section menus = new Section(w, Component.translatable("slate.settings.menus"));
+        menus.row(new SlateLabel(0, 0, menus.rowW, Component.translatable("slate.settings.menus.desc")).style(SlateLabel.Style.MUTED).wrap(true));
+        menus.flow.skip(2);
+        for (final MenuSlot slot : MenuSlots.all()) menus.row(new MenuSlotRow(menus.rowW, slot, this::rebuildWidgets));
+        panel.add(menus.finish(), 0, y);
+        y += menus.card.getHeight() + CARD_GAP;
 
         // Look
         final Section look = new Section(w, Component.translatable("slate.settings.section.look"));

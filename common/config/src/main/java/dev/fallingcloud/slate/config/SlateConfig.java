@@ -44,7 +44,7 @@ public final class SlateConfig implements SlateModule {
     /** Choices of the dev action: sidebar pages and the category tabs (any path {@link ConfigHubScreen#open} takes works). */
     private static final List<String> PAGE_IDS = List.of("video", "audio", "controls", "controls/keys", "gameplay", "gameplay/building",
         "multiplayer", "multiplayer/online", "multiplayer/chat", "multiplayer/skin", "customization", "customization/mods", "customization/packs",
-        "customization/shaders", "interface", "language_accessibility", "language_accessibility/language",
+        "customization/shaders", "interface", "interface/menus", "language_accessibility", "language_accessibility/language",
         "language_accessibility/accessibility", "favourites", "presets");
 
     private SlateConfig() {}

@@ -7,6 +7,11 @@ import dev.fallingcloud.slate.config.resolver.VanillaOptions;
 import dev.fallingcloud.slate.config.ui.OptionPageBase;
 import dev.fallingcloud.slate.config.ui.Section;
 import dev.fallingcloud.slate.core.Slate;
+import dev.fallingcloud.slate.core.client.settings.LayoutStyleRows;
+import dev.fallingcloud.slate.core.client.settings.MenuSlotRow;
+import dev.fallingcloud.slate.core.client.settings.SettingRow;
+import dev.fallingcloud.slate.core.screen.slot.MenuSlot;
+import dev.fallingcloud.slate.core.screen.slot.MenuSlots;
 import dev.fallingcloud.slate.core.config.JsonConfig;
 import dev.fallingcloud.slate.core.gfx.Icon;
 import dev.fallingcloud.slate.core.gfx.SlateDraw;
@@ -34,12 +39,13 @@ public final class InterfacePage extends OptionPageBase {
     @Override
     protected List<Section> sections() {
         final List<Section> out = new ArrayList<>();
-        // The three switches of the setup screen: layout, menu style, container style, plus the way back to that screen.
+        // The three rows of the setup screen: layout, menu style, container style, plus the way back to that screen. The
+        // layout and style rows are Core's own controls (only the layouts the installed modules can show are enabled).
         final Section modes = Section.of("modes", Component.translatable("slate_config.interface.modes"));
-        modes.addAll(CoreBindings.all("layout"));
-        modes.custom(w -> new SlateSegmented<>(0, 0, Math.min(w, 260), List.of("DARK", "VANILLA"), Slate.config().isVanillaSkin() ? "VANILLA" : "DARK",
-            s -> Component.translatable("slate.skin." + s.toLowerCase(java.util.Locale.ROOT)),
-            s -> { CoreBindings.get("skin").ifPresent(b -> b.set(s)); refreshRows(); }));
+        modes.custom(w -> SettingRow.of(w, LayoutStyleRows.layoutLabel(), Component.translatable("slate_config.core.layout.tip"),
+            LayoutStyleRows.layoutSegmented(0, 0, SettingRow.controlWidth(w), l -> rebuild())));
+        modes.custom(w -> SettingRow.of(w, LayoutStyleRows.styleLabel(), Component.translatable("slate_config.core.skin.tip"),
+            LayoutStyleRows.styleSegmented(0, 0, SettingRow.controlWidth(w), s -> rebuild())));
         modes.addAll(CoreBindings.all("reskinContainers"));
         modes.add(Binding.of("interface:run_setup", OptionType.ACTION, Component.translatable("slate_config.interface.setup"))
             .tooltip(Component.translatable("slate_config.interface.setup.tip"))
@@ -50,6 +56,10 @@ public final class InterfacePage extends OptionPageBase {
             })
             .searchWords("setup layout style containers vanilla custom"));
         out.add(modes);
+        // The Menus table: every menu Slate touches, each with its own layout and style (or the global ones).
+        final Section menus = new Section("menus", Component.translatable("slate.settings.menus"), Component.translatable("slate.settings.menus.desc"));
+        for (final MenuSlot slot : MenuSlots.all()) menus.custom(w -> new MenuSlotRow(w, slot, this::rebuild));
+        out.add(menus);
         final Section look = Section.of("look", Component.translatable("slate_config.interface.look"));
         look.custom(SwatchRow::new);
         look.addAll(CoreBindings.all("accent", "radius", "headingFont", "pixelFont", "blurInGame"));

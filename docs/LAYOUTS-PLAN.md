@@ -344,7 +344,7 @@ Status values: `TODO` → `IN PROGRESS (<agent/branch>)` → `DONE (<commit>)`.
 | A1 | Layout and style model, menu slots, migration | Core, Menu, Config, earlywindow | — | DONE (6765b02; verified by harness: migration, per-menu layout and style overrides, earlywindow.properties) |
 | A2 | Module catalogue and feature gates | Core | A1 | DONE for 2D (KnownModules, Features, locked SlateButton, slate:feature_test verified with all modules and with core+config; the Stage-node lock follows A3's merge) |
 | A3 | Stage toolkit and scenes | Core | — (spike first) | IN PROGRESS (agent worktree, merged into claude/stoic-shannon-5lboan) |
-| A4 | Setup v2 and settings surfaces | Core, Config, all modules | A1, A2 | TODO |
+| A4 | Setup v2 and settings surfaces | Core, Config, all modules | A1, A2 | DONE (setup v2 with a live render of the real title screen, Menus table in Options › Interface and Core settings, style row on every module's settings; verified by harness in both styles) |
 | A5 | Vanilla-layout extra buttons | Core (+ modules) | A2 | DONE (VanillaScreenButtons: icon buttons on the accessibility row, half-width pairs on the pause feedback row; verified in both styles) |
 | A6 | Polish and cleanup | all | — | TODO |
 | A7 | BetterInventory follows Slate's palette | Core | — | TODO |

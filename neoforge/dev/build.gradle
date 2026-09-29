@@ -11,6 +11,11 @@ base { archivesName = 'slate-dev' }
 
 // Harness / screenshot system properties shared by every client run (`gameDir` is the run's game directory).
 def harnessProperties = { run, File gameDir ->
+    if (project.hasProperty('autoWindow')) {
+        // -PautoWindow=1280x720: the window size of a screenshot run (the game's own --width / --height arguments).
+        def size = project.autoWindow.toString().toLowerCase().split('x')
+        run.programArguments.addAll(['--width', size[0].trim(), '--height', size[1].trim()])
+    }
     if (project.hasProperty('buildingHarness')) {
         // Slate Building scenario runs: -PbuildingHarness=smoke,render [-PautoSkin=VANILLA]. The building
         // harness creates its own flat world and quits by itself, so Core's screenshot harness stays off
