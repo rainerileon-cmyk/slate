@@ -6,20 +6,34 @@ loom {
         client {
             client()
             runDir 'run'
+            if (project.hasProperty('autoWindow')) {
+                // -PautoWindow=1280x720: the window size of a screenshot run (the game's own --width / --height arguments).
+                def size = project.autoWindow.toString().toLowerCase().split('x')
+                programArgs '--width', size[0].trim(), '--height', size[1].trim()
+            }
             if (project.hasProperty('buildingHarness')) {
                 // Slate Building scenario runs: -PbuildingHarness=smoke,render [-PautoSkin=VANILLA]. The building
                 // harness creates its own flat world and quits by itself, so Core's screenshot harness stays off
                 // for this run (it would open a second world and quit underneath the scenarios).
                 vmArg "-Dslate.building.harness=${project.buildingHarness}"
                 if (project.hasProperty('autoSkin')) vmArg "-Dslate.autoSkin=${project.autoSkin}"
+                if (project.hasProperty('autoLayout')) vmArg "-Dslate.autoLayout=${project.autoLayout}"
             } else if (project.hasProperty('autoScreens') || project.hasProperty('autoWorld')) {
                 // Unattended screenshot runs: -PautoScreens=slate:hub,slate:settings [-PautoSkin=VANILLA] [-PautoQuit=true]
                 if (project.hasProperty('autoScreens')) vmArg "-Dslate.autoScreens=${project.autoScreens}"
                 vmArg "-Dslate.autoDir=${file('run').absolutePath}"
                 vmArg "-Dslate.autoQuit=${project.hasProperty('autoQuit') ? project.autoQuit : 'true'}"
                 if (project.hasProperty('autoSkin')) vmArg "-Dslate.autoSkin=${project.autoSkin}"
+                if (project.hasProperty('autoLayout')) vmArg "-Dslate.autoLayout=${project.autoLayout}"
                 if (project.hasProperty('autoWorld')) vmArg "-Dslate.autoWorld=${project.autoWorld}"
+                if (project.hasProperty('autoWorldId')) vmArg "-Dslate.autoWorldId=${project.autoWorldId}"
+                if (project.hasProperty('autoLoadingShots')) vmArg "-Dslate.autoLoadingShots=${project.autoLoadingShots}"
+                if (project.hasProperty('autoWorldScreens')) vmArg "-Dslate.autoWorldScreens=${project.autoWorldScreens}"
                 if (project.hasProperty('autoFrames')) vmArg "-Dslate.autoFrames=${project.autoFrames}"
+                if (project.hasProperty('autoMotion')) vmArg "-Dslate.autoMotion=${project.autoMotion}"
+                if (project.hasProperty('autoIntro')) vmArg "-Dslate.autoIntro=${project.autoIntro}"
+                if (project.hasProperty('sampleData')) vmArg "-Dslate.sampleData=${project.sampleData}"
+                if (project.hasProperty('autoGif')) vmArg "-Dslate.autoGif=${project.autoGif}"
             }
         }
         server {
@@ -29,13 +43,21 @@ loom {
     }
 }
 
+// Which modules are on the dev runtime: all, or the ones named in -PslateModules=core,menu,config (the install matrix
+// that tests docs/LAYOUTS.md's rules for missing modules). Core is always on; chat brings multiplayer.
+def slateModules = { ->
+    def all = ['core', 'menu', 'multiplayer', 'chat', 'config', 'building', 'profile']
+    if (!project.hasProperty('slateModules')) return all
+    def wanted = project.slateModules.toString().split(',').collect { it.trim() }.findAll { it }.toSet()
+    wanted.add('core')
+    if (wanted.contains('chat')) wanted.add('multiplayer')
+    def unknown = wanted - all.toSet()
+    if (unknown) throw new GradleException("unknown Slate module(s) in -PslateModules: ${unknown} (known: ${all})")
+    return all.findAll { wanted.contains(it) }
+}
+
 dependencies {
-    implementation project(path: ':core', configuration: 'namedElements')
-    implementation project(path: ':menu', configuration: 'namedElements')
-    implementation project(path: ':multiplayer', configuration: 'namedElements')
-    implementation project(path: ':chat', configuration: 'namedElements')
-    implementation project(path: ':config', configuration: 'namedElements')
-    implementation project(path: ':building', configuration: 'namedElements')
+    slateModules().each { m -> implementation project(path: ":${m}", configuration: 'namedElements') }
 }
 
 tasks.named('jar') { enabled = false }

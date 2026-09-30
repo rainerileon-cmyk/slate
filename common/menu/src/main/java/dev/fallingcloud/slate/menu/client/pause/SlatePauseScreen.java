@@ -1,57 +1,50 @@
 package dev.fallingcloud.slate.menu.client.pause;
 
-import dev.fallingcloud.slate.core.client.CoreActions;
+import com.mojang.blaze3d.systems.RenderSystem;
 import dev.fallingcloud.slate.core.gfx.Anim;
 import dev.fallingcloud.slate.core.gfx.Ease;
 import dev.fallingcloud.slate.core.gfx.Fonts;
 import dev.fallingcloud.slate.core.gfx.Icon;
+import dev.fallingcloud.slate.core.gfx.Icons;
 import dev.fallingcloud.slate.core.gfx.SlateDraw;
-import dev.fallingcloud.slate.core.layout.ui.Rect;
+import dev.fallingcloud.slate.core.gfx.Textures;
+import dev.fallingcloud.slate.core.module.Features;
+import dev.fallingcloud.slate.core.module.KnownModules;
 import dev.fallingcloud.slate.core.screen.SlateScreen;
+import dev.fallingcloud.slate.core.screen.slot.CoreSlots;
+import dev.fallingcloud.slate.core.screen.slot.MenuSlots;
 import dev.fallingcloud.slate.core.theme.Colors;
 import dev.fallingcloud.slate.core.theme.Palette;
 import dev.fallingcloud.slate.core.theme.Theme;
-import dev.fallingcloud.slate.core.widget.SlateButton;
-import dev.fallingcloud.slate.core.widget.SlateModal;
-import dev.fallingcloud.slate.menu.SlateMenu;
-import dev.fallingcloud.slate.menu.client.Fmt;
-import dev.fallingcloud.slate.menu.client.LastPlayed;
-import dev.fallingcloud.slate.menu.client.MenuClient;
-import dev.fallingcloud.slate.menu.client.screenshots.SlateScreenshotsScreen;
-import java.util.ArrayList;
+import dev.fallingcloud.slate.core.widget.SlateAvatar;
+import dev.fallingcloud.slate.core.widget.SlateCard;
+import dev.fallingcloud.slate.menu.client.title.NavButton;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
-import java.util.Locale;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.screens.GenericMessageScreen;
-import net.minecraft.client.gui.screens.ShareToLanScreen;
-import net.minecraft.client.gui.screens.TitleScreen;
-import net.minecraft.client.gui.screens.achievement.StatsScreen;
-import net.minecraft.client.gui.screens.advancements.AdvancementsScreen;
-import net.minecraft.client.gui.screens.multiplayer.JoinMultiplayerScreen;
-import net.minecraft.client.gui.screens.multiplayer.ServerLinksScreen;
-import net.minecraft.client.gui.screens.options.OptionsScreen;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.options.SkinCustomizationScreen;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.ServerLinks;
+import net.minecraft.util.FormattedCharSequence;
+import org.jetbrains.annotations.Nullable;
 
 /**
- * The Slate pause menu (the custom layout's escape menu): one floating card in the build menu's style over the
- * blurred world. Its header names the world or server, shows the time played this session and a row of chips
- * (game mode, dimension, in-game day and time). Below it the vanilla actions grouped by rules: Back to game;
- * Advancements | Statistics; Options | Open to LAN (or server links / player reporting); Screenshots | Friends;
- * and Save & quit / Disconnect, which asks first (configurable). Vanilla's feedback and bug-report links are gone,
- * and Slate itself is reached through Options (its settings hub), so the card carries no Slate button.
+ * The Custom layout's escape menu, laid out as the Custom main menu is: a column of large buttons on one plate, and
+ * beside it what there is to know, on cards. The column holds what the menu does ({@link PauseActions}), Back to game
+ * first and marked as the one the column is there for, leaving last and red. The cards are the world (its picture,
+ * its name, the mode, the dimension, the day and hour, the difficulty) and the player (their face and name, how they
+ * are doing, where they stand). A narrow window keeps the column alone.
  */
 public final class SlatePauseScreen extends SlateScreen {
 
-    private static final int CARD_W = 236, PADDING = 12, GAP = 4, RULE_H = 9, HEADER_H = 46;
+    private static final int NAV_W = 176, GUTTER = 16, WORLD_H = 66, PLAYER_H = 66;
 
-    private final Anim open = new Anim(0, 240, Ease.OUT_CUBIC);
-    private Rect card = new Rect(0, 0, 0, 0);
-    private final List<Integer> rules = new ArrayList<>();
-    private boolean disconnecting;
+    private final Anim open = new Anim(0, 260, Ease.OUT_CUBIC);
+    private int left, top, navTop, navBottom, contentW;
+    private boolean compact;
 
     public SlatePauseScreen() {
         super(Component.translatable("menu.game"), null);
@@ -63,87 +56,39 @@ public final class SlatePauseScreen extends SlateScreen {
 
     @Override
     protected void build() {
-        final Minecraft mc = Minecraft.getInstance();
         if (open.target() == 0f) open.set(1f);
-        rules.clear();
-        final boolean sp = mc.hasSingleplayerServer() && mc.getSingleplayerServer() != null;
-        final boolean lanOpen = sp && mc.getSingleplayerServer().isPublished();
-        final ServerLinks links = mc.player != null ? mc.player.connection.serverLinks() : ServerLinks.EMPTY;
+        final List<PauseActions.Action> actions = PauseActions.actions(this, false);
+        compact = height < 300;
+        final boolean wide = width >= 400;
+        final int rowH = compact ? 20 : NavButton.HEIGHT, gap = compact ? 2 : 4;
+        final int navH = actions.size() * rowH + (actions.size() - 1) * gap;
+        final int headH = compact ? 20 : 34;
+        contentW = wide ? Math.min(width - PAD * 2, 540) : NAV_W;
+        left = (width - contentW) / 2;
+        top = Math.max(6, (height - headH - navH) / 2);
+        navTop = top + headH;
 
-        final int bw = CARD_W - PADDING * 2, half = (bw - GAP) / 2;
-        // Rows of widgets; a null row is a rule between groups.
-        final List<AbstractWidget[]> rows = new ArrayList<>();
-        rows.add(new AbstractWidget[] { new SlateButton(0, 0, bw, SlateButton.HEIGHT_LARGE, Component.translatable("menu.returnToGame"), () -> mc.setScreen(null))
-            .variant(SlateButton.Variant.PRIMARY).icon(Icon.PLAY) });
-        rows.add(null);
-        rows.add(new AbstractWidget[] {
-            new SlateButton(0, 0, half, Component.translatable("gui.advancements"), () -> { if (mc.player != null) mc.setScreen(new AdvancementsScreen(mc.player.connection.getAdvancements(), this)); }).icon(Icon.TROPHY),
-            new SlateButton(0, 0, half, Component.translatable("gui.stats"), () -> { if (mc.player != null) mc.setScreen(new StatsScreen(this, mc.player.getStats())); }).icon(Icon.HISTORY) });
-        final SlateButton second;
-        if (sp) {
-            second = new SlateButton(0, 0, half, Component.translatable("menu.shareToLan"), () -> mc.setScreen(new ShareToLanScreen(this))).icon(Icon.LAN);
-            second.enabled(!lanOpen);
-            if (lanOpen) second.tip(Component.translatable("slate_menu.pause.lan_open"));
-        } else if (!links.isEmpty()) {
-            second = new SlateButton(0, 0, half, Component.translatable("menu.server_links"), () -> mc.setScreen(new ServerLinksScreen(this, links))).icon(Icon.LINK);
-        } else {
-            second = new SlateButton(0, 0, half, Component.translatable("menu.playerReporting"), () -> mc.setScreen(new net.minecraft.client.gui.screens.social.SocialInteractionsScreen(this))).icon(Icon.FRIENDS);
+        int y = navTop;
+        for (final PauseActions.Action a : actions) {
+            final NavButton b = new NavButton(left, y, NAV_W, a.icon(), a.label(), a.run());
+            b.setHeight(rowH);
+            if (a.kind() == PauseActions.Kind.PRIMARY) b.primary();
+            else if (a.kind() == PauseActions.Kind.DANGER) b.danger();
+            if (!a.enabled()) b.enabled(false);
+            if (a.tip() != null) b.tip(a.tip());
+            add(b);
+            y += rowH + gap;
         }
-        rows.add(new AbstractWidget[] {
-            new SlateButton(0, 0, half, Component.translatable("menu.options"), () -> mc.setScreen(new OptionsScreen(this, mc.options))).icon(Icon.SETTINGS), second });
-        final SlateButton shots = new SlateButton(0, 0, half, Component.translatable("slate_menu.screenshots.title"), () -> mc.setScreen(new SlateScreenshotsScreen(this))).icon(Icon.CAMERA);
-        final SlateButton friends = MenuClient.friendsScreenId()
-            .map(id -> new SlateButton(0, 0, half, Component.translatable("slate_menu.title.friends"), () -> CoreActions.openScreen(id)).icon(Icon.FRIENDS))
-            .orElse(null);
-        if (friends != null) rows.add(new AbstractWidget[] { shots, friends });
-        else { shots.setWidth(bw); rows.add(new AbstractWidget[] { shots }); }
-        rows.add(null);
-        rows.add(new AbstractWidget[] { new SlateButton(0, 0, bw, Component.translatable(sp ? "menu.returnToMenu" : "menu.disconnect"), this::confirmDisconnect)
-            .variant(SlateButton.Variant.DANGER).icon(Icon.EXIT) });
+        navBottom = y - gap;
 
-        int total = PADDING + HEADER_H;
-        for (final AbstractWidget[] r : rows) total += (r == null ? RULE_H : r[0].getHeight()) + GAP;
-        total += PADDING - GAP;
-        final int x0 = (width - CARD_W) / 2;
-        final int y0 = Math.max(4, (height - total) / 2);
-        card = new Rect(x0, y0, CARD_W, total);
-        int y = y0 + PADDING + HEADER_H;
-        for (final AbstractWidget[] r : rows) {
-            if (r == null) { rules.add(y + RULE_H / 2); y += RULE_H + GAP; continue; }
-            int x = x0 + PADDING;
-            for (final AbstractWidget w : r) {
-                w.setX(x);
-                w.setY(y);
-                add(w);
-                x += w.getWidth() + GAP;
-            }
-            y += r[0].getHeight() + GAP;
+        if (!wide) return;
+        final int cx = left + NAV_W + GUTTER, cw = contentW - NAV_W - GUTTER;
+        int cy = navTop;
+        if (cy + WORLD_H <= height - 6) {
+            add(new WorldCard(cx, cy, cw, WORLD_H));
+            cy += WORLD_H + 8;
         }
-    }
-
-    // ------------------------------------------------------------------ disconnect (vanilla's exact sequence)
-
-    private void confirmDisconnect() {
-        final boolean sp = Minecraft.getInstance().hasSingleplayerServer();
-        if (!SlateMenu.config().confirmQuit) { disconnect(); return; }
-        SlateModal.confirm(Component.translatable(sp ? "menu.returnToMenu" : "menu.disconnect"),
-            Component.translatable(sp ? "slate_menu.pause.confirm_quit_sp" : "slate_menu.pause.confirm_quit_mp"),
-            Component.translatable(sp ? "menu.returnToMenu" : "menu.disconnect"), this::disconnect);
-    }
-
-    private void disconnect() {
-        if (disconnecting) return;
-        disconnecting = true;
-        final Minecraft mc = Minecraft.getInstance();
-        final boolean local = mc.isLocalServer();
-        final ServerData server = mc.getCurrentServer();
-        if (mc.level != null) mc.level.disconnect();
-        if (local) mc.disconnect(new GenericMessageScreen(Component.translatable("menu.savingLevel")));
-        else mc.disconnect();
-        final TitleScreen title = new TitleScreen();
-        if (local) mc.setScreen(title);
-        else if (server != null && server.isRealm()) mc.setScreen(new com.mojang.realmsclient.RealmsMainScreen(title));
-        else mc.setScreen(new JoinMultiplayerScreen(title));
+        if (cy + PLAYER_H <= height - 6) add(new PlayerCard(cx, cy, cw, PLAYER_H, this));
     }
 
     // ------------------------------------------------------------------ render
@@ -151,12 +96,9 @@ public final class SlatePauseScreen extends SlateScreen {
     @Override
     public void renderBackground(final GuiGraphics g, final int mouseX, final int mouseY, final float partialTick) {
         super.renderBackground(g, mouseX, mouseY, partialTick);
-        final float a = open.get();
-        if (!Theme.current().isVanilla()) {
-            SlateDraw.floatingPanel(g, card.x(), card.y(), card.w(), card.h(), a);
-        } else {
-            // The vanilla skin keeps vanilla's open feel: no plate, only a soft shade under the card so it reads on any world.
-            SlateDraw.rect(g, card.x(), card.y(), card.w(), card.h(), Colors.scaleAlpha(0x30000000, a));
+        // The column rests on one plate, as the main menu's does.
+        if (!Theme.current().isVanilla() && navBottom > 0) {
+            SlateDraw.floatingPanel(g, left - 6, navTop - 6, NAV_W + 12, navBottom - navTop + 12, open.get());
         }
     }
 
@@ -166,61 +108,130 @@ public final class SlatePauseScreen extends SlateScreen {
         final Palette p = t.palette();
         final boolean van = t.isVanilla();
         final float a = open.get();
-        final Minecraft mc = Minecraft.getInstance();
-        final int muted = van ? 0xFFC0C0C0 : p.textMuted();
-        final int inner = CARD_W - PADDING * 2, lx = card.x() + PADDING;
+        final float big = compact ? 1f : 2f;
+        final int slide = Math.round((1f - a) * 5f);
 
-        // Name, session, chips.
-        String name;
-        if (mc.hasSingleplayerServer() && mc.getSingleplayerServer() != null) name = mc.getSingleplayerServer().getWorldData().getLevelName();
-        else if (mc.getCurrentServer() != null) name = mc.getCurrentServer().name;
-        else name = Component.translatable("menu.game").getString();
-        if (name == null || name.isBlank()) name = Component.translatable("menu.game").getString();
-        final Component heading = Fonts.heading(Component.literal(name));
-        final net.minecraft.util.FormattedCharSequence title = SlateDraw.truncate(heading, inner);
-        g.drawString(font, title, lx, card.y() + PADDING, Colors.scaleAlpha(van ? 0xFFFFFFFF : p.text(), a), van);
-        if (!van) SlateDraw.accentCap(g, lx, card.y() + PADDING + 11, Math.max(16, Math.min(font.width(title), 40)), a);
-        final Component sub;
-        if (SlateMenu.config().showSessionTime && LastPlayed.sessionMs() > 0) sub = Component.translatable("slate_menu.pause.session", Fmt.duration(LastPlayed.sessionMs()));
-        else sub = Component.translatable("menu.paused");
-        g.drawString(font, SlateDraw.truncate(sub, inner), lx, card.y() + PADDING + 15, Colors.scaleAlpha(muted, a), van);
-        chips(g, lx, card.y() + PADDING + 28, inner, a, p, mc);
+        // What this is, where the main menu has its logo: large, with the accent's mark under it.
+        final FormattedCharSequence heading = SlateDraw.truncate(Fonts.heading(getTitle()), Math.round(contentW / big));
+        g.pose().pushPose();
+        g.pose().translate(left, top + slide, 0f);
+        g.pose().scale(big, big, 1f);
+        g.drawString(font, heading, 0, 0, Colors.scaleAlpha(van ? 0xFFFFFFFF : p.text(), a), van);
+        g.pose().popPose();
+        if (!van) SlateDraw.accentCap(g, left, top + slide + Math.round(9 * big) + 2, Math.min(contentW, Math.max(24, Math.round(font.width(heading) * big * 0.5f))), a);
 
-        // Rules between the groups, as the build menu separates its header, table and options.
-        final int ruleCol = Colors.scaleAlpha(van ? 0x40FFFFFF : p.border(), a);
-        for (final int ry : rules) SlateDraw.hline(g, lx, ry, inner, ruleCol);
-    }
-
-    /** Game mode, dimension and in-game clock as chips; each is skipped when it does not fit. */
-    private void chips(final GuiGraphics g, int x, final int y, final int w, final float a, final Palette p, final Minecraft mc) {
-        final int right = x + w;
-        if (mc.gameMode != null) x = chip(g, mc.gameMode.getPlayerMode().getShortDisplayName(), x, y, right, p.accent(), a);
-        if (mc.level != null) {
-            x = chip(g, Component.literal(pretty(mc.level.dimension().location().getPath())), x, y, right, p.success(), a);
-            final long time = mc.level.getDayTime();
-            final long day = time / 24000L + 1;
-            final long tod = time % 24000L;
-            final int hour = (int) ((tod / 1000L + 6L) % 24L), minute = (int) ((tod % 1000L) * 60L / 1000L);
-            x = chip(g, Component.translatable("slate_menu.pause.day_time", day, String.format(Locale.ROOT, "%02d:%02d", hour, minute)), x, y, right, p.warning(), a);
-            chip(g, mc.level.getDifficulty().getDisplayName(), x, y, right, p.textMuted(), a);
+        // How long the player has been at it, at the other end of the same line.
+        final Component session = PauseActions.session();
+        if (session != null && contentW > NAV_W) {
+            final int w = font.width(session);
+            if (w < contentW - Math.round(font.width(heading) * big) - 12) {
+                g.drawString(font, session, left + contentW - w, top + slide + Math.round(9 * big) - 8, Colors.scaleAlpha(van ? 0xFFC0C0C0 : p.textMuted(), a), van);
+            }
         }
     }
 
-    /** A chip if it fits before {@code right}; returns the next x (or {@code right} once one did not fit so later chips skip too). */
-    private static int chip(final GuiGraphics g, final Component text, final int x, final int y, final int right, final int color, final float a) {
+    // ------------------------------------------------------------------ the cards
+
+    /** A chip if it fits before {@code right}; returns the next x, or {@code right} once one did not fit so later chips skip too. */
+    private static int chip(final GuiGraphics g, @Nullable final Component text, final int x, final int y, final int right, final int color) {
+        if (text == null) return x;
         if (x + SlateDraw.width(text) + 8 > right) return right;
-        return x + SlateDraw.chip(g, text, x, y, color, a) + 4;
+        return x + SlateDraw.chip(g, text, x, y, color, 1f) + 4;
     }
 
-    /** {@code the_nether} -> {@code The Nether}. */
-    private static String pretty(final String path) {
-        final StringBuilder sb = new StringBuilder(path.length());
-        boolean up = true;
-        for (final char c : path.toCharArray()) {
-            if (c == '_' || c == '/' || c == ':') { sb.append(' '); up = true; continue; }
-            sb.append(up ? Character.toUpperCase(c) : c);
-            up = false;
+    /** The world being played: its picture (the save's own, or the server's), its name, and the state it is in. */
+    private static final class WorldCard extends SlateCard {
+
+        @Nullable private Textures.Loaded icon;
+
+        WorldCard(final int x, final int y, final int w, final int h) {
+            super(x, y, w, h);
+            flat();
+            final Minecraft mc = Minecraft.getInstance();
+            if (mc.hasSingleplayerServer() && mc.getSingleplayerServer() != null) {
+                final Path file = mc.getSingleplayerServer().getWorldScreenshotFile().orElse(null);
+                if (file != null && Files.isRegularFile(file)) Textures.load(file, l -> icon = l);
+            } else {
+                final ServerData server = mc.getCurrentServer();
+                final byte[] bytes = server == null ? null : server.getIconBytes();
+                if (bytes != null) icon = Textures.fromBytes(bytes, "slate_menu:favicon:" + server.ip + ":" + bytes.length).orElse(null);
+            }
         }
-        return sb.toString();
+
+        @Override
+        protected void renderContent(final GuiGraphics g, final int x, final int y, final int w, final int h, final int mouseX, final int mouseY, final float partialTick) {
+            final Theme t = Theme.current();
+            final Palette p = t.palette();
+            final boolean van = t.isVanilla();
+            final Minecraft mc = Minecraft.getInstance();
+            final boolean sp = PauseActions.singleplayer();
+            final int muted = van ? 0xFFC0C0C0 : p.textMuted();
+            g.drawString(SlateDraw.font(), Component.translatable(sp ? "slate_menu.pause.card.world" : "slate_menu.pause.card.server"), x + 10, y + 7,
+                van ? 0xFFA0A0A0 : p.textDim(), van);
+
+            final int ix = x + 10, iy = y + 21, is = 32;
+            if (icon != null) {
+                RenderSystem.enableBlend();
+                g.blit(icon.id(), ix, iy, is, is, 0, 0, icon.width(), icon.height(), icon.width(), icon.height());
+                RenderSystem.disableBlend();
+            } else {
+                SlateDraw.pixelRound(g, ix, iy, is, is, van ? 0x80000000 : p.bg2(), t.radius());
+                Icons.draw(g, sp ? Icon.WORLD : Icon.SERVER, ix + 8, iy + 8, 16, muted);
+            }
+            SlateDraw.outline(g, ix, iy, is, is, van ? 0xFF000000 : p.border(), t.radius());
+
+            final int tx = ix + is + 8, right = x + w - 10;
+            g.drawString(SlateDraw.font(), SlateDraw.truncate(Component.literal(PauseActions.worldName()), right - tx), tx, y + 22, van ? 0xFFFFFFFF : p.text(), van);
+            final Component dimension = PauseActions.dimension();
+            Component sub = Component.translatable(sp ? "slate_menu.title.singleplayer" : "slate_menu.title.multiplayer");
+            if (!sp && mc.getCurrentServer() != null) sub = Component.empty().append(sub).append(" · ").append(mc.getCurrentServer().ip);
+            else if (dimension != null) sub = Component.empty().append(sub).append(" · ").append(dimension);
+            g.drawString(SlateDraw.font(), SlateDraw.truncate(sub, right - tx), tx, y + 34, muted, van);
+
+            int cx = chip(g, PauseActions.mode(), tx, y + 46, right, p.accent());
+            if (mc.level != null && mc.level.getLevelData().isHardcore()) cx = chip(g, Component.translatable("slate_menu.worlds.hardcore"), cx, y + 46, right, p.danger());
+            cx = chip(g, PauseActions.dayTime(), cx, y + 46, right, p.warning());
+            if (mc.level != null) chip(g, mc.level.getDifficulty().getDisplayName(), cx, y + 46, right, p.textMuted());
+        }
+    }
+
+    /**
+     * The player: their face and name, how they are doing (hearts, armour, hunger, level: what the HUD would say),
+     * and where they stand. A click opens their profile, or vanilla's skin options where Slate Profile is not there.
+     */
+    private static final class PlayerCard extends SlateCard {
+
+        PlayerCard(final int x, final int y, final int w, final int h, final Screen parent) {
+            super(x, y, w, h);
+            final Minecraft mc = Minecraft.getInstance();
+            add(new SlateAvatar(0, 0, 32, mc.getGameProfile()), 10, 21);
+            onClick(() -> {
+                if (Features.present(KnownModules.PROFILE)) MenuSlots.open(CoreSlots.PROFILE, parent);
+                else mc.setScreen(new SkinCustomizationScreen(parent, mc.options));
+            });
+        }
+
+        @Override
+        protected void renderContent(final GuiGraphics g, final int x, final int y, final int w, final int h, final int mouseX, final int mouseY, final float partialTick) {
+            final Theme t = Theme.current();
+            final Palette p = t.palette();
+            final boolean van = t.isVanilla();
+            final Minecraft mc = Minecraft.getInstance();
+            final int muted = van ? 0xFFC0C0C0 : p.textMuted();
+            g.drawString(SlateDraw.font(), Component.translatable("slate_menu.pause.card.you"), x + 10, y + 7, van ? 0xFFA0A0A0 : p.textDim(), van);
+            Icons.draw(g, Icon.EDIT, x + w - 18, y + 7, 10, van ? 0xFFA0A0A0 : p.textDim());
+
+            // Three lines beside the face, as the world's card has three beside its picture: who, how, where.
+            final int tx = x + 50, right = x + w - 10;
+            g.drawString(SlateDraw.font(), SlateDraw.truncate(Component.literal(mc.getUser().getName()), right - tx), tx, y + 22, van ? 0xFFFFFFFF : p.text(), van);
+            if (PauseVitals.width() > 0) PauseVitals.draw(g, tx, y + 35, 1f, van ? 0xFFFFFFFF : p.text());
+            else if (PauseActions.mode() != null) g.drawString(SlateDraw.font(), PauseActions.mode(), tx, y + 35, muted, van);
+
+            final Component position = PauseActions.position(), biome = PauseActions.biome();
+            Component where = position;
+            if (position != null && biome != null) where = Component.empty().append(position).append(" · ").append(biome);
+            else if (biome != null) where = biome;
+            if (where != null) g.drawString(SlateDraw.font(), SlateDraw.truncate(where, right - tx), tx, y + 48, muted, van);
+        }
     }
 }

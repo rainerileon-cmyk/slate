@@ -1,9 +1,11 @@
 # Slate Menu (`slate_menu`)
 
-Rebuilds Minecraft's main menus in Slate's style, in both skins. The whole set is Slate's **custom layout**
-switch (`customLayout` in `config/slate/core.json`, set on the first-launch setup screen or in Slate settings):
-with it off, every vanilla screen stays and Core adds a Slate button to vanilla's title and pause screens. With
-it on, every screen can still be switched back to vanilla individually in `config/slate/menu.json`.
+Slate UI: the module that rebuilds Minecraft's menus. It provides two of Slate's three layouts, **Custom** (rebuilt
+screens) and **Overhaul** (3D scenes), each in both styles; the layout is chosen on the first-launch setup screen and
+can be set per menu (Options > Interface > Menus, or `screens` in `config/slate/core.json`). See `docs/core.md` for
+the model and `docs/LAYOUTS.md` for the design.
+
+## Custom layout
 
 - **Title screen** — a left column of icon buttons (Singleplayer, Multiplayer, Friends when
   Multiplayer is installed, Screenshots, Mods when a mod list exists, Options, Quit), a **Continue**
@@ -20,11 +22,15 @@ it on, every screen can still be switched back to vanilla individually in `confi
   recent servers, LAN games, and a **Community** section from `config/slate/menu/community_servers.json`
   that a modpack can pre-fill. A "friends here" chip appears when Multiplayer knows friends are on a
   server. Right-click a server for its menu.
-- **Pause menu** — one floating card over the blurred world: the world or server name, the time played
-  this session and chips for the game mode, dimension, in-game day and time and difficulty; then the vanilla
-  actions grouped by rules (Back to game; Advancements, Statistics; Options, Open to LAN / server links /
-  player reporting; Screenshots, Friends; Disconnect / Save & quit with confirmation). Vanilla's feedback and
-  bug-report links are gone, and there is no Slate button: Options opens Slate's settings hub.
+- **Pause menu** — laid out as the main menu is, over the blurred world: a column of large buttons on one plate
+  (Back to game, marked as the one the column is there for; Advancements; Statistics; Options; Open to LAN / server
+  links / player reporting; Screenshots; Friends; Mods; Save & quit / Disconnect, red, with confirmation), and
+  beside it two cards. The world's card has its picture (the save's own, or the server's), its name and chips for
+  the game mode, the day and hour and the difficulty. The player's card has their face and name, how they are doing
+  in the HUD's own signs (hearts, armour, hunger, level; nothing in Creative), and where they stand (coordinates
+  and biome, left out under reduced debug info); a click on it opens the profile. "Game Menu" stands over both,
+  large, with the time played this session at the other end of its line. A narrow window keeps the column alone.
+  Vanilla's feedback and bug-report links are gone, and there is no Slate button: Options opens Slate's settings hub.
 - **Options** — a sidebar screen whose first page holds the options people actually change (FOV, render
   distance, GUI scale, fullscreen, vsync, max FPS, master volume) and whose other pages open the vanilla
   sub-screens, all restyled by Core; a "Slate settings hub" entry appears when the Config module is
@@ -50,6 +56,53 @@ it on, every screen can still be switched back to vanilla individually in `confi
   at start-up); a pack that chose another window keeps it, and fml.toml is never changed. Drippy Loading Screen's mod
   replaces the in-game half with its own overlay, so remove it with its early-window jar. Should drawing fail,
   NeoForge's own screen takes over in Slate's colours.
+
+## Overhaul layout
+
+Scenes instead of panels: real blocks, players and items, lit softly, with a camera that moves. Every scene works in
+both styles, and with animations off (`motion` 0) it stands still in its end state.
+
+- **Main menu** — three open chests on a dark floor under the Minecraft logo. In each lid hangs a button: **Play**
+  (a cube planet), **Profile** (your head, in the look you wear; it turns a little by itself and nods to the pointer,
+  and does not follow it about; nor does any figure on the Profile screen) and **Options** (a large cogwheel: Create's own when that mod is installed). On each
+  chest's front is a sign: **Continue** (the last world or server), **Friends**, **Quit game**. The small buttons
+  (language, accessibility, Realms, screenshots, mods) sit in the bottom right corner.
+- **Play** — worlds and servers as cube planets on a ring, the chosen one in front, with its details beside it; one
+  header row with the title and the search above both halves. The ring shows eleven planets (`ringPlanets` in
+  `config/slate/menu.json`), smaller and closer together towards the back. When there are more, a whirl of light
+  stands at the back of the ring: turning the ring draws the planet that leaves into it and brings the next one out.
+  The other ring (servers, or worlds) hangs small in the middle and swaps with a click. Under the ring stand Play,
+  the star and a plus that makes a new world (or adds a server); beside the details stand Edit, Open folder, Backup
+  (for a server: Refresh, Copy address), delete and the rest.
+- **World creation** — the land of the world about to be made, worked out from the chosen world type and seed and
+  seen from the air, above three hanging tabs (Game, World, More).
+- **Options** — Slate Config's hub: its categories down the left, sub-tabs across the top, the options in two columns,
+  and over them a live view of the game while you are in a world.
+- **Start-up** — a factory that loads the game, at work from the first frame to the last: a tank of lava stands as
+  high as the memory in use, ingots come onto a belt one after the other, a press stamps each into a sheet, and the
+  sheets are stacked in a store with a window, the very sheets the press makes, which fills as the loading goes on.
+  With Create installed the factory is built from Create's own models and textures, read from its jar when the game
+  starts (nothing of Create is shipped with Slate); without it, from Slate's own. The Minecraft logo is the game's.
+  On NeoForge it starts in the early window and carries on as the game's loading overlay; on Fabric it is the
+  loading overlay.
+- **Opening a world** — the world's land from the air, under the sky of the hour it is in that world. The land comes
+  up out of the ground around the place you will stand on, ring by ring, as far as the loading has got, with a shaft
+  of light on the spot itself. It is the land as you left it: when a world is left, what was loaded around you is
+  kept in the world's folder (`slate/land.bin`, a few dozen kilobytes) and shown the next time, with what you built
+  on it; what that does not cover, and a world that is new, comes from the world's own generator. Leaving a world
+  shows the same land going down again. The world's name, the step, the progress and the chunk map stand over it.
+- **Joining a server** — a gate of obsidian on a terrace in the dark, you standing before it. It is cold while the
+  server is looked for, takes fire when the server answers and burns brighter with every step (logging in,
+  encrypting, joining); when the terrain is being sent the view goes in through it. Leaving a server shows the gate
+  going out. The server's name and picture, the step and Cancel stand over it.
+- Waits inside a world (another dimension, a respawn) keep the game's own backdrop under the same words.
+- **Pause menu** — the world stays behind everything, out of focus. On the left, in the words of the loading
+  screens, what is paused (the world's name, large; the mode, the dimension, the day and hour) and the list of what
+  can be done, in the heading font on no plate at all: Back to game has the accent's bar beside it from the start,
+  the others take it under the pointer. On the right stands the player as they are at that moment (armour, what
+  they hold) on the piece of the world they stand on, cut out the way a doll's house is: the ground under their
+  feet, and behind them what they were looking at, with no ceiling and nothing between them and the viewer. Under
+  it are their hearts, armour, hunger and level, and where they are. A click on the figure opens the profile.
 
 Dev-mode extras: element types `slate_menu:continue_card`, `slate_menu:world_list`,
 `slate_menu:server_status`; actions `slate_menu:open_screenshots`, `open_worlds`, `open_servers`,

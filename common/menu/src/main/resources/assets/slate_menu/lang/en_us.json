@@ -1,5 +1,5 @@
 {
-  "slate_menu.name": "Slate Menu",
+  "slate_menu.name": "Slate UI",
 
   "slate_menu.refresh": "Refresh",
   "slate_menu.view_toggle": "Switch view",
@@ -105,6 +105,10 @@
   "slate_menu.pause.confirm_quit_mp": "Disconnect from the server?",
   "slate_menu.pause.session": "Playing for %s",
   "slate_menu.pause.day_time": "Day %s · %s",
+  "slate_menu.pause.level": "Lv %s",
+  "slate_menu.pause.card.world": "THIS WORLD",
+  "slate_menu.pause.card.server": "THIS SERVER",
+  "slate_menu.pause.card.you": "YOU",
 
   "slate_menu.disconnected.reconnect": "Reconnect to %s",
 
@@ -189,5 +193,12 @@
   "slate_menu.loading.spawn": "Preparing the spawn area",
   "slate_menu.loading.joining": "Joining %s",
   "slate_menu.loading.joining_server": "Joining server",
-  "slate_menu.loading.generic": "Loading"
+  "slate_menu.loading.generic": "Loading",
+  "slate_menu.loading.resources": "Loading resources",
+  "slate_menu.journey.opening_world": "Opening world",
+  "slate_menu.journey.leaving_world": "Leaving world",
+  "slate_menu.journey.joining_server": "Joining server",
+  "slate_menu.journey.leaving_server": "Leaving server",
+  "slate_menu.journey.disconnecting": "Disconnecting",
+  "slate_menu.journey.waiting": "One moment"
 }

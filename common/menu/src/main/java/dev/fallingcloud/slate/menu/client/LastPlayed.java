@@ -2,8 +2,8 @@ package dev.fallingcloud.slate.menu.client;
 
 import dev.fallingcloud.slate.menu.MenuConfig;
 import dev.fallingcloud.slate.menu.SlateMenu;
-import dev.fallingcloud.slate.menu.client.servers.ServerActions;
-import dev.fallingcloud.slate.menu.client.worlds.WorldActions;
+import dev.fallingcloud.slate.menu.client.play.model.ServerActions;
+import dev.fallingcloud.slate.menu.client.play.model.WorldActions;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;

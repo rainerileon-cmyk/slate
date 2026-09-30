@@ -10,7 +10,11 @@ import dev.fallingcloud.slate.core.gfx.SlateDraw;
 import dev.fallingcloud.slate.core.layout.ElementType;
 import dev.fallingcloud.slate.core.layout.ElementTypes;
 import dev.fallingcloud.slate.core.layout.ScreenLayout;
+import dev.fallingcloud.slate.core.module.Features;
+import dev.fallingcloud.slate.core.module.KnownModules;
 import dev.fallingcloud.slate.core.module.Modules;
+import dev.fallingcloud.slate.core.screen.slot.CoreSlots;
+import dev.fallingcloud.slate.core.screen.slot.MenuSlots;
 import dev.fallingcloud.slate.core.platform.SlatePlatform;
 import dev.fallingcloud.slate.core.screen.SlateScreen;
 import dev.fallingcloud.slate.core.theme.Colors;
@@ -148,8 +152,10 @@ public final class SlateTitleScreen extends SlateScreen {
             mp.tip(mc.isNameBanned() ? Component.translatable("title.multiplayer.disabled.banned.name") : Component.translatable("title.multiplayer.disabled"));
         }
         nav.add(mp);
-        MenuClient.friendsScreenId().ifPresent(id ->
-            nav.add(new NavButton(0, 0, NAV_W, Icon.FRIENDS, Component.translatable("slate_menu.title.friends"), () -> CoreActions.openScreen(id))));
+        // Friends needs the Multiplayer module: the Custom layout leaves the button out when it is missing (R3).
+        if (Features.present(KnownModules.MULTIPLAYER)) {
+            nav.add(new NavButton(0, 0, NAV_W, Icon.FRIENDS, Component.translatable("slate_menu.title.friends"), () -> MenuSlots.open(CoreSlots.FRIENDS, this)));
+        }
         nav.add(new NavButton(0, 0, NAV_W, Icon.CAMERA, Component.translatable("slate_menu.screenshots.title"), () -> mc.setScreen(new SlateScreenshotsScreen(this))));
         if (cfg.showModsButton) {
             final Optional<Function<Screen, Screen>> mods = ModsScreenOpener.factory();
@@ -225,8 +231,7 @@ public final class SlateTitleScreen extends SlateScreen {
         // block over the panorama instead of floating loose.
         if (!t.isVanilla() && navBottom > 0) {
             final int plateTop = logoY + 51 + (height < 300 ? 8 : 14) - 6;
-            SlateDraw.pixelRound(g, navLeft - 6, plateTop, NAV_W + 12, navBottom - plateTop + 6, Colors.withAlpha(t.palette().bg(), Math.round(0x8C * fade)), t.radius());
-            SlateDraw.outline(g, navLeft - 6, plateTop, NAV_W + 12, navBottom - plateTop + 6, Colors.withAlpha(t.palette().border(), Math.round(0xB0 * fade)), t.radius());
+            SlateDraw.floatingPanel(g, navLeft - 6, plateTop, NAV_W + 12, navBottom - plateTop + 6, fade);
         }
     }
 
@@ -251,7 +256,8 @@ public final class SlateTitleScreen extends SlateScreen {
         final Theme t = Theme.current();
         final Palette p = t.palette();
         final float fade = fadeIn();
-        if (splash != null && !splash.isEmpty()) renderSplash(g, fade);
+        // The splash belongs to the Vanilla style: the Slate style leaves the logo alone.
+        if (splash != null && !splash.isEmpty() && t.isVanilla()) renderSplash(g, fade);
         if (!SlateMenu.config().showFooter) return;
         // Footer: version + loader + mod count; copyright as vanilla requires.
         final int fg = Colors.scaleAlpha(t.isVanilla() ? 0xFFFFFFFF : p.textMuted(), fade);

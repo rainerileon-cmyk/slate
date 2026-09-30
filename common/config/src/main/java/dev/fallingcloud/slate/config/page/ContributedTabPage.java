@@ -18,6 +18,7 @@ public final class ContributedTabPage extends OptionPageBase {
     public ContributedTabPage(final SettingsTabs.Tab tab) {
         super(tab.id(), tab.title(), tab.icon());
         this.tab = tab;
+        level(Level.ALL);
     }
 
     public SettingsTabs.Tab tab() { return tab; }

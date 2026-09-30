@@ -1,11 +1,15 @@
 package dev.fallingcloud.slate.config.hub;
 
+import dev.fallingcloud.slate.config.ConfigSettings;
 import dev.fallingcloud.slate.config.SlateConfig;
 import dev.fallingcloud.slate.config.curated.CuratedPages;
 import dev.fallingcloud.slate.config.page.AudioPage;
 import dev.fallingcloud.slate.config.page.CategoryPage;
+import dev.fallingcloud.slate.config.page.CompositePage;
+import dev.fallingcloud.slate.config.page.ConfigFilesPage;
 import dev.fallingcloud.slate.config.page.ControlsPage;
 import dev.fallingcloud.slate.config.page.CuratedPage;
+import dev.fallingcloud.slate.config.page.EssentialsPage;
 import dev.fallingcloud.slate.config.page.FavouritesPage;
 import dev.fallingcloud.slate.config.page.GameplayGeneralPage;
 import dev.fallingcloud.slate.config.page.InterfacePage;
@@ -23,7 +27,9 @@ import dev.fallingcloud.slate.config.ui.ApplyQueue;
 import dev.fallingcloud.slate.config.ui.ConfigSearchField;
 import dev.fallingcloud.slate.config.ui.ConfigTextField;
 import dev.fallingcloud.slate.config.ui.Entrance;
+import dev.fallingcloud.slate.config.ui.LiveGameView;
 import dev.fallingcloud.slate.config.ui.OptionPageBase;
+import dev.fallingcloud.slate.config.ui.PageColumns;
 import dev.fallingcloud.slate.config.ui.TabHost;
 import dev.fallingcloud.slate.core.gfx.Fonts;
 import dev.fallingcloud.slate.core.gfx.Icon;
@@ -33,6 +39,9 @@ import dev.fallingcloud.slate.core.platform.SlatePlatform;
 import dev.fallingcloud.slate.core.screen.ScreenSwaps;
 import dev.fallingcloud.slate.core.screen.SidebarPage;
 import dev.fallingcloud.slate.core.screen.SidebarScreen;
+import dev.fallingcloud.slate.core.screen.slot.CoreSlots;
+import dev.fallingcloud.slate.core.screen.slot.Layout;
+import dev.fallingcloud.slate.core.screen.slot.MenuSlots;
 import dev.fallingcloud.slate.core.theme.Theme;
 import dev.fallingcloud.slate.core.widget.SlateIconButton;
 import dev.fallingcloud.slate.core.widget.SlateModal;
@@ -55,21 +64,33 @@ import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * The unified settings screen. Sidebar: Video, Audio, Controls, Gameplay, Interface, Multiplayer,
- * Customization, Language &amp; Accessibility, Favourites, Presets, then any curated pages a modpack ships.
- * Every page shows its sections as top tabs; the four categories hold whole pages as tabs (see
- * {@link CategoryPage}). A header search filters the tab on screen and lists hits everywhere else, reset
- * works on the current tab, and an escape hatch opens vanilla's options.
+ * The unified settings screen, in ten categories: General (the few options everybody changes), Gameplay (how the
+ * game plays, and the tabs modules add: Slate Building's is one), Video, Controls, Audio, Multiplayer, Interface,
+ * Language &amp; accessibility, Customization and Advanced. Advanced holds
+ * every row flagged {@link dev.fallingcloud.slate.config.option.OptionBinding#advanced() advanced}, page by page
+ * with the same structure, plus Favourites, Presets, the raw config files and the curated pages a modpack ships.
+ * Every page shows its sections as top tabs; a category holds whole pages as tabs (see {@link CategoryPage}). A
+ * header search filters the tab on screen and lists hits everywhere else (advanced rows included), reset works
+ * on the current tab, and an escape hatch opens vanilla's options.
  *
- * <p>Pages are opened by path: a sidebar id, {@code category/tab}, or {@code page/tab} for a top tab of an
- * option page (e.g. {@code controls/keys}); the pre-tabs ids ({@code chat}, {@code packs}, {@code mods},
- * {@code language}, ...) are aliases. Keyboard: Ctrl+Tab cycles the sidebar, Ctrl+PgUp/PgDn the top tabs,
- * Ctrl+Shift+PgUp/PgDn the small tabs under them.</p>
+ * <p>Two presentations of the same pages. The Custom layout's is the sidebar and a list of rows. The Overhaul
+ * layout's is its sketch (docs/LAYOUTS.md, 8): the tabs listed down the left in the heading font, the header
+ * reading "Settings – Tab", the game view ({@link LiveGameView}) over General and Video while a world is open, and
+ * the rows as tiles in two columns.</p>
+ *
+ * <p>Pages are opened by path: a category id, {@code category/tab}, or {@code page/tab} for a top tab of an
+ * option page (e.g. {@code controls/keys}); a tab's own id alone finds it inside its category ({@code presets},
+ * {@code curated:pack}), and the pre-tabs ids ({@code chat}, {@code packs}, {@code mods}, {@code language}, ...)
+ * are aliases. Keyboard: Ctrl+Tab cycles the categories, Ctrl+PgUp/PgDn the top tabs, Ctrl+Shift+PgUp/PgDn the
+ * small tabs under them.</p>
  */
-public final class ConfigHubScreen extends SidebarScreen {
+public final class ConfigHubScreen extends SidebarScreen implements PageColumns {
 
-    public static final String GAMEPLAY = "gameplay", MULTIPLAYER = "multiplayer", CUSTOMIZATION = "customization",
-        LANGUAGE_ACCESSIBILITY = "language_accessibility";
+    public static final String GENERAL = "general", GAMEPLAY = "gameplay", MULTIPLAYER = "multiplayer", CUSTOMIZATION = "customization",
+        LANGUAGE_ACCESSIBILITY = "language_accessibility", ADVANCED = "advanced";
+
+    /** How the pages are presented: the Custom layout's sidebar, or the Overhaul layout's tab list, game view and tiles. */
+    public enum Presentation { SIDEBAR, OVERHAUL }
 
     /** Page ids from before the categories, and handy shortcuts. */
     private static final Map<String, String> ALIASES = Map.ofEntries(
@@ -83,8 +104,12 @@ public final class ConfigHubScreen extends SidebarScreen {
         Map.entry("skin", "multiplayer/skin"),
         Map.entry("language", "language_accessibility/language"),
         Map.entry("accessibility", "language_accessibility/accessibility"),
-        Map.entry("general", "gameplay/general"),
+        Map.entry("essentials", "general"),
+        Map.entry("gameplay/essentials", "general"),
         Map.entry("difficulty", "gameplay/general"),
+        Map.entry("building", "gameplay/building"),
+        Map.entry("files", "advanced/files"),
+        Map.entry("configs", "advanced/files"),
         Map.entry("keybinds", "controls/keys"),
         Map.entry("keys", "controls/keys"),
         Map.entry("sound", "audio"),
@@ -99,32 +124,105 @@ public final class ConfigHubScreen extends SidebarScreen {
     private String searchText = "";
     @Nullable private List<AbstractWidget> capture;
     private boolean firstBuild = true;
+    private final Presentation presentation;
+    @Nullable private LiveGameView liveView;
 
     public ConfigHubScreen(@Nullable final Screen parent, @Nullable final String page) {
+        this(parent, page, Presentation.SIDEBAR);
+    }
+
+    public ConfigHubScreen(@Nullable final Screen parent, @Nullable final String page, final Presentation presentation) {
         super(Component.translatable("slate_config.hub.title"), parent, "slate_config:hub");
         this.pendingPage = page;
+        this.presentation = presentation;
+    }
+
+    /** The hub in the presentation the options menu's effective layout asks for. */
+    public static ConfigHubScreen forLayout(@Nullable final Screen parent, @Nullable final String page) {
+        final boolean overhaul = MenuSlots.effective(CoreSlots.OPTIONS) == Layout.OVERHAUL;
+        return new ConfigHubScreen(parent, page, overhaul ? Presentation.OVERHAUL : Presentation.SIDEBAR);
+    }
+
+    public Presentation presentation() { return presentation; }
+
+    private boolean overhaul() { return presentation == Presentation.OVERHAUL; }
+
+    /** Two columns of tiles in the Overhaul layout, wherever a page is wide enough to hold two. */
+    @Override
+    public int columns(final int pageWidth) { return overhaul() && pageWidth >= 272 ? 2 : 1; }
+
+    @Override
+    protected boolean overhaulNav() { return overhaul(); }
+
+    /** What a tab is called in the list: the Overhaul list is short of room and says "Accessibility" for the long one. */
+    @Override
+    protected Component navTitle(final SidebarPage p) {
+        if (overhaul() && LANGUAGE_ACCESSIBILITY.equals(p.id())) return Component.translatable("slate_config.page.accessibility_short");
+        return p.title();
     }
 
     @Override
     protected void definePages(final List<SidebarPage> pages) {
+        // General: the handful of options everybody changes, on the page the hub opens with.
+        pages.add(new EssentialsPage(GENERAL, Component.translatable("slate_config.category.general"), Icon.HOME));
+        // Gameplay: how the game plays (the world's difficulty, the player's options), and the tabs modules add to it:
+        // Slate Building's settings are one.
+        pages.add(new CategoryPage(GAMEPLAY, Component.translatable("slate_config.category.gameplay"), Icon.GAMEPLAY,
+            List.of(new GameplayGeneralPage())));
         pages.add(new VideoPage());
-        pages.add(new AudioPage());
         pages.add(new ControlsPage());
-        pages.add(new CategoryPage(GAMEPLAY, Component.translatable("slate_config.page.gameplay"), Icon.GAMEPLAY, List.of(new GameplayGeneralPage())));
-        // Skin lives with the other "how others see me" settings.
+        pages.add(new AudioPage());
+        // Skin lives with the other "how others see me" settings; the Friends tab comes from the Multiplayer module.
         pages.add(new CategoryPage(MULTIPLAYER, Component.translatable("slate_config.page.multiplayer"), Icon.MULTIPLAYER,
             List.of(new SimplePages.OnlinePage(), new SimplePages.ChatPage(), new SkinPage())));
+        pages.add(new InterfacePage());
+        pages.add(new CategoryPage(LANGUAGE_ACCESSIBILITY, Component.translatable("slate_config.page.language_accessibility"), Icon.ACCESSIBILITY,
+            List.of(new LanguagePage(), new SimplePages.AccessibilityPage())));
         final List<SidebarPage> custom = new ArrayList<>(List.of(new ModsPage(), new ResourcePacksPage()));
         if (SlatePlatform.get().isModLoaded("iris")) custom.add(new ShaderPacksPage());
         pages.add(new CategoryPage(CUSTOMIZATION, Component.translatable("slate_config.page.customization"), Icon.CUSTOMIZE, custom));
-        pages.add(new InterfacePage());
-        // Still id "language_accessibility" (paths and remembered tabs); the sidebar just says Accessibility.
-        pages.add(new CategoryPage(LANGUAGE_ACCESSIBILITY, Component.translatable("slate_config.page.language_accessibility"), Icon.ACCESSIBILITY,
-            List.of(new LanguagePage(), new SimplePages.AccessibilityPage())));
-        pages.add(new FavouritesPage());
-        pages.add(new PresetsPage());
-        for (final CuratedPages.PageDef def : CuratedPages.load()) pages.add(new CuratedPage(def));
+        // Advanced: the same pages, showing only their advanced rows, then the power tools and the pack's curated pages.
+        final List<SidebarPage> advanced = new ArrayList<>();
+        advanced.add(new VideoPage().level(OptionPageBase.Level.ADVANCED));
+        advanced.add(new ControlsPage().level(OptionPageBase.Level.ADVANCED));
+        advanced.add(new CompositePage(MULTIPLAYER, Component.translatable("slate_config.page.multiplayer"), Icon.MULTIPLAYER,
+            List.of(new SimplePages.OnlinePage(), new SimplePages.ChatPage())).level(OptionPageBase.Level.ADVANCED));
+        advanced.add(new InterfacePage().level(OptionPageBase.Level.ADVANCED));
+        advanced.add(new FavouritesPage());
+        advanced.add(new PresetsPage());
+        advanced.add(new ConfigFilesPage());
+        for (final CuratedPages.PageDef def : CuratedPages.load()) advanced.add(new CuratedPage(def));
+        pages.add(new CategoryPage(ADVANCED, Component.translatable("slate_config.page.advanced"), Icon.WRENCH, advanced));
         index();        // warms the search index and publishes every page-local binding for favourites/presets
+    }
+
+    // ------------------------------------------------------------------ the game view (Overhaul)
+
+    /** Overhaul only, in a world, above General and Video. */
+    private boolean liveViewWanted() {
+        if (presentation != Presentation.OVERHAUL || minecraft == null || minecraft.level == null) return false;
+        final SidebarPage p = currentPage();
+        return p != null && (GENERAL.equals(p.id()) || "video".equals(p.id()));
+    }
+
+    /** The page area starts under the game view when it is shown. */
+    @Override
+    public Rect pageRect() {
+        final Rect r = super.pageRect();
+        if (!liveViewWanted()) return r;
+        final int h = LiveGameView.heightFor(r, ConfigSettings.get().liveViewMinimised);
+        return new Rect(r.x(), r.y() + h + 6, r.w(), Math.max(20, r.h() - h - 6));
+    }
+
+    private void mountLiveView() {
+        liveView = null;
+        if (!liveViewWanted()) return;
+        final Rect r = super.pageRect();
+        final boolean minimised = ConfigSettings.get().liveViewMinimised;
+        liveView = addPageWidget(new LiveGameView(r.x(), r.y(), r.w(), LiveGameView.heightFor(r, minimised), minimised, () -> {
+            ConfigSettings.file().update(c -> c.liveViewMinimised = !c.liveViewMinimised);
+            refreshPage();
+        }));
     }
 
     @Override
@@ -147,6 +245,7 @@ public final class ConfigHubScreen extends SidebarScreen {
             open(p);
         }
         capture = null;
+        mountLiveView();
         if (firstBuild) {
             // Option rows are not reached by the screen's own entrance: stagger the page in here.
             firstBuild = false;
@@ -172,6 +271,16 @@ public final class ConfigHubScreen extends SidebarScreen {
         return Math.max(NAV_W, Math.min(widest + 34, Math.max(NAV_W, width / 4)));
     }
 
+
+    @Override
+    public void renderBackground(final GuiGraphics g, final int mouseX, final int mouseY, final float partialTick) {
+        super.renderBackground(g, mouseX, mouseY, partialTick);
+        if (!overhaul() || Theme.current().isVanilla() || (minecraft != null && minecraft.level != null)) return;
+        // Out of a world the screen stands on a dark that has depth: near black above, a breath of warmth below.
+        SlateDraw.vgradient(g, 0, HEADER_H, width, height - HEADER_H, 0xFF0B0C0F, 0xFF1A1816);
+        SlateDraw.vignette(g, 0, HEADER_H, width, height - HEADER_H, 0.4f);
+    }
+
     /** With top tabs right below, the title drops its rule: the strip's baseline is the divider. */
     /** No title row inside the page: the header reads "Settings › Controls" and the tabs start right under it. */
     @Override
@@ -180,7 +289,9 @@ public final class ConfigHubScreen extends SidebarScreen {
     @Override
     public Component getTitle() {
         final SidebarPage page = pages().isEmpty() ? null : currentPage();
-        return page == null ? super.getTitle() : Component.literal(super.getTitle().getString() + " › " + page.title().getString());
+        if (page == null) return super.getTitle();
+        // The sketch's "Settings – Tab".
+        return Component.literal(super.getTitle().getString() + (overhaul() ? " – " : " › ") + page.title().getString());
     }
 
     // ------------------------------------------------------------------ navigation
@@ -195,6 +306,14 @@ public final class ConfigHubScreen extends SidebarScreen {
         SidebarPage page = find(parts[0]);
         if (page == null) page = find("curated:" + parts[0]);
         if (page == null) {
+            // A tab's own id (presets, favourites, files, curated:pack): open it inside whichever category holds it.
+            for (final SidebarPage p : pages()) {
+                if (p instanceof CategoryPage cp && (cp.child(parts[0]) != null || cp.child("curated:" + parts[0]) != null)) {
+                    final String child = cp.child(parts[0]) != null ? parts[0] : "curated:" + parts[0];
+                    open(cp.id() + "/" + child + (parts.length > 1 ? "/" + parts[1] : ""));
+                    return;
+                }
+            }
             SlateConfig.LOGGER.warn("[Slate Config] no settings page '{}'", raw);
             return;
         }
@@ -257,6 +376,7 @@ public final class ConfigHubScreen extends SidebarScreen {
         capture = built;
         super.showPage(index);
         capture = outer;
+        if (changing) mountLiveView();
         if (built != null) {
             int i = 0;
             for (final AbstractWidget w : built) i = Entrance.play(w, i);
@@ -268,6 +388,7 @@ public final class ConfigHubScreen extends SidebarScreen {
     @Override
     public void refreshPage() {
         super.refreshPage();
+        mountLiveView();
         trackOptionPage();
         updateResetButton();
     }

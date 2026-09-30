@@ -19,6 +19,7 @@ import dev.fallingcloud.slate.core.widget.SlateSlider;
 import dev.fallingcloud.slate.core.widget.SlateToggle;
 import dev.fallingcloud.slate.menu.MenuConfig;
 import dev.fallingcloud.slate.menu.SlateMenu;
+import dev.fallingcloud.slate.menu.client.MenuClient;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -373,7 +374,7 @@ public final class SlateOptionsScreen extends SidebarScreen {
                 c.add(cfgToggle(c.w, "pause_screen", m.pauseScreen, v -> m.pauseScreen = v));
                 c.add(cfgToggle(c.w, "options_screen", m.optionsScreen, v -> m.optionsScreen = v));
                 c.add(cfgToggle(c.w, "disconnected_screen", m.disconnectedScreen, v -> m.disconnectedScreen = v));
-                c.add(cfgToggle(c.w, "loading_screens", m.loadingScreens, v -> m.loadingScreens = v));
+                c.add(cfgToggle(c.w, "loading_screens", m.loadingScreens, v -> { m.loadingScreens = v; MenuClient.refreshLoadingSupport(); }));
                 c.section(Component.translatable("slate_menu.options.menu.section.title"));
                 c.add(cfgToggle(c.w, "panorama", m.panorama, v -> m.panorama = v));
                 c.add(cfgToggle(c.w, "splash", m.splash, v -> m.splash = v));

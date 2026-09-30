@@ -1,0 +1,30 @@
+{
+  "background": { "top": "#0F131B", "bottom": "#1E2431" },
+  "structure": { "file": "stage_test", "centered": true, "hideAnchorBlocks": true },
+  "camera": {
+    "fov": 40,
+    "near": 0.05,
+    "far": 128,
+    "pose": { "position": [0.0, 3.4, 9.2], "target": [0.0, 1.1, 0.0] },
+    "intro": [
+      { "type": "line", "duration": 2600, "ease": "outCubic",
+        "from": { "position": [0.0, 7.5, 16.0], "target": [0.0, 1.1, 0.0], "fov": 46 },
+        "to":   { "position": [0.0, 3.4, 9.2], "target": [0.0, 1.1, 0.0], "fov": 40 } },
+      { "type": "hold", "duration": 150 }
+    ],
+    "idle": { "type": "sway", "period": 12000, "yaw": 3, "pitch": 1, "bob": 0.04 }
+  },
+  "light": { "sun": [0.4, 1.0, 0.6], "ambient": 0.45, "blockLight": 15, "skyLight": 15 },
+  "resolution": 1.0,
+  "anchors": {
+    "chest":    { "pos": [0.4, 1.0, 1.4],   "rot": [0, 0, 0] },
+    "sign":     { "pos": [2.1, 1.0, 3.2],   "rot": [-8, 0, 0] },
+    "player_a": { "pos": [-2.9, 1.0, 1.0],  "rot": [22, 0, 0] },
+    "player_b": { "pos": [2.7, 1.0, 1.3],   "rot": [-20, 0, 0] },
+    "item":     { "pos": [-1.5, 1.4, -1.6], "rot": [0, 0, 0] },
+    "cog":      { "pos": [1.7, 1.6, -1.6],  "rot": [0, 90, 0] },
+    "wolf":     { "pos": [3.2, 1.0, -2.8],  "rot": [-30, 0, 0] },
+    "planet":   { "pos": [-3.6, 3.3, -3.6], "rot": [0, 0, 0] },
+    "island":   { "pos": [4.6, 2.5, -4.4],  "rot": [25, 0, 0] }
+  }
+}

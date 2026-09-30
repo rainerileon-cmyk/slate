@@ -2,6 +2,7 @@ package dev.fallingcloud.slate.building.ops.server;
 
 import dev.fallingcloud.slate.building.SlateBuilding;
 import dev.fallingcloud.slate.building.block.ShapeBlockEntity;
+import dev.fallingcloud.slate.building.compat.SubLevels;
 import dev.fallingcloud.slate.building.config.ServerOps;
 import dev.fallingcloud.slate.building.ops.BuildMode;
 import dev.fallingcloud.slate.building.ops.BuildModes;
@@ -226,6 +227,8 @@ final class RunningOp {
         final BlockState existingMaterial = existingShape ? ShapeBlock.material(level, pos) : null;
         final boolean revert = st.expect() != null;
         final boolean free = economy.isFree();
+        // What was done on a Sable sub-level is undone on that sub-level only, not in whatever has its plot by now.
+        if (revert && st.origin() != null && !Objects.equals(st.origin().space(), SubLevels.idAt(level, pos))) return Outcome.SKIPPED;
 
         // "Still what the operation left there": same block and material, and worth the same (a bitten cake, a split
         // double slab, grown crops or extra candles are not; stair corners and fence connections may differ).
@@ -388,7 +391,7 @@ final class RunningOp {
         }
 
         final BlockState after = level.getBlockState(pos);
-        records.add(new History.BlockRecord(pos, existing, existingMaterial, beforeData, after,
+        records.add(new History.BlockRecord(pos, SubLevels.idAt(level, pos), existing, existingMaterial, beforeData, after,
             after.getBlock() instanceof ShapeBlock ? st.targetMaterial() : null, paid, gained));
         if (!placing) removed++;
         else if (replaceable) placed++;
@@ -428,7 +431,7 @@ final class RunningOp {
             final List<Economy.Cost> gained = new ArrayList<>(converted);
             if (take < l.units()) gained.add(0, new Economy.Cost(l.key(), l.units() - take));
             final History.BlockRecord r = records.get(l.record());
-            records.set(l.record(), new History.BlockRecord(r.pos(), r.before(), r.beforeMaterial(), r.beforeData(), r.after(),
+            records.set(l.record(), new History.BlockRecord(r.pos(), r.space(), r.before(), r.beforeMaterial(), r.beforeData(), r.after(),
                 r.afterMaterial(), r.paid(), List.copyOf(gained)));
         }
     }

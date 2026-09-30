@@ -1,5 +1,7 @@
 package dev.fallingcloud.slate.earlywindow;
 
+import dev.fallingcloud.slate.earlywindow.scene.Gfx;
+import dev.fallingcloud.slate.earlywindow.scene.PixelFont;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
@@ -264,12 +266,22 @@ final class SlateScene {
     }
 
     private static ByteBuffer load(final String resource) {
+        final byte[] bytes = bytes(resource);
+        return MemoryUtil.memAlloc(bytes.length).put(bytes).flip();
+    }
+
+    /** A file of this jar. */
+    static byte[] bytes(final String resource) {
         try (InputStream in = SlateScene.class.getResourceAsStream(resource)) {
             if (in == null) throw new IllegalStateException("missing " + resource);
-            final byte[] bytes = in.readAllBytes();
-            return MemoryUtil.memAlloc(bytes.length).put(bytes).flip();
+            return in.readAllBytes();
         } catch (final IOException e) {
             throw new IllegalStateException("could not read " + resource, e);
         }
+    }
+
+    /** The game's automatic GUI scale for a canvas of this size. */
+    static int scaleFor(final int w, final int h) {
+        return guiScale(w, h);
     }
 }

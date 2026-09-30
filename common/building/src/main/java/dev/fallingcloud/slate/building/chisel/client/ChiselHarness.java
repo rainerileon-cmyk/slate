@@ -240,7 +240,9 @@ final class ChiselHarness {
         expect(chisel.equals(List.of(Blocks.BRICKS, Blocks.MUD_BRICKS)) && !g.contains(Blocks.COPPER_BLOCK),
             "Chisel carving tag group: copper states split off and left alone (" + ids(chisel) + ")");
         final List<String> pages = g.groupsOf(Blocks.ANDESITE).stream().map(x -> x.source() + ":" + x.name().getString()).toList();
-        expect(pages.equals(List.of("overrides:Andesite", "rechiseled:Rechiseled")), "andesite's pages in provider order " + pages);
+        // Other mods of the run may add pages after these two (Create's stonecutting does).
+        expect(pages.size() >= 2 && pages.subList(0, 2).equals(List.of("overrides:Andesite", "rechiseled:Rechiseled")),
+            "andesite's pages in provider order " + pages);
     }
 
     /** Members of the first group from {@code source} containing {@code block} (empty when there is none). */

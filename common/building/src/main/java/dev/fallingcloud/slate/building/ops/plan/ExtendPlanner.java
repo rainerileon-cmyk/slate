@@ -42,7 +42,7 @@ public final class ExtendPlanner {
         final Variant sourceVariant = Placement.variantAt(level, start, source);
         final int tier = Math.max(ToolTier.MIN, ToolboxAccess.of(ctx.player()).tier(ToolType.TROWEL));
         final int max = Math.min(ctx.limits().maxVolume(), ToolTier.index(BuildingServerSettings.effective(level).ops().extendMax, tier));
-        final List<Vec3i> steps = steps(face, ctx.params().getChoice("lock"), ctx.player().getDirection());
+        final List<Vec3i> steps = steps(face, ctx.params().getChoice("lock"), ctx.facing());
         final Palette.WeightedEntry held = ctx.palette().first();
 
         final PlanBuilder pb = new PlanBuilder(ctx);

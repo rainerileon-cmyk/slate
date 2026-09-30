@@ -5,7 +5,7 @@ import dev.fallingcloud.slate.config.option.OptionType;
 import dev.fallingcloud.slate.config.ui.OptionPageBase;
 import dev.fallingcloud.slate.config.ui.Section;
 import dev.fallingcloud.slate.core.gfx.Icon;
-import dev.fallingcloud.slate.config.ui.FilePicker;
+import dev.fallingcloud.slate.core.media.FilePicker;
 import dev.fallingcloud.slate.core.widget.SlateToasts;
 import java.nio.file.Path;
 import java.util.ArrayList;

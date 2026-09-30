@@ -2,6 +2,7 @@ package dev.fallingcloud.slate.core.client;
 
 import dev.fallingcloud.slate.core.Slate;
 import dev.fallingcloud.slate.core.gfx.Fonts;
+import dev.fallingcloud.slate.core.client.settings.LayoutStyleRows;
 import dev.fallingcloud.slate.core.gfx.Icon;
 import dev.fallingcloud.slate.core.gfx.Icons;
 import dev.fallingcloud.slate.core.gfx.SlateDraw;
@@ -75,28 +76,28 @@ public final class SlateHubScreen extends SlateScreen {
         final int inner = w - CARD_PAD * 2;
         int y = 0;
 
-        // Theme card: skin + accent, live.
-        {
+        // Theme card (layout, style, containers, accent): only in the vanilla layout, where the hub is the way to Slate. The
+        // Slate layouts reach the same rows through Options > Interface (A6.8, Q9).
+        if (dev.fallingcloud.slate.core.screen.slot.MenuSlots.globalLayout() == dev.fallingcloud.slate.core.screen.slot.Layout.VANILLA) {
             final SlateCard card = new SlateCard(0, 0, w, 0).flat();
             int cy = CARD_PAD;
             card.add(new SlateLabel(0, 0, inner, Component.translatable("slate.hub.theme")).style(SlateLabel.Style.TITLE), CARD_PAD, cy);
             cy += 16;
-            // The three switches (layout, menu style, container style), two per row when the card is wide enough.
+            // The three rows of the setup screen (layout, menu style, container style): Core's own controls, applied live.
             final boolean twoCols = inner >= 300;
             final int colW = twoCols ? (inner - 8) / 2 : inner;
-            final SlateToggle layout = new SlateToggle(0, 0, colW, Component.translatable("slate.setup.layout"), Slate.config().customLayout,
-                v -> { Slate.configFile().update(cfg -> cfg.customLayout = v); Theme.reload(); });
-            layout.tip(Component.translatable("slate.setup.layout.desc"));
-            final SlateToggle style = new SlateToggle(0, 0, colW, Component.translatable("slate.setup.style"), Slate.config().customStyle(),
-                v -> { Slate.configFile().update(cfg -> cfg.setCustomStyle(v)); Theme.reload(); Reskin.invalidate(); });
-            style.tip(Component.translatable("slate.setup.style.desc"));
-            final SlateToggle containers = new SlateToggle(0, 0, colW, Component.translatable("slate.setup.containers"), Slate.config().reskinContainers,
-                v -> { Slate.configFile().update(cfg -> cfg.reskinContainers = v); Theme.reload(); Reskin.invalidate(); });
+            card.add(new SlateLabel(0, 0, inner, LayoutStyleRows.layoutLabel()).style(SlateLabel.Style.CAPTION), CARD_PAD, cy);
+            cy += 11;
+            card.add(LayoutStyleRows.layoutSegmented(0, 0, inner, l -> rebuildWidgets()), CARD_PAD, cy);
+            cy += 26;
+            card.add(new SlateLabel(0, 0, colW, LayoutStyleRows.styleLabel()).style(SlateLabel.Style.CAPTION), CARD_PAD, cy);
+            cy += 11;
+            card.add(LayoutStyleRows.styleSegmented(0, 0, colW, s -> rebuildWidgets()), CARD_PAD, cy);
+            final SlateToggle containers = LayoutStyleRows.containersToggle(0, 0, colW, v -> {});
             containers.tip(Component.translatable("slate.setup.containers.desc"));
-            card.add(layout, CARD_PAD, cy);
-            if (twoCols) { card.add(style, CARD_PAD + colW + 8, cy); cy += ROW_H; card.add(containers, CARD_PAD, cy); }
-            else { cy += ROW_H; card.add(style, CARD_PAD, cy); cy += ROW_H; card.add(containers, CARD_PAD, cy); }
-            cy += ROW_H + 4;
+            if (twoCols) { card.add(containers, CARD_PAD + colW + 8, cy + 4); cy += 24; }
+            else { cy += 24; card.add(containers, CARD_PAD, cy); cy += ROW_H; }
+            cy += 4;
             final int accent = Colors.fromHex(Slate.config().accent, Palette.DEFAULT_ACCENT);
             final SlateSwatches sw = new SlateSwatches(0, 0, inner, Palette.ACCENTS, accent,
                 argb -> { Slate.configFile().update(cfg -> cfg.accent = Colors.toHex(argb)); Theme.reload(); });

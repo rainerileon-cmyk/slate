@@ -30,6 +30,8 @@ public final class MultiplayerConfig {
     public boolean notifyStreams = true;
 
     // ---- screen share
+    /** Screen sharing (streams): the Streams tab of the friends screen, the stream buttons, the notifications. Off unless asked for. */
+    public boolean streams = false;
     /** Longest edge of a shared frame in pixels. */
     public int streamMaxWidth = 640;
     /** JPEG quality 0.2-0.9. */

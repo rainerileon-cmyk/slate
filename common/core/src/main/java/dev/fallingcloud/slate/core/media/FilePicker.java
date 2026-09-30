@@ -121,5 +121,72 @@ public final class FilePicker {
         }
     }
 
+    /**
+     * The blocking multi-select "open files" dialog, opened in {@code startDir}: the files the player picked, or an
+     * empty list when cancelled or when no dialog can be shown. Blocks the render thread while open, like vanilla's own
+     * dialogs (the Config module's pack imports use it).
+     */
+    public static List<Path> openFiles(final net.minecraft.network.chat.Component title, final Path startDir, @Nullable final String description, final String... patterns) {
+        if (open) return List.of();
+        open = true;
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            PointerBuffer filters = null;
+            if (patterns.length > 0) {
+                filters = stack.mallocPointer(patterns.length);
+                for (final String p : patterns) filters.put(stack.UTF8(p));
+                filters.flip();
+            }
+            // A trailing separator tells tinyfd this is a folder to open in, not a file name to suggest.
+            final String start = startDir.toAbsolutePath() + java.io.File.separator;
+            final String result = TinyFileDialogs.tinyfd_openFileDialog(title.getString(), start, filters, description, true);
+            if (result == null || result.isBlank()) return List.of();
+            final List<Path> out = new java.util.ArrayList<>();
+            for (final String part : result.split("\\|")) if (!part.isBlank()) out.add(Path.of(part.trim()));
+            if (!out.isEmpty() && out.get(0).getParent() != null) lastDir = out.get(0).getParent();
+            return out;
+        } catch (final Throwable t) {
+            Slate.LOGGER.warn("[Slate] no file dialog available: {}", t.toString());
+            return List.of();
+        } finally {
+            open = false;
+        }
+    }
+
+    /** Copies {@code files} into {@code dir} (a "(2)" suffix when the name is taken); returns the names that landed. */
+    public static List<String> copyInto(final List<Path> files, final Path dir) {
+        final List<String> names = new java.util.ArrayList<>();
+        try {
+            Files.createDirectories(dir);
+        } catch (final java.io.IOException e) {
+            Slate.LOGGER.warn("[Slate] cannot create {}: {}", dir, e.toString());
+            return names;
+        }
+        for (final Path file : files) {
+            if (!Files.isRegularFile(file)) continue;
+            final String name = file.getFileName().toString();
+            Path target = dir.resolve(name);
+            if (Files.exists(target) && !sameFile(file, target)) {
+                final int dot = name.lastIndexOf('.');
+                final String stem = dot > 0 ? name.substring(0, dot) : name, ext = dot > 0 ? name.substring(dot) : "";
+                for (int i = 2; Files.exists(target); i++) target = dir.resolve(stem + " (" + i + ")" + ext);
+            }
+            try {
+                if (!sameFile(file, target)) Files.copy(file, target, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                names.add(target.getFileName().toString());
+            } catch (final java.io.IOException e) {
+                Slate.LOGGER.warn("[Slate] cannot copy {} into {}: {}", file, dir, e.toString());
+            }
+        }
+        return names;
+    }
+
+    private static boolean sameFile(final Path a, final Path b) {
+        try {
+            return Files.exists(b) && Files.isSameFile(a, b);
+        } catch (final java.io.IOException e) {
+            return false;
+        }
+    }
+
     private FilePicker() {}
 }

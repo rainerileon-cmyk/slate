@@ -3,6 +3,22 @@
 // FML's early display and loader come with NeoForge's classpath.
 base { archivesName = 'slate-earlywindow-neoforge-1.21.1' }
 
+// The drawing code and the Overhaul loading scene are Menu's (common/menu/.../client/loading/scene): plain OpenGL that
+// knows neither the game nor a loader, because it is drawn here before either exists and again by the loading overlay in
+// the game. This jar takes a copy under a package of its own: it runs in a layer under the mods', and the same package
+// in two layers does not resolve.
+def sceneFrom = file("${rootDir}/../common/menu/src/main/java/dev/fallingcloud/slate/menu/client/loading/scene")
+def sceneTo = layout.buildDirectory.dir('generated/sources/scene/java')
+def copyScene = tasks.register('copyScene', Sync) {
+    from(sceneFrom) {
+        include '*.java'
+        into 'dev/fallingcloud/slate/earlywindow/scene'
+        filter { String line -> line.replace('dev.fallingcloud.slate.menu.client.loading.scene', 'dev.fallingcloud.slate.earlywindow.scene') }
+    }
+    into sceneTo
+}
+sourceSets.main.java.srcDir(files(sceneTo).builtBy(copyScene))
+
 // The heading fonts and their licences come from Core's assets, the same files the game's headings use.
 processResources {
     from("${rootDir}/../common/core/src/main/resources/assets/slate/font") {

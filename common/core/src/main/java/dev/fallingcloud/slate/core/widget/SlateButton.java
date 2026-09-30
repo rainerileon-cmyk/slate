@@ -77,7 +77,7 @@ public class SlateButton extends SlateWidget {
 
     /** Programmatic activation with the same feedback as a click. */
     public void activate() {
-        if (!this.active || !this.visible) return;
+        if (!this.active || !this.visible || isLocked()) return;
         this.playDownSound(Minecraft.getInstance().getSoundManager());
         flashPress();
         if (onPress != null) onPress.run();
@@ -85,6 +85,7 @@ public class SlateButton extends SlateWidget {
 
     @Override
     public void onClick(final double mouseX, final double mouseY) {
+        if (isLocked()) return;
         super.onClick(mouseX, mouseY);
         if (onPress != null) onPress.run();
     }
@@ -137,6 +138,11 @@ public class SlateButton extends SlateWidget {
             fill = variant == Variant.GHOST ? 0 : Colors.withAlpha(p.surface(), 0x80);
             border = variant == Variant.GHOST ? 0 : Colors.withAlpha(p.border(), 0x80);
             fg = p.textDim();
+        } else if (isLocked()) {
+            // Locked: the face stays (it is hoverable, its tooltip explains), the content greys out, a lock marks it.
+            fill = Colors.lerp(Colors.withAlpha(p.surface(), 0x80), Colors.withAlpha(p.surfaceHover(), 0xA0), hov);
+            border = Colors.lerp(Colors.withAlpha(p.border(), 0x80), p.border(), hov);
+            fg = Colors.lerp(p.textDim(), p.textMuted(), hov);
         }
         // Press: darken and nudge 1 px down (pixel feel, no scaling).
         final int py = y + Math.round(prs);
@@ -148,6 +154,7 @@ public class SlateButton extends SlateWidget {
         SlateDraw.focusRing(g, x, py, w, h, foc * a);
 
         drawContent(g, x, py, w, h, Colors.scaleAlpha(fg, a), false);
+        if (isLocked()) drawLock(g, x, py, w, h, Colors.scaleAlpha(fg, a));
     }
 
     // ------------------------------------------------------------------ vanilla
@@ -167,11 +174,21 @@ public class SlateButton extends SlateWidget {
             drawContent(g, x, py, w, h, Colors.scaleAlpha(fg, a), true);
             return;
         }
-        SlateDraw.vanillaButton(g, x, py, w, h, this.active ? lift : 0f, this.active, a);
-        int fg = this.active ? 0xFFFFFFFF : 0xFFA0A0A0;
+        SlateDraw.vanillaButton(g, x, py, w, h, this.active ? lift : 0f, this.active && !isLocked(), a);
+        int fg = this.active && !isLocked() ? 0xFFFFFFFF : 0xFFA0A0A0;
         if (variant == Variant.PRIMARY && this.active) fg = Colors.lerp(0xFFFFFFFF, p.accent(), 0.35f);
         if (variant == Variant.DANGER && this.active) fg = Colors.lerp(0xFFFF6A6A, 0xFFFFFFFF, lift * 0.5f);
         drawContent(g, x, py, w, h, Colors.scaleAlpha(fg, a), true);
+        if (isLocked()) drawLock(g, x, py, w, h, Colors.scaleAlpha(fg, a));
+    }
+
+    /** The size of the lock glyph for a button of height {@code h}. */
+    protected static int lockSize(final int h) { return h >= 20 ? 8 : 6; }
+
+    /** The lock glyph of a locked button: at the right edge, vertically centred, in the content colour. */
+    protected void drawLock(final GuiGraphics g, final int x, final int y, final int w, final int h, final int color) {
+        final int s = lockSize(h);
+        Icons.draw(g, Icon.LOCK, x + w - s - PAD + 1, y + (h - s) / 2, s, color);
     }
 
     // ------------------------------------------------------------------ content
@@ -179,13 +196,14 @@ public class SlateButton extends SlateWidget {
     protected void drawContent(final GuiGraphics g, final int x, final int y, final int w, final int h, final int fg, final boolean shadow) {
         final boolean hasText = !getMessage().getString().isEmpty();
         final int iconW = icon == null ? 0 : iconSize + (hasText ? 4 : 0);
-        final int avail = Math.max(0, w - PAD * 2 - iconW);
+        final int lockW = isLocked() ? lockSize(h) + 4 : 0;                 // the lock glyph keeps its own room
+        final int avail = Math.max(0, w - PAD * 2 - iconW - lockW);
         final int fullW = hasText ? SlateDraw.width(getMessage()) : 0;
         final boolean overflow = fullW > avail;
         final FormattedCharSequence text = hasText ? (scrolling ? getMessage().getVisualOrderText() : SlateDraw.truncate(getMessage(), avail)) : null;
         final int textW = text == null ? 0 : Math.min(avail, SlateDraw.width(text));
         final int contentW = iconW + textW;
-        int cx = centered ? x + (w - contentW) / 2 : x + PAD;
+        int cx = centered ? x + (w - lockW - contentW) / 2 : x + PAD;
         final int ty = SlateDraw.textY(y, h);
         if (icon != null) {
             Icons.draw(g, icon, cx, y + (h - iconSize) / 2, iconSize, fg);

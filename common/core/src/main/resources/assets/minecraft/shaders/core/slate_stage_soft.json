@@ -1,0 +1,24 @@
+{
+    "vertex": "slate_stage_soft",
+    "fragment": "slate_stage_soft",
+    "samplers": [
+        { "name": "Sampler0" }
+    ],
+    "uniforms": [
+        { "name": "ModelViewMat", "type": "matrix4x4", "count": 16, "values": [ 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0 ] },
+        { "name": "ProjMat", "type": "matrix4x4", "count": 16, "values": [ 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0 ] },
+        { "name": "ColorModulator", "type": "float", "count": 4, "values": [ 1.0, 1.0, 1.0, 1.0 ] },
+        { "name": "KeyPos", "type": "float", "count": 3, "values": [ 0.0, 4.0, 4.0 ] },
+        { "name": "KeyColor", "type": "float", "count": 3, "values": [ 0.72, 0.67, 0.6 ] },
+        { "name": "FillDir", "type": "float", "count": 3, "values": [ -1.0, 0.2, 0.3 ] },
+        { "name": "FillColor", "type": "float", "count": 3, "values": [ 0.12, 0.15, 0.2 ] },
+        { "name": "Ambient", "type": "float", "count": 3, "values": [ 0.4, 0.38, 0.38 ] },
+        { "name": "RimColor", "type": "float", "count": 3, "values": [ 1.0, 0.9, 0.75 ] },
+        { "name": "RimStrength", "type": "float", "count": 1, "values": [ 0.25 ] },
+        { "name": "Wrap", "type": "float", "count": 1, "values": [ 0.45 ] },
+        { "name": "Muted", "type": "float", "count": 1, "values": [ 0.0 ] },
+        { "name": "FogStart", "type": "float", "count": 1, "values": [ 0.0 ] },
+        { "name": "FogEnd", "type": "float", "count": 1, "values": [ 0.0 ] },
+        { "name": "FogColor", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] }
+    ]
+}

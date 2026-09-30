@@ -46,7 +46,7 @@ public final class ChatScreenUi {
     private final List<SlateWidget> buttons = new ArrayList<>();
     private final ChannelTabs tabs;
     private final SlateSearchField search;
-    private final SlateIconButton attach, gif, mic;
+    private final SlateIconButton attach, gif, mic, record;
     @Nullable private final SlateIconButton emote;
     private boolean micHeld;
     private boolean draggingBar;
@@ -62,7 +62,7 @@ public final class ChatScreenUi {
         this.height = height;
         final ChatConfig cfg = ChatConfig.get();
         final boolean emotesOn = cfg.emotes;
-        final int n = emotesOn ? 4 : 3;
+        final int n = emotesOn ? 5 : 4;
         final int buttonsW = n * 16;
         input.setX(8);
         input.setWidth(Math.max(40, width - 8 - 6 - buttonsW - 6));
@@ -83,6 +83,10 @@ public final class ChatScreenUi {
         bx -= 16;
         attach = new SlateIconButton(bx, by, 14, Icon.ATTACH, Component.translatable("slate_chat.button.attach"), this::openAttach);
         buttons.add(attach);
+        bx -= 16;
+        record = new SlateIconButton(bx, by, 14, Icon.CAMERA,
+            Component.translatable("slate_chat.button.record_gif", GifRecorder.KEY.getTranslatedKeyMessage(), ChatConfig.get().gifSeconds), GifRecorder::startFromChat);
+        buttons.add(record);
         for (final SlateWidget b : buttons) b.silent();
         tabs = new ChannelTabs(4, height - 31, width - 8);
         search = new SlateSearchField(4, height - 34, Math.min(240, width - 8), q -> { searchQuery = q; ChatChannels.setSearch(q); });

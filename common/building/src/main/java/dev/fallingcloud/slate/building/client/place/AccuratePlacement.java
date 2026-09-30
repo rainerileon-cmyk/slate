@@ -4,6 +4,7 @@ import dev.fallingcloud.slate.building.SlateBuilding;
 import dev.fallingcloud.slate.building.client.input.BuildKeys;
 import dev.fallingcloud.slate.building.client.mode.ClientModeState;
 import dev.fallingcloud.slate.building.client.wheel.WheelConfig;
+import dev.fallingcloud.slate.building.compat.SubLevels;
 import dev.fallingcloud.slate.building.config.PlacementSettings;
 import dev.fallingcloud.slate.building.mixin.core.KeyMappingAccessor;
 import dev.fallingcloud.slate.building.mixin.core.MinecraftAccessor;
@@ -23,8 +24,8 @@ import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.InteractionResultHolder;
+import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
@@ -231,7 +232,7 @@ public final class AccuratePlacement {
             return;
         }
         if (hitBlock instanceof BaseEntityBlock && lastPlayerPlacedBlockPos != null
-            && lastPlayerPlacedBlockPos.distanceTo(mc.player.position()) <= BLOCK_ENTITY_DISTANCE) {
+            && lastPlayerPlacedBlockPos.distanceTo(playerIn(mc, hitPos)) <= BLOCK_ENTITY_DISTANCE) {
             return;
         }
         if (item instanceof ScaffoldingBlockItem && hitBlock instanceof ScaffoldingBlock) return;
@@ -247,7 +248,7 @@ public final class AccuratePlacement {
         double playerAxis = 0, lastPlayerAxis = 0, lastPlacedAxis = 0;
         if (lastPlacedBlockPos != null && lastPlayerPlacedBlockPos != null) {
             final Direction.Axis axis = ctx.getClickedFace().getAxis();
-            playerAxis = mc.player.position().get(axis);
+            playerAxis = playerIn(mc, lastPlacedBlockPos).get(axis);
             lastPlayerAxis = lastPlayerPlacedBlockPos.get(axis);
             lastPlacedAxis = new Vec3(lastPlacedBlockPos.getX(), lastPlacedBlockPos.getY(), lastPlacedBlockPos.getZ()).get(axis);
             if (ctx.getClickedFace() == Direction.WEST || ctx.getClickedFace() == Direction.NORTH) lastPlacedAxis += 1;
@@ -289,11 +290,11 @@ public final class AccuratePlacement {
                 if (!atTarget.equals(mc.level.getBlockState(ctx.getClickedPos()).getBlock())) {
                     lastPlacedBlockPos = ctx.getClickedPos();
                     if (lastPlayerPlacedBlockPos == null) {
-                        lastPlayerPlacedBlockPos = mc.player.position();
+                        lastPlayerPlacedBlockPos = playerIn(mc, ctx.getClickedPos());
                     } else {
                         final Direction face = ctx.getClickedFace();
                         final Vec3 shifted = lastPlayerPlacedBlockPos.add(face.getStepX(), face.getStepY(), face.getStepZ());
-                        final Vec3 p = mc.player.position();
+                        final Vec3 p = playerIn(mc, ctx.getClickedPos());
                         lastPlayerPlacedBlockPos = switch (face.getAxis()) {
                             case X -> new Vec3(shifted.x, p.y, p.z);
                             case Y -> new Vec3(p.x, shifted.y, p.z);
@@ -345,7 +346,16 @@ public final class AccuratePlacement {
         useOnBefore = null;
         if (target == null || before == null || player.level().getBlockState(target) == before) return;
         lastPlacedBlockPos = target;
-        lastPlayerPlacedBlockPos = player.position();
+        lastPlayerPlacedBlockPos = SubLevels.toSpaceOf(player.level(), target, player.position());
+    }
+
+    /**
+     * Where the player is, as the space {@code at} lies in has it. Where the player stands is compared with where a
+     * block is, along one of the block's axes: on a Sable sub-level the block's position is one of its plot, so the
+     * player's is taken there too.
+     */
+    private static Vec3 playerIn(final Minecraft mc, final BlockPos at) {
+        return SubLevels.toSpaceOf(mc.level, at, mc.player.position());
     }
 
     private static @Nullable Vec3 mouseRatio(final Minecraft mc) {

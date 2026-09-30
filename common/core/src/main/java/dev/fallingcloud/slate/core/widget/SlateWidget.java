@@ -3,6 +3,7 @@ package dev.fallingcloud.slate.core.widget;
 import dev.fallingcloud.slate.core.gfx.Anim;
 import dev.fallingcloud.slate.core.gfx.Clock;
 import dev.fallingcloud.slate.core.gfx.Ease;
+import dev.fallingcloud.slate.core.gfx.SlateDraw;
 import dev.fallingcloud.slate.core.theme.Theme;
 import java.util.List;
 import net.minecraft.client.gui.GuiGraphics;
@@ -35,6 +36,8 @@ public abstract class SlateWidget extends AbstractWidget {
     protected final Anim enterAnim = new Anim(1, 220, Ease.OUT_CUBIC);
 
     @Nullable private List<Component> tip;
+    /** The module this widget's feature needs and that is not installed (null = not locked). */
+    @Nullable private String lockedBy;
     private long hoverSinceMs;
     private boolean pressed;
     private boolean silent;
@@ -71,6 +74,22 @@ public abstract class SlateWidget extends AbstractWidget {
         enterAnim.snap(0);
         enterStartMs = Clock.nowMs() + Math.max(0, Math.round(delayMs * motion));
     }
+
+    /**
+     * Locks the widget for a missing module (rule R3 on Overhaul screens): it stays hoverable and focusable so its
+     * tooltip ("Install X to get this feature") can show, draws greyed out with a lock glyph, and never activates.
+     * {@code null} unlocks.
+     */
+    public SlateWidget locked(@Nullable final String moduleId) {
+        this.lockedBy = moduleId;
+        if (moduleId != null) tip(dev.fallingcloud.slate.core.module.Features.lockedTooltip(moduleId));
+        return this;
+    }
+
+    public boolean isLocked() { return lockedBy != null; }
+
+    /** The missing module's id while locked. */
+    @Nullable public String lockedBy() { return lockedBy; }
 
     /** No click sound. */
     public SlateWidget silent() { this.silent = true; return this; }
@@ -116,7 +135,7 @@ public abstract class SlateWidget extends AbstractWidget {
     protected final void renderWidget(final GuiGraphics g, final int mouseX, final int mouseY, final float partialTick) {
         final boolean hovered = this.active && this.isHovered() && g.containsPointInScissor(mouseX, mouseY);
         hoverAnim.set(hovered);
-        focusAnim.set(this.active && this.isFocused() && !hovered);
+        focusAnim.set(this.active && this.isFocused() && !hovered && SlateDraw.focusShown());
         pressAnim.set(pressed && hovered);
         if (hovered) {
             if (hoverSinceMs == 0) hoverSinceMs = Clock.nowMs();
@@ -136,6 +155,7 @@ public abstract class SlateWidget extends AbstractWidget {
 
     @Override
     public void onClick(final double mouseX, final double mouseY) {
+        if (isLocked()) return;
         pressed = true;
         pressAnim.snap(1);
     }
@@ -153,7 +173,7 @@ public abstract class SlateWidget extends AbstractWidget {
 
     @Override
     public void playDownSound(final SoundManager handler) {
-        if (!silent) SlateSounds.click(handler);
+        if (!silent && !isLocked()) SlateSounds.click(handler);
     }
 
     /** Flash the press state (keyboard activation feedback). */

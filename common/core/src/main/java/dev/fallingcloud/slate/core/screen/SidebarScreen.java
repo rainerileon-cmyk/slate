@@ -11,6 +11,7 @@ import dev.fallingcloud.slate.core.theme.Palette;
 import dev.fallingcloud.slate.core.theme.Theme;
 import dev.fallingcloud.slate.core.widget.SlateBadge;
 import dev.fallingcloud.slate.core.widget.SlateSounds;
+import dev.fallingcloud.slate.core.widget.SlateTabStrip;
 import dev.fallingcloud.slate.core.widget.SlateTooltips;
 import dev.fallingcloud.slate.core.widget.popup.Popups;
 import java.util.ArrayList;
@@ -38,9 +39,13 @@ public abstract class SidebarScreen extends SlateScreen {
     /** Height of the page title row (title + page actions) above the page area. */
     public static final int PAGE_TITLE_H = 22;
 
+    /** Height of the tab strip in {@link #topNav() top-nav} mode (the strip plus its breathing room). */
+    public static final int TOP_NAV_H = 30;
+
     private final List<SidebarPage> pages = new ArrayList<>();
     private final List<AbstractWidget> pageWidgets = new ArrayList<>();
     private final List<AbstractWidget> pageActions = new ArrayList<>();
+    @Nullable private SlateTabStrip topStrip;
     private int current;
     private final Anim navHighlight = new Anim(0, 200, Ease.OUT_CUBIC);
     private int hoverRow = -1;
@@ -65,6 +70,39 @@ public abstract class SidebarScreen extends SlateScreen {
     protected boolean narrow() { return width < 420; }
 
     /**
+     * Whether the page list is drawn the Overhaul layout's way: no plate under it, the names in the heading font, a
+     * bar of accent that slides to the chosen page and throws its light along the row, rows that close up on a low
+     * screen so the last page is never cut off. The hubs of the Overhaul layout (settings, friends) answer true.
+     */
+    protected boolean overhaulNav() { return false; }
+
+    /** What a page is called in the nav column; a screen short of room may shorten a long name. */
+    protected Component navTitle(final SidebarPage page) { return page.title(); }
+
+    /** Height of one row of the nav column. */
+    protected int navRowHeight() {
+        if (!overhaulNav()) return ROW_H;
+        final int n = Math.max(1, pages.size());
+        return Math.max(16, Math.min(24, (height - HEADER_H - navTopPad() - 4) / n));
+    }
+
+    /** Room above the nav column's first row. */
+    protected int navTopPad() { return overhaulNav() ? 8 : NAV_TOP; }
+
+    /** The nav row under the pointer, -1 for none: for a screen that draws the column itself. */
+    protected int hoveredNavRow() { return hoverRow; }
+
+    /** Where the sliding highlight is right now, in rows (2.5 = half way from the third row to the fourth). */
+    protected float navHighlightRow() { return Math.max(0, Math.min(Math.max(0, pages.size() - 1), navHighlight.get())); }
+
+    /**
+     * Where the page list sits: the left rail (default) or a strip of tabs across the top, right under the header
+     * (the Overhaul settings hub). With the strip the page area spans the whole width and the strip scrolls when
+     * the tabs do not fit; Ctrl+Tab and Ctrl+1..9 work the same.
+     */
+    protected boolean topNav() { return false; }
+
+    /**
      * The nav column's width: as wide as its longest label needs ({@link #NAV_W} at least, at most two fifths of the
      * screen), icons only when {@link #narrow()}. Subclasses may widen it; the labels always get at least what they
      * need within that bound, so "Language &amp; Accessibility" is never cut to "Language &amp; Acces…".
@@ -73,7 +111,14 @@ public abstract class SidebarScreen extends SlateScreen {
 
     /** {@link #navWidth()}, but never narrower than the labels need (a subclass may only widen the column). */
     private int navW() {
+        if (topNav()) return 0;
         if (narrow()) return NAV_W_NARROW;
+        if (overhaulNav()) {
+            // As wide as its names need in the heading font; a quarter of the screen at most.
+            int widest = 0;
+            if (font != null) for (final SidebarPage p : pages) widest = Math.max(widest, font.width(Fonts.heading(navTitle(p))) + (p.badge() > 0 ? 24 : 0));
+            return Math.max(96, Math.min(widest + 40, Math.max(NAV_W, width / 4)));
+        }
         return Math.max(navWidth(), labelFitWidth());
     }
 
@@ -97,11 +142,14 @@ public abstract class SidebarScreen extends SlateScreen {
     private int fitWidthFor = -1;
     private int fitWidth = NAV_W;
 
-    public Rect navRect() { return new Rect(0, HEADER_H, navW(), height - HEADER_H); }
+    public Rect navRect() {
+        return topNav() ? new Rect(0, HEADER_H, width, TOP_NAV_H) : new Rect(0, HEADER_H, navW(), height - HEADER_H);
+    }
 
     /** The row holding the page title and the page actions. */
     public Rect pageTitleRect() {
-        return new Rect(navW() + PAD, HEADER_H + 6, width - navW() - PAD * 2, PAGE_TITLE_H);
+        final int top = topNav() ? HEADER_H + TOP_NAV_H : HEADER_H + 6;
+        return new Rect(navW() + PAD, top, width - navW() - PAD * 2, PAGE_TITLE_H);
     }
 
     /**
@@ -125,6 +173,15 @@ public abstract class SidebarScreen extends SlateScreen {
         navHighlight.snap(current);
         pageWidgets.clear();
         pageActions.clear();
+        topStrip = null;
+        if (topNav() && !pages.isEmpty()) {
+            final List<SlateTabStrip.Tab> tabs = new ArrayList<>();
+            for (final SidebarPage p : pages) tabs.add(new SlateTabStrip.Tab(p.title(), p.icon(), p.badge()));
+            final SlateTabStrip strip = new SlateTabStrip(PAD, HEADER_H + 4, width - PAD * 2, tabs, current, this::showPage)
+                .style(SlateTabStrip.Style.UNDERLINE);
+            addRenderableWidget(strip);
+            topStrip = strip;
+        }
         final SidebarPage page = currentPage();
         if (page != null) page.build(this, pageRect());
     }
@@ -163,6 +220,7 @@ public abstract class SidebarScreen extends SlateScreen {
         current = index;
         LAST_PAGE.put(rememberKey, index);
         navHighlight.set(index);
+        if (topStrip != null && topStrip.index() != index) topStrip.setIndex(index);
         SlateSounds.tick();
         final SidebarPage page = currentPage();
         if (page != null) page.build(this, pageRect());
@@ -197,9 +255,10 @@ public abstract class SidebarScreen extends SlateScreen {
     }
 
     private int rowAt(final double mx, final double my) {
+        if (topNav()) return -1;                                 // the strip widget takes the clicks
         final Rect nav = navRect();
-        if (!nav.contains(mx, my) || my < nav.y() + NAV_TOP) return -1;
-        final int i = (int) ((my - nav.y() - NAV_TOP) / ROW_H);
+        if (!nav.contains(mx, my) || my < nav.y() + navTopPad()) return -1;
+        final int i = (int) ((my - nav.y() - navTopPad()) / navRowHeight());
         return i >= 0 && i < pages.size() ? i : -1;
     }
 
@@ -242,6 +301,15 @@ public abstract class SidebarScreen extends SlateScreen {
         final Theme t = Theme.current();
         final Palette p = t.palette();
         final Rect nav = navRect();
+        if (topNav()) {
+            // The strip widget draws the tabs; the rule under it is the divider between the nav and the page.
+            SlateDraw.hline(g, PAD, nav.bottom() - 1, width - PAD * 2, t.isVanilla() ? 0xFF6F6F6F : Colors.withAlpha(p.border(), 0xC0));
+            return;
+        }
+        if (overhaulNav()) {
+            renderOverhaulNav(g, nav);
+            return;
+        }
         final boolean icons = narrow();
         if (t.isVanilla()) {
             SlateDraw.vanillaListBackground(g, nav.x(), nav.y(), nav.w(), nav.h(), this.minecraft.level != null);
@@ -276,6 +344,51 @@ public abstract class SidebarScreen extends SlateScreen {
                 if (page.badge() > 0) SlateDraw.pixelCircle(g, nav.right() - 8, ry + 5, 1, p.accent());
                 if (hov) SlateTooltips.request(page.title(), null);
             }
+        }
+    }
+
+    private final List<Anim> navHover = new ArrayList<>();
+
+    private void renderOverhaulNav(final GuiGraphics g, final Rect nav) {
+        final Theme t = Theme.current();
+        final Palette p = t.palette();
+        final boolean van = t.isVanilla();
+        final boolean icons = narrow();
+        final int rowH = navRowHeight(), top = nav.y() + navTopPad();
+        while (navHover.size() < pages.size()) navHover.add(new Anim(0, 160, Ease.OUT_CUBIC));
+
+        // No plate under the list: the tabs stand on the screen itself, a line that fades out at both ends beside them.
+        final int line = van ? 0xFF000000 : p.border();
+        SlateDraw.vgradient(g, nav.right() - 1, nav.y(), 1, 18, Colors.withAlpha(line, 0), line);
+        SlateDraw.rect(g, nav.right() - 1, nav.y() + 18, 1, Math.max(0, nav.h() - 36), line);
+        SlateDraw.vgradient(g, nav.right() - 1, nav.bottom() - 18, 1, 18, line, Colors.withAlpha(line, 0));
+
+        // The chosen tab: a bar of accent on the left, its light running out to the right. It slides.
+        final int hy = top + Math.round(navHighlightRow() * rowH);
+        final int accent = van ? 0xFFFFFFFF : p.accent();
+        SlateDraw.hgradient(g, nav.x() + 3, hy + 2, nav.w() - 8, rowH - 4, Colors.withAlpha(accent, van ? 0x38 : 0x46), Colors.withAlpha(accent, 0));
+        SlateDraw.rect(g, nav.x() + 3, hy + 3, 2, rowH - 6, accent);
+
+        for (int i = 0; i < pages.size(); i++) {
+            final SidebarPage page = pages.get(i);
+            final int ry = top + i * rowH;
+            final boolean sel = i == current;
+            final Anim hover = navHover.get(i);
+            hover.set(i == hoverRow);
+            final float h = hover.get();
+            final int rest = van ? 0xFFB0B0B0 : p.textDim(), lit = van ? 0xFFFFFFFF : p.text();
+            final int fg = sel ? lit : Colors.lerp(rest, van ? 0xFFE0E0E0 : p.textMuted(), h);
+            final int push = Math.round(2f * h);
+            final int ix = icons ? nav.x() + (nav.w() - 12) / 2 : nav.x() + 11 + push;
+            Icons.draw(g, page.icon(), ix, ry + (rowH - 12) / 2, 12, sel && !van ? p.accent() : fg);
+            if (icons) {
+                if (page.badge() > 0) SlateDraw.pixelCircle(g, nav.right() - 8, ry + 5, 1, accent);
+                if (i == hoverRow) SlateTooltips.request(navTitle(page), null);
+                continue;
+            }
+            final int badgeW = page.badge() > 0 ? 24 : 0;
+            g.drawString(font, SlateDraw.truncate(Fonts.heading(navTitle(page)), nav.w() - 34 - badgeW), nav.x() + 28 + push, SlateDraw.textY(ry, rowH), fg, van);
+            if (page.badge() > 0) SlateBadge.drawCount(g, page.badge(), nav.right() - 22, ry + (rowH - 10) / 2);
         }
     }
 

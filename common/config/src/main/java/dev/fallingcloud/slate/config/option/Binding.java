@@ -25,6 +25,7 @@ public class Binding implements OptionBinding {
     @Nullable private NumberRange range;
     private List<Choice> choices = List.of();
     private boolean restart;
+    private boolean advanced;
     private BooleanSupplier enabled = () -> true;
     @Nullable private Runnable action;
     @Nullable private Component actionLabel;
@@ -68,6 +69,9 @@ public class Binding implements OptionBinding {
 
     public Binding restart(final boolean r) { this.restart = r; return this; }
 
+    /** Marks the option as one for the Advanced category ({@link OptionBinding#advanced()}). */
+    public Binding advanced(final boolean a) { this.advanced = a; return this; }
+
     public Binding enabledIf(final BooleanSupplier s) { this.enabled = s; return this; }
 
     public Binding action(final Runnable r) { this.action = r; return this; }
@@ -94,6 +98,7 @@ public class Binding implements OptionBinding {
     @Override public List<Choice> choices() { return choices; }
     @Override public boolean requiresRestart() { return restart; }
     @Override public boolean enabled() { return enabled.getAsBoolean(); }
+    @Override public boolean advanced() { return advanced; }
     @Override public @Nullable Runnable action() { return action; }
     @Override public Component actionLabel() { return actionLabel != null ? actionLabel : OptionBinding.super.actionLabel(); }
 
@@ -134,6 +139,7 @@ public class Binding implements OptionBinding {
             }
             @Override public boolean requiresRestart() { return restart != null ? restart : base.requiresRestart(); }
             @Override public boolean enabled() { return base.enabled(); }
+            @Override public boolean advanced() { return base.advanced(); }
             @Override public @Nullable Runnable action() { return base.action(); }
             @Override public Component actionLabel() { return base.actionLabel(); }
             @Override public dev.fallingcloud.slate.core.gfx.Icon actionIcon() { return base.actionIcon(); }

@@ -14,13 +14,18 @@ import dev.fallingcloud.slate.core.widget.SlateIconButton;
 import dev.fallingcloud.slate.core.widget.SlateModal;
 import dev.fallingcloud.slate.core.widget.SlateScrollPanel;
 import dev.fallingcloud.slate.core.widget.SlateSearchField;
+import dev.fallingcloud.slate.core.widget.SlateSectionHeader;
 import dev.fallingcloud.slate.core.widget.SlateSpinner;
 import dev.fallingcloud.slate.core.widget.SlateTextField;
 import dev.fallingcloud.slate.core.widget.SlateToasts;
 import dev.fallingcloud.slate.core.widget.popup.MenuPopup;
 import dev.fallingcloud.slate.menu.MenuConfig;
 import dev.fallingcloud.slate.menu.SlateMenu;
-import dev.fallingcloud.slate.menu.client.SectionHeader;
+import dev.fallingcloud.slate.menu.client.play.model.CommunityServers;
+import dev.fallingcloud.slate.menu.client.play.model.LanScanner;
+import dev.fallingcloud.slate.menu.client.play.model.ServerActions;
+import dev.fallingcloud.slate.menu.client.play.model.ServerMeta;
+import dev.fallingcloud.slate.menu.client.play.model.ServerPinger;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -246,11 +251,11 @@ public final class SlateServersScreen extends SlateScreen {
         if (list.isEmpty() && !showWhenEmpty) return y;
         if (panel == null) return y;
         final boolean collapsed = COLLAPSED.contains(key);
-        panel.add(new SectionHeader(0, 0, w, title, list.size(), collapsed, () -> {
+        panel.add(new SlateSectionHeader(0, 0, w, title, list.size(), collapsed, () -> {
             if (!COLLAPSED.remove(key)) COLLAPSED.add(key);
             minecraft.tell(this::rebuildList);
         }), 0, y);
-        y += SectionHeader.HEIGHT + 2;
+        y += SlateSectionHeader.HEIGHT + 2;
         if (!collapsed) {
             for (final ServerData d : list) {
                 final ServerCard card = new ServerCard(0, 0, w, d, kind, this, kind == ServerCard.Kind.COMMUNITY ? communityDescriptions.get(ServerActions.normalize(d.ip)) : null);

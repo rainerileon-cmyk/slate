@@ -19,6 +19,7 @@ public final class CuratedPage extends OptionPageBase {
     public CuratedPage(final CuratedPages.PageDef def) {
         super("curated:" + def.id(), Component.literal(def.title()), def.icon());
         this.def = def;
+        level(Level.ALL);
     }
 
     @Override

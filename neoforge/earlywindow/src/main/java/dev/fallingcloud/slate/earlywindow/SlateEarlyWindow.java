@@ -2,6 +2,7 @@ package dev.fallingcloud.slate.earlywindow;
 
 import static org.lwjgl.opengl.GL32C.*;
 
+import dev.fallingcloud.slate.earlywindow.scene.LoadingScene;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -17,8 +18,9 @@ import org.lwjgl.system.MemoryStack;
 
 /**
  * NeoForge's start-up window drawn by Slate: FML's own window (everything it does, the window, the handover to the
- * game and the continuation as the game's loading overlay) with its picture replaced by {@link SlateScene}. FML's
- * elements are swapped for one element that paints the scene, before FML draws its first frame. Chosen by
+ * game and the continuation as the game's loading overlay) with its picture replaced by Slate's: {@link SlateScene}
+ * for the Custom layout, the factory of {@link LoadingScene} for the Overhaul layout. FML's elements are swapped for
+ * one element that paints the scene, before FML draws its first frame. Chosen by
  * {@link SlateEarlyWindowBootstrapper} when fml.toml names FML's default window; if anything here fails, FML's own
  * screen stays, in Slate's colours.
  */
@@ -27,6 +29,13 @@ public class SlateEarlyWindow extends DisplayWindow {
     static final String NAME = "slate_early_window";
 
     private SlateScene scene;
+    /** The Overhaul layout's scene: made when the first frame is painted, null with another layout or once it failed. */
+    private LoadingScene factory;
+    private FmlFeed feed;
+    private boolean overhaul, vanillaStyle;
+    private String mcVersion = "", loaderVersion = "";
+    /** Create's jar and the game's, being looked for while the window comes up; null with another layout. */
+    private java.util.concurrent.CompletableFuture<ModJars> jars;
     /** The thread the game runs on: FML's renderer paints on its own thread until the game takes the window over. */
     private Thread gameThread;
     private volatile boolean installed;
@@ -41,14 +50,22 @@ public class SlateEarlyWindow extends DisplayWindow {
     @Override
     public Runnable initialize(final String[] arguments) {
         SlateLook.restoreSelection();
-        SlateLook.recolour();
+        overhaul = "OVERHAUL".equals(SlateLook.layout());
+        vanillaStyle = overhaul && SlateLook.vanillaStyle();
+        // With the Vanilla style the game's own loading colour stays (red, or black if the player chose that).
+        if (!vanillaStyle) SlateLook.recolour();
         gameThread = Thread.currentThread();
         // FML's renderer skips a frame while it cannot take this lock: held until the scene is in, so FML's own
         // picture never shows first.
         Semaphore lock = null;
         try {
-            scene = new SlateScene(SlateLook.accent(), SlateLook.radius(), SlateLook.pixelFont(),
-                arg(arguments, "--fml.mcVersion", "1.21.1"), arg(arguments, "--fml.neoForgeVersion", "").split("-")[0]);
+            mcVersion = arg(arguments, "--fml.mcVersion", "1.21.1");
+            loaderVersion = arg(arguments, "--fml.neoForgeVersion", "").split("-")[0];
+            scene = new SlateScene(SlateLook.accent(), SlateLook.radius(), SlateLook.pixelFont(), mcVersion, loaderVersion);
+            if (overhaul) {
+                final String neoForm = arg(arguments, "--fml.neoFormVersion", "");
+                jars = java.util.concurrent.CompletableFuture.supplyAsync(() -> ModJars.find(mcVersion, neoForm));
+            }
             lock = (Semaphore) FmlAccess.RENDER_LOCK.get(this);
             lock.acquireUninterruptibly();
         } catch (final ReflectiveOperationException | RuntimeException | LinkageError e) {
@@ -83,6 +100,8 @@ public class SlateEarlyWindow extends DisplayWindow {
                     fmlElements = (List<RenderElement>) FmlAccess.ELEMENTS.get(this);
                     FmlAccess.ELEMENTS.set(this, new ArrayList<>(List.of(SceneElement.create(this::paint))));
                     installed = true;
+                    // The factory moves: 60 frames a second instead of FML's 20.
+                    if (overhaul) FmlAccess.pace(this, 16);
                 }
             } catch (final InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -108,7 +127,21 @@ public class SlateEarlyWindow extends DisplayWindow {
         if (failed) return;
         try {
             final RenderElement.DisplayContext canvas = fitCanvas(context);
-            scene.draw(canvas.scaledWidth(), canvas.scaledHeight());
+            final int w = canvas.scaledWidth(), h = canvas.scaledHeight();
+            if (overhaul && factory(canvas)) {
+                try {
+                    feed.frame();
+                    factory.draw(w, h, SlateScene.scaleFor(w, h), true, 1f, feed);
+                    if (feed.overall() >= 1f) feed.finished();
+                    return;
+                } catch (final RuntimeException | LinkageError e) {
+                    SlateLook.LOGGER.error("[Slate] the Overhaul start-up screen failed, the Custom one takes over", e);
+                    dropFactory();
+                    // The Custom screen has no Vanilla style: there NeoForge's own is what is left.
+                    if (vanillaStyle) throw e;
+                }
+            }
+            scene.draw(w, h);
         } catch (final ReflectiveOperationException | RuntimeException | LinkageError e) {
             // FML's own elements take over from the next frame.
             failed = true;
@@ -118,6 +151,52 @@ public class SlateEarlyWindow extends DisplayWindow {
             } catch (final ReflectiveOperationException | RuntimeException ignored) {
                 // Nothing left to draw with: the window stays blank until the game takes over.
             }
+        }
+    }
+
+    /** The Overhaul scene, made at the first frame (FML has chosen its colours by then); false once it has failed. */
+    private boolean factory(final RenderElement.DisplayContext canvas) {
+        if (factory != null) return true;
+        if (feed != null) return false;
+        feed = new FmlFeed();
+        try {
+            final var bg = canvas.colourScheme().background();
+            final int background = 0xFF000000 | (bg.red() & 0xFF) << 16 | (bg.green() & 0xFF) << 8 | bg.blue() & 0xFF;
+            final String font = vanillaStyle ? "monocraft" : SlateLook.pixelFont();
+            // With Create among the mods the factory is built of Create's blocks. The search for it began with the
+            // window; if it is not done by now, a moment is waited for it, and no longer.
+            ModJars mods = null;
+            try {
+                if (jars != null) mods = jars.get(600, java.util.concurrent.TimeUnit.MILLISECONDS);
+            } catch (final InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } catch (final java.util.concurrent.ExecutionException | java.util.concurrent.TimeoutException e) {
+                SlateLook.LOGGER.debug("[Slate] no Create for the start-up screen: {}", e.toString());
+            }
+            try {
+                factory = new LoadingScene(
+                    new LoadingScene.Look(SlateLook.accent(), vanillaStyle, background, font, "Minecraft " + mcVersion,
+                        loaderVersion.isEmpty() ? "" : "NeoForge " + loaderVersion),
+                    SlateScene.bytes("/slate_earlywindow/" + LoadingScene.fontFile(font)), System::nanoTime, mods);
+            } finally {
+                if (mods != null) mods.close();
+            }
+            return true;
+        } catch (final RuntimeException | LinkageError e) {
+            SlateLook.LOGGER.error("[Slate] the Overhaul start-up screen could not be made, the Custom one takes over", e);
+            if (vanillaStyle) throw e;
+            return false;
+        }
+    }
+
+    private void dropFactory() {
+        final LoadingScene old = factory;
+        factory = null;
+        if (old == null) return;
+        try {
+            old.dispose();
+        } catch (final RuntimeException | LinkageError e) {
+            // It failed while drawing; what it could not free goes with the context.
         }
     }
 
@@ -168,8 +247,10 @@ public class SlateEarlyWindow extends DisplayWindow {
 
     @Override
     public void close() {
+        if (feed != null) feed.finished();
         if (scene != null && installed) {
             try {
+                dropFactory();
                 scene.dispose();
             } catch (final RuntimeException | LinkageError e) {
                 SlateLook.LOGGER.warn("[Slate] start-up screen cleanup: {}", e.toString());

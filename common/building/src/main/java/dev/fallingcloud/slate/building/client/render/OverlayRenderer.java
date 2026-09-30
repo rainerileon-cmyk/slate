@@ -5,6 +5,7 @@ import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexFormat;
+import dev.fallingcloud.slate.building.compat.SubLevels;
 import dev.fallingcloud.slate.core.client.render.SlateRenderEvents;
 import dev.fallingcloud.slate.core.theme.Colors;
 import dev.fallingcloud.slate.core.theme.Palette;
@@ -20,6 +21,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
 
 /**
@@ -34,6 +36,11 @@ import org.joml.Matrix4f;
  * sweep diagonally across their edges. Planes draw a fill, a border and a block grid with a travelling highlight.
  * Labels are camera-facing, keep a readable size at any distance and sit on a skin-matched plate with an accent
  * underline. All motion honours {@code Theme.motion()} (0 = static).
+ *
+ * <p>With Sable, an element whose coordinates lie in a sub-level's plot (a selection on a ship) is drawn where the
+ * sub-level shows that place in this frame, turned with it ({@link SubLevels}): callers pass the coordinates the
+ * blocks have, whichever space they are in. An element lies in one space, the one of its middle; a line may run from
+ * one space into another (a move off a ship), and has each end where its own space shows it.
  */
 public final class OverlayRenderer {
 
@@ -52,6 +59,9 @@ public final class OverlayRenderer {
     private static final RenderKit.DynamicBuffer EDGES = new RenderKit.DynamicBuffer();
     private static final RenderKit.DynamicBuffer GRID = new RenderKit.DynamicBuffer();
     private static final RenderKit.DynamicBuffer PLATES = new RenderKit.DynamicBuffer();
+
+    /** The sub-level the element being written lies on, as it is drawn in this frame; null in the world itself. */
+    private static @Nullable SubLevels.Pose space;
 
     /** Lines are grown this much off their box so they never fight the faces of the blocks they frame. */
     private static final double BOX_GROW = 0.004;
@@ -136,8 +146,10 @@ public final class OverlayRenderer {
         final Matrix4f modelView = new Matrix4f(RenderSystem.getModelViewMatrix());
         final Matrix4f projection = new Matrix4f(RenderSystem.getProjectionMatrix());
 
+        final boolean subLevels = SubLevels.present();
         final BufferBuilder fills = RenderKit.begin(GhostRenderer.bytes(), VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
         for (final Object item : items) {
+            space = subLevels ? spaceOf(item) : null;
             if (item instanceof Box b) {
                 if (b.faces() > 0.01F) boxFaces(fills, b.box().inflate(BOX_GROW), b.argb(), t, cam, BOX_FACES * b.faces());
             } else if (item instanceof Marker m) boxFaces(fills, markerBox(m.pos(), t, animated), m.argb(), t, cam, 0.06F);
@@ -147,15 +159,21 @@ public final class OverlayRenderer {
 
         final BufferBuilder edges = RenderKit.begin(GhostRenderer.bytes(), VertexFormat.Mode.LINES, RenderKit.linesFormat());
         for (final Object item : items) {
+            space = subLevels ? spaceOf(item) : null;
             if (item instanceof Box b) boxEdges(edges, b.box().inflate(BOX_GROW), b.argb(), b.animated() && animated, t, cam);
             else if (item instanceof Marker m) markerEdges(edges, markerBox(m.pos(), t, animated), m.argb(), cam);
-            else if (item instanceof Line l) segment(edges, l.from(), l.to(), l.argb(), l.argb(), cam);
+            else if (item instanceof Line l) line(edges, l, cam, subLevels);
             else if (item instanceof Plane p) planeBorder(edges, p, cam);
         }
         final boolean hasEdges = EDGES.fill(edges);
 
         final BufferBuilder grid = RenderKit.begin(GhostRenderer.bytes(), VertexFormat.Mode.LINES, RenderKit.linesFormat());
-        for (final Object item : items) if (item instanceof Plane p) planeGrid(grid, p, t, animated, cam);
+        for (final Object item : items) {
+            if (!(item instanceof Plane p)) continue;
+            space = subLevels ? spaceOf(item) : null;
+            planeGrid(grid, p, t, animated, cam);
+        }
+        space = null;
         final boolean hasGrid = GRID.fill(grid);
 
         RenderKit.translucentState();
@@ -166,7 +184,29 @@ public final class OverlayRenderer {
             RenderKit.drawLines(EDGES.get(), modelView, projection, RenderKit.px(6F), 0.2F, true);     // glow
             RenderKit.drawLines(EDGES.get(), modelView, projection, RenderKit.px(2F), 0.95F, true);    // core
         }
-        for (final Object item : items) if (item instanceof Label l) label(l, camera, modelView, projection);
+        for (final Object item : items) {
+            if (!(item instanceof Label l)) continue;
+            space = subLevels ? spaceOf(item) : null;
+            label(l, camera, modelView, projection);
+        }
+        space = null;
+    }
+
+    /** The sub-level an element lies on, by the place it is at; null in the world itself. */
+    private static @Nullable SubLevels.Pose spaceOf(final Object item) {
+        final Vec3 at;
+        if (item instanceof Box b) at = b.box().getCenter();
+        else if (item instanceof Marker m) at = Vec3.atCenterOf(m.pos());
+        else if (item instanceof Line l) at = l.from();
+        else if (item instanceof Plane p) at = p.bounds().getCenter();
+        else if (item instanceof Label l) at = l.pos();
+        else return null;
+        return SubLevels.renderAt(BlockPos.containing(at));
+    }
+
+    /** Where a point of the element being written is in the world: on a sub-level, where the sub-level shows it. */
+    private static Vec3 seen(final Vec3 p) {
+        return space == null ? p : space.toWorld(p);
     }
 
     // ---- boxes ----
@@ -174,14 +214,14 @@ public final class OverlayRenderer {
     private static void boxFaces(final BufferBuilder buf, final AABB box, final int argb, final float t, final Vec3 cam, final float strength) {
         final float breathe = 0.85F + 0.15F * (float) Math.sin(t * Math.PI * 2 / 3.2);
         final int fill = Colors.scaleAlpha(argb, strength * breathe);
-        final float x0 = (float) (box.minX - cam.x), y0 = (float) (box.minY - cam.y), z0 = (float) (box.minZ - cam.z);
-        final float x1 = (float) (box.maxX - cam.x), y1 = (float) (box.maxY - cam.y), z1 = (float) (box.maxZ - cam.z);
         for (final Direction d : Direction.values()) {
             final float[] c = GhostMesher.faceCorners(d, 0F, 1F);
             for (int i = 0; i < 4; i++) {
-                c[i * 3] = c[i * 3] == 0F ? x0 : x1;
-                c[i * 3 + 1] = c[i * 3 + 1] == 0F ? y0 : y1;
-                c[i * 3 + 2] = c[i * 3 + 2] == 0F ? z0 : z1;
+                final Vec3 corner = seen(new Vec3(c[i * 3] == 0F ? box.minX : box.maxX, c[i * 3 + 1] == 0F ? box.minY : box.maxY,
+                    c[i * 3 + 2] == 0F ? box.minZ : box.maxZ));
+                c[i * 3] = (float) (corner.x - cam.x);
+                c[i * 3 + 1] = (float) (corner.y - cam.y);
+                c[i * 3 + 2] = (float) (corner.z - cam.z);
             }
             RenderKit.quad(buf, c, fill);
         }
@@ -278,9 +318,10 @@ public final class OverlayRenderer {
         final Vec3[] c = {planePoint(p, r[0], r[1]), planePoint(p, r[2], r[1]), planePoint(p, r[2], r[3]), planePoint(p, r[0], r[3])};
         final float[] xyz = new float[12];
         for (int i = 0; i < 4; i++) {
-            xyz[i * 3] = (float) (c[i].x - cam.x);
-            xyz[i * 3 + 1] = (float) (c[i].y - cam.y);
-            xyz[i * 3 + 2] = (float) (c[i].z - cam.z);
+            final Vec3 corner = seen(c[i]);
+            xyz[i * 3] = (float) (corner.x - cam.x);
+            xyz[i * 3 + 1] = (float) (corner.y - cam.y);
+            xyz[i * 3 + 2] = (float) (corner.z - cam.z);
         }
         RenderKit.quad(buf, xyz, fill);
     }
@@ -335,12 +376,13 @@ public final class OverlayRenderer {
         final Minecraft mc = Minecraft.getInstance();
         final Font font = mc.font;
         final Vec3 cam = camera.getPosition();
-        final double dist = l.pos().distanceTo(cam);
+        final Vec3 at = seen(l.pos());
+        final double dist = at.distanceTo(cam);
         final float alpha = Colors.alpha(l.argb()) / 255F;
         if (alpha <= 0.01F) return;
         final float scale = (float) Math.min(0.2, 0.025 * Math.max(1.0, dist / 6.5));
         final PoseStack pose = new PoseStack();
-        pose.translate(l.pos().x - cam.x, l.pos().y - cam.y, l.pos().z - cam.z);
+        pose.translate(at.x - cam.x, at.y - cam.y, at.z - cam.z);
         pose.mulPose(camera.rotation());
         pose.scale(scale, -scale, scale);
         final Matrix4f matrix = pose.last().pose();
@@ -383,9 +425,24 @@ public final class OverlayRenderer {
         buf.addVertex(m, x1, y0, 0F).setColor(argb);
     }
 
+    // ---- lines ----
+
+    /** A line, each end where its own space shows it: the two may differ (from a block of a ship to one of the world). */
+    private static void line(final BufferBuilder buf, final Line l, final Vec3 cam, final boolean subLevels) {
+        final Vec3 from = subLevels ? seenAt(l.from()) : l.from(), to = subLevels ? seenAt(l.to()) : l.to();
+        RenderKit.line(buf, (float) (from.x - cam.x), (float) (from.y - cam.y), (float) (from.z - cam.z),
+            (float) (to.x - cam.x), (float) (to.y - cam.y), (float) (to.z - cam.z), l.argb(), l.argb());
+    }
+
+    private static Vec3 seenAt(final Vec3 p) {
+        final SubLevels.Pose at = SubLevels.renderAt(BlockPos.containing(p));
+        return at == null ? p : at.toWorld(p);
+    }
+
     // ---- shared ----
 
-    private static void segment(final BufferBuilder buf, final Vec3 from, final Vec3 to, final int argb0, final int argb1, final Vec3 cam) {
+    private static void segment(final BufferBuilder buf, final Vec3 a, final Vec3 b, final int argb0, final int argb1, final Vec3 cam) {
+        final Vec3 from = seen(a), to = seen(b);
         RenderKit.line(buf, (float) (from.x - cam.x), (float) (from.y - cam.y), (float) (from.z - cam.z),
             (float) (to.x - cam.x), (float) (to.y - cam.y), (float) (to.z - cam.z), argb0, argb1);
     }

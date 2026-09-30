@@ -23,7 +23,8 @@ import org.jetbrains.annotations.Nullable;
  * scroller sprites become Slate tabs and a scroll thumb. During {@code renderLabels} the dark grey vanilla titles
  * become light text. Everything else a screen draws (progress arrows, flames, bubbles, a mod's own widgets) still
  * draws on top. The two windows are opened and closed by {@code ContainerScreenMixin}; the hooks live in
- * {@code GuiGraphicsMixin}.
+ * {@code GuiGraphicsMixin}. Better Inventory's screens are the exception: their art is given the palette itself
+ * ({@link BetterInventoryPalette}), so their background stays theirs.
  */
 public final class ContainerReskin {
 
@@ -36,7 +37,8 @@ public final class ContainerReskin {
     private ContainerReskin() {}
 
     public static void beginBackground() {
-        inBackground = Reskin.containers() && Minecraft.getInstance().screen instanceof AbstractContainerScreen<?>;
+        inBackground = Reskin.containers() && Minecraft.getInstance().screen instanceof AbstractContainerScreen<?>
+            && !BetterInventoryPalette.paints(Minecraft.getInstance().screen);
         current = inBackground ? (AbstractContainerScreen<?>) Minecraft.getInstance().screen : null;
         backgroundDone = false;
     }

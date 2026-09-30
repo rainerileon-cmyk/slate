@@ -40,6 +40,36 @@ public final class GameplayGeneralPage extends OptionPageBase {
         return level != null && mc.hasSingleplayerServer() && !level.getLevelData().isDifficultyLocked() && !level.getLevelData().isHardcore();
     }
 
+    /**
+     * The world's difficulty as a dropdown (only meaningful while a world is open; greyed out when it cannot change here).
+     * {@code rebuild} refreshes the page once the server has echoed the change. Shared with the hub's General tab.
+     */
+    static Binding difficultyBinding(final Runnable rebuild) {
+        final Minecraft mc = Minecraft.getInstance();
+        final ClientLevel level = mc.level;
+        final boolean locked = level != null && level.getLevelData().isDifficultyLocked();
+        final boolean hardcore = level != null && level.getLevelData().isHardcore();
+        final boolean single = mc.hasSingleplayerServer();
+        final List<Choice> choices = new ArrayList<>();
+        for (final Difficulty d : Difficulty.values()) choices.add(new Choice(d.name(), d.getDisplayName()));
+        final String why = hardcore ? "slate_config.gameplay.difficulty.hardcore" : locked ? "slate_config.gameplay.difficulty.locked"
+            : !single ? "slate_config.gameplay.difficulty.server" : "slate_config.gameplay.difficulty.tip";
+        return Binding.of("gameplay:difficulty", OptionType.CHOICE, Component.translatable("options.difficulty"))
+            .tooltip(Component.translatable(why))
+            .choices(choices)
+            .getter(() -> { final ClientLevel l = Minecraft.getInstance().level; return (l == null ? Difficulty.NORMAL : l.getDifficulty()).name(); })
+            .setter(v -> {
+                if (!canChangeDifficulty() || mc.getConnection() == null) return;
+                final String name = OptionValues.asString(v);
+                for (final Difficulty d : Difficulty.values()) {
+                    if (d.name().equals(name)) mc.getConnection().send(new ServerboundChangeDifficultyPacket(d));
+                }
+                ApplyQueue.later("gameplay:difficulty", 250, rebuild);       // the server echoes the change back
+            })
+            .enabledIf(GameplayGeneralPage::canChangeDifficulty)
+            .searchWords("difficulty peaceful easy normal hard world");
+    }
+
     @Override
     protected List<Section> sections() {
         final Minecraft mc = Minecraft.getInstance();
@@ -50,24 +80,7 @@ public final class GameplayGeneralPage extends OptionPageBase {
             final boolean locked = level.getLevelData().isDifficultyLocked();
             final boolean hardcore = level.getLevelData().isHardcore();
             final boolean single = mc.hasSingleplayerServer();
-            final List<Choice> choices = new ArrayList<>();
-            for (final Difficulty d : Difficulty.values()) choices.add(new Choice(d.name(), d.getDisplayName()));
-            final String why = hardcore ? "slate_config.gameplay.difficulty.hardcore" : locked ? "slate_config.gameplay.difficulty.locked"
-                : !single ? "slate_config.gameplay.difficulty.server" : "slate_config.gameplay.difficulty.tip";
-            world.add(Binding.of("gameplay:difficulty", OptionType.CHOICE, Component.translatable("options.difficulty"))
-                .tooltip(Component.translatable(why))
-                .choices(choices)
-                .getter(() -> { final ClientLevel l = Minecraft.getInstance().level; return (l == null ? Difficulty.NORMAL : l.getDifficulty()).name(); })
-                .setter(v -> {
-                    if (!canChangeDifficulty() || mc.getConnection() == null) return;
-                    final String name = OptionValues.asString(v);
-                    for (final Difficulty d : Difficulty.values()) {
-                        if (d.name().equals(name)) mc.getConnection().send(new ServerboundChangeDifficultyPacket(d));
-                    }
-                    ApplyQueue.later("gameplay:difficulty", 250, this::rebuild);       // the server echoes the change back
-                })
-                .enabledIf(GameplayGeneralPage::canChangeDifficulty)
-                .searchWords("difficulty peaceful easy normal hard world"));
+            world.add(difficultyBinding(this::rebuild));
             if (single && !hardcore && !locked) {
                 world.add(Binding.of("gameplay:lock_difficulty", OptionType.ACTION, Component.translatable("slate_config.gameplay.lock"))
                     .tooltip(Component.translatable("slate_config.gameplay.lock.tip"))

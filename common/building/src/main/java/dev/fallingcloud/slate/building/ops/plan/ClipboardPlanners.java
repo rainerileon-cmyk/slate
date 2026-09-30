@@ -262,7 +262,7 @@ public final class ClipboardPlanners {
             case "S" -> Direction.SOUTH;
             case "E" -> Direction.EAST;
             case "W" -> Direction.WEST;
-            default -> ctx.player().getNearestViewDirection();
+            default -> ctx.view();
         };
     }
 

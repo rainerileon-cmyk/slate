@@ -43,6 +43,10 @@ public final class ChatSettingsScreen extends SlateScreen {
         int y = 0;
 
         y = section(panel, y, w, "slate_chat.settings.section.look");
+        // The menu style stays reachable from every module's own settings (R6), Slate UI or not.
+        panel.add(dev.fallingcloud.slate.core.client.settings.SettingRow.of(w, dev.fallingcloud.slate.core.client.settings.LayoutStyleRows.styleLabel(), null,
+            dev.fallingcloud.slate.core.client.settings.LayoutStyleRows.styleSegmented(0, 0, dev.fallingcloud.slate.core.client.settings.SettingRow.controlWidth(w), null)), 0, y);
+        y += dev.fallingcloud.slate.core.client.settings.SettingRow.HEIGHT + 6;
         panel.add(new SlateSegmented<>(0, y, w, List.of("COZY", "COMPACT"), cfg.isCompact() ? "COMPACT" : "COZY",
             v -> Component.translatable("slate_chat.density." + v.toLowerCase(java.util.Locale.ROOT)), v -> { cfg.density = v; ChatClient.saveAndApply(); }), 0, y);
         y += 26;
@@ -103,6 +107,12 @@ public final class ChatSettingsScreen extends SlateScreen {
             MediaCache.clearDisk();
             SlateToasts.show(Component.translatable("slate_chat.settings.cleared"), null, Icon.TRASH);
         }).icon(Icon.TRASH), half + 8, y);
+        y += 24;
+        // A recorded GIF: its length, and its width (a wider one is a larger file, and is sent smaller if it must be).
+        panel.add(new SlateSlider(0, y, half, Component.translatable("slate_chat.settings.gif_seconds"), 2, 15, 1, cfg.gifSeconds,
+            v -> "%d s".formatted((int) v), v -> { cfg.gifSeconds = (int) v; ChatConfig.file().save(); }).compact(true), 0, y);
+        panel.add(new SlateSlider(half + 8, y, half, Component.translatable("slate_chat.settings.gif_width"), 240, 960, 40, cfg.gifWidth,
+            v -> "%d px".formatted((int) v), v -> { cfg.gifWidth = (int) v; ChatConfig.file().save(); }).compact(true), half + 8, y);
         y += 30;
 
         y = section(panel, y, w, "slate_chat.settings.section.history");

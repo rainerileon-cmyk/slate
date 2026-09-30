@@ -1,7 +1,10 @@
 package dev.fallingcloud.slate.config.page;
 
+import dev.fallingcloud.slate.config.mods.ModConfigTargets;
+import dev.fallingcloud.slate.config.option.Binding;
 import dev.fallingcloud.slate.config.option.KeyBinding;
 import dev.fallingcloud.slate.config.option.KeySearch;
+import dev.fallingcloud.slate.config.option.OptionType;
 import dev.fallingcloud.slate.config.resolver.VanillaOptions;
 import dev.fallingcloud.slate.config.ui.OptionPageBase;
 import dev.fallingcloud.slate.config.ui.OptionRow;
@@ -9,6 +12,8 @@ import dev.fallingcloud.slate.config.ui.Section;
 import dev.fallingcloud.slate.core.gfx.Icon;
 import dev.fallingcloud.slate.config.ui.ConfigSearchField;
 import dev.fallingcloud.slate.core.layout.ui.Rect;
+import dev.fallingcloud.slate.core.platform.ModInfo;
+import dev.fallingcloud.slate.core.platform.SlatePlatform;
 import dev.fallingcloud.slate.core.screen.SidebarScreen;
 import dev.fallingcloud.slate.core.widget.SlateButton;
 import dev.fallingcloud.slate.core.widget.SlateKeybindButton;
@@ -81,14 +86,56 @@ public final class ControlsPage extends OptionPageBase {
             for (final KeyMapping m : byCategory.get(cat)) s.add(new KeyBinding(m));
             out.add(s);
         }
+        final Section controller = controllerSection();
+        if (controller != null) out.add(controller);
         return out;
+    }
+
+    /** Mods that add controller support; the first one installed gets the Controller tab. */
+    private static final List<String> CONTROLLER_MODS = List.of("controlify", "controllable", "midnightcontrols");
+
+    /**
+     * Controls › Controller, only when a controller mod is installed: which mod provides it and the ways into its own
+     * settings (its screen, its config files), so a pad player never has to hunt through the Mods page.
+     */
+    @Nullable
+    private static Section controllerSection() {
+        for (final String modId : CONTROLLER_MODS) {
+            if (!SlatePlatform.get().isModLoaded(modId)) continue;
+            String name = modId, version = "";
+            for (final ModInfo m : SlatePlatform.get().allMods()) {
+                if (m.id().equals(modId)) { name = m.name(); version = m.version(); break; }
+            }
+            final Component title = Component.translatable("slate_config.controls.controller");
+            final Section s = Section.of("controller", title).fixed().tab("controller", title);
+            final String provider = name + (version.isBlank() ? "" : " " + version);
+            s.add(Binding.of("controls:controller", OptionType.INFO, Component.translatable("slate_config.controls.controller.info"))
+                .getter(() -> provider)
+                .searchWords("controller gamepad joystick " + modId));
+            int i = 0;
+            for (final ModConfigTargets.Target t : ModConfigTargets.forMod(modId)) {
+                s.add(Binding.of("controls:controller_" + i++, OptionType.ACTION, t.label())
+                    .tooltip(Component.translatable("slate_config.controls.controller.open", name))
+                    .actionIcon(t.icon())
+                    .action(Component.translatable("slate_config.row.open"), t.open())
+                    .searchWords("controller gamepad " + modId));
+            }
+            return s;
+        }
+        return null;
     }
 
     @Override
     protected boolean pills(final String tabKey) { return !KEYS_TAB.equals(tabKey); }
 
     private AbstractWidget toolbar(final int w) {
-        final int searchW = Math.max(90, w - 150 - 120 - 16);
+        // A narrow page (the Overhaul hub on a small window) keeps all three: the reset shrinks to its icon, the
+        // switch to what its words need, and the search takes the rest.
+        final boolean tight = w < 150 + 120 + 16 + 90;
+        final Component unboundLabel = Component.translatable("slate_config.controls.unbound_only");
+        final int toggleW = tight ? Math.min(150, Minecraft.getInstance().font.width(unboundLabel) + SlateToggle.SWITCH_W + 16) : 150;
+        final int resetW = tight ? 20 : 120;
+        final int searchW = Math.max(60, w - toggleW - resetW - 16);
         final ConfigSearchField search = new ConfigSearchField(0, 0, searchW, s -> {
             if (s.equals(keySearch)) return;
             keySearch = s;
@@ -98,15 +145,18 @@ public final class ControlsPage extends OptionPageBase {
         search.setValue(keySearch);
         search.placeholder(Component.translatable("slate_config.controls.search_keys"));
         keyField = search;
-        final SlateToggle unbound = new SlateToggle(0, 0, 150, Component.translatable("slate_config.controls.unbound_only"), unboundOnly, v -> { unboundOnly = v; rebuild(); });
-        final SlateButton reset = new SlateButton(0, 0, 120, Component.translatable("slate_config.controls.reset_keys"), () ->
+        final SlateToggle unbound = new SlateToggle(0, 0, toggleW, unboundLabel, unboundOnly, v -> { unboundOnly = v; rebuild(); });
+        final Runnable resetAll = () ->
             SlateModal.confirmDanger(Component.translatable("slate_config.controls.reset_keys"), Component.translatable("slate_config.controls.reset_keys.body"),
                 Component.translatable("slate_config.controls.reset_keys"), () -> {
                     for (final KeyMapping m : Minecraft.getInstance().options.keyMappings) m.setKey(m.getDefaultKey());
                     KeyMapping.resetMapping();
                     Minecraft.getInstance().options.save();
                     rebuild();
-                })).icon(Icon.UNDO).variant(SlateButton.Variant.DANGER);
+                });
+        final SlateButton reset = tight
+            ? new dev.fallingcloud.slate.core.widget.SlateIconButton(0, 0, 20, Icon.UNDO, Component.translatable("slate_config.controls.reset_keys"), resetAll).variant(SlateButton.Variant.DANGER)
+            : new SlateButton(0, 0, resetW, Component.translatable("slate_config.controls.reset_keys"), resetAll).icon(Icon.UNDO).variant(SlateButton.Variant.DANGER);
         final Toolbar t = new Toolbar(w, List.of(search, unbound, reset));
         keyToolbar = t;
         return t;

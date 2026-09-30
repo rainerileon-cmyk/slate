@@ -43,6 +43,7 @@ public abstract class ConnectScreenMixin extends Screen {
     private void slate$remember(final Minecraft mc, final ServerAddress address, @Nullable final ServerData data, @Nullable final TransferState transfer,
                                 final CallbackInfo ci) {
         this.slate$server = Component.literal(data != null && data.name != null && !data.name.isBlank() ? data.name : address.getHost());
+        dev.fallingcloud.slate.menu.client.loading.journey.Journey.joining(data, address.getHost());
     }
 
     @Inject(method = "render", at = @At("HEAD"), cancellable = true)

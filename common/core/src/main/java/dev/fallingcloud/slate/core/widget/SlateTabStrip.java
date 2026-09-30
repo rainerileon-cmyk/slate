@@ -37,10 +37,16 @@ public class SlateTabStrip extends SlateWidget {
 
     public enum Style { UNDERLINE, PILLS }
 
+    /** One tab: label, optional glyph, and a badge count (0 = none). */
+    public record Tab(Component label, @Nullable Icon icon, int badge) {
+        public Tab(final Component label) { this(label, null, 0); }
+        public Tab(final Component label, final Icon icon) { this(label, icon, 0); }
+    }
+
     public static final int HEIGHT = 22, PILL_HEIGHT = 16;
     private static final int ARROW_W = 14, MORE_W = 16, PILL_GAP = 4;
 
-    private final List<SlateTabs.Tab> tabs = new ArrayList<>();
+    private final List<Tab> tabs = new ArrayList<>();
     private final List<Anim> tabHover = new ArrayList<>();
     private int index;
     @Nullable private final IntConsumer onChange;
@@ -51,7 +57,7 @@ public class SlateTabStrip extends SlateWidget {
     private final Anim rightHover = new Anim(0, 120, Ease.OUT_CUBIC);
     private final Anim moreHover = new Anim(0, 120, Ease.OUT_CUBIC);
 
-    public SlateTabStrip(final int x, final int y, final int width, final List<SlateTabs.Tab> tabs, final int selected, @Nullable final IntConsumer onChange) {
+    public SlateTabStrip(final int x, final int y, final int width, final List<Tab> tabs, final int selected, @Nullable final IntConsumer onChange) {
         super(x, y, width, HEIGHT, Component.empty());
         this.tabs.addAll(tabs);
         for (int i = 0; i < tabs.size(); i++) tabHover.add(new Anim(0, 140, Ease.OUT_CUBIC));
@@ -74,12 +80,12 @@ public class SlateTabStrip extends SlateWidget {
 
     public int index() { return index; }
 
-    public List<SlateTabs.Tab> tabs() { return tabs; }
+    public List<Tab> tabs() { return tabs; }
 
     public void setBadge(final int i, final int count) {
         if (i < 0 || i >= tabs.size()) return;
-        final SlateTabs.Tab t = tabs.get(i);
-        tabs.set(i, new SlateTabs.Tab(t.label(), t.icon(), count));
+        final Tab t = tabs.get(i);
+        tabs.set(i, new Tab(t.label(), t.icon(), count));
     }
 
     /** Select a tab as the user would (tick sound, callback). */
@@ -131,7 +137,7 @@ public class SlateTabStrip extends SlateWidget {
     }
 
     private int tabW(final int i) {
-        final SlateTabs.Tab t = tabs.get(i);
+        final Tab t = tabs.get(i);
         final boolean pills = style == Style.PILLS;
         return SlateDraw.width(t.label()) + (pills ? 14 : 18) + (t.icon() != null ? (pills ? 12 : 14) : 0) + badgeW(t.badge());
     }
@@ -253,7 +259,7 @@ public class SlateTabStrip extends SlateWidget {
         return new int[] { x, w };
     }
 
-    private void drawTab(final GuiGraphics g, final SlateTabs.Tab tab, final int tx, final int tw, final int y, final int h, final int fg, final int iconColor, final boolean shadow) {
+    private void drawTab(final GuiGraphics g, final Tab tab, final int tx, final int tw, final int y, final int h, final int fg, final int iconColor, final boolean shadow) {
         final boolean pills = style == Style.PILLS;
         final int iconSize = pills ? 8 : 10;
         final int iconW = tab.icon() != null ? iconSize + 4 : 0;

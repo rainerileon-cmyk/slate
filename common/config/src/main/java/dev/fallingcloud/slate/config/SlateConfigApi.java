@@ -22,11 +22,11 @@ public final class SlateConfigApi {
     private static final Map<String, Runnable> RELOAD_HOOKS = new ConcurrentHashMap<>();
 
     public static void openHub(@Nullable final Screen parent, @Nullable final String page) {
-        Minecraft.getInstance().setScreen(new ConfigHubScreen(parent, page));
+        Minecraft.getInstance().setScreen(ConfigHubScreen.forLayout(parent, page));
     }
 
     public static Screen hub(@Nullable final Screen parent, @Nullable final String page) {
-        return new ConfigHubScreen(parent, page);
+        return ConfigHubScreen.forLayout(parent, page);
     }
 
     /** {@code module} is the short name ({@code menu}, {@code chat}, {@code multiplayer}); the hook re-reads {@code config/slate/<module>.json}. */

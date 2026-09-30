@@ -290,9 +290,11 @@ So `slate_building` will be the first content mod in the suite. What that means:
   - `-PautoQuit` → `slate.autoQuit` (default `true`);
   - `slate.autoDir` = `file('run')`.
   - All are read in `common/core/.../core/client/DevHarness.java` → `static void init()`, which `SlateClient.init()` calls.
-  - `slate.autoWorldScreens` (default `hud,minecraft:pause,minecraft:chat,slate:hub`) is read but **not wired to any `-P` property**.
-  - The world is created fresh: creative, peaceful, cheats on, seed `20260923L`, folder `slate-harness-NNNNN`.
-  - Output is `<autoDir>/screenshots/<id>-<skin>.png` via `Screenshot.grab`, capturing from `SCREEN_RENDER_POST`, or from `HUD_RENDER` when no screen is open.
+  - `-PautoWorldScreens=a,b` → `slate.autoWorldScreens` (default `hud,minecraft:pause,minecraft:chat,slate:hub`).
+  - Added since (30 September 2026): `-PautoLayout=VANILLA|CUSTOM|OVERHAUL`, `-PautoMotion=0`, `-PautoIntro=true`, `-PsampleData=true`, `-PautoWindow=1280x720`, `-PautoGif=true` (Chat records a GIF as soon as the player is in a world), `-PautoWorldId=<folder>` (that world is opened when it exists, made under that name when not), `-PautoLoadingShots=<ms>` (a picture every so often of the loading screens on the way into the world and out of it: `loading-NNN-<Screen>-<skin>.png`).
+  - An entry may carry `@<ms>` (taken that long after the screen opened) and `#<x>x<y>` (the pointer there, as fractions of the screen). Special ids: `reload` (reloads the resources, taken from the overlay), in the world `click#<x>x<y>` (a left click on the open screen) and `command:<text>@<ms>` (a command sent as the player).
+  - The world is created fresh: creative, peaceful, cheats on, seed `20260923L`, folder `slate-harness-NNNNN` (or `autoWorldId`).
+  - Output is `<autoDir>/screenshots/<id>-<skin>.png` via `Screenshot.grab`, taken after a screen and everything Slate lays over it (popups, toasts, tooltips) have drawn (`DevHarness.screenFrame`, called at the end of `SlateClient.onScreenRendered`), or from `HUD_RENDER` when no screen is open. Batched draws are ended first, so a vanilla tooltip has its words.
   - Other hooks: env var `SLATE_CONFIG_SMOKE` → `config/SmokeTest.install()`. There is no quickPlay or dolly wiring in Slate.
 - **`tools/`:**
   - `boot-df.ps1`: boots the DF pack with a CmlLib C# harness and runs a log analyzer, parking the drippy earlywindow jar during the run; exit 100 = still running at the timeout, i.e. boot survived. **Currently broken:** its default `-Harness` (`...\e94ada8d-...\scratchpad\boot\bin\Release\net10.0\boot.exe`) and `-Analyzer` (`analyze_log.py`) paths no longer exist.

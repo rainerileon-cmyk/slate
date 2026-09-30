@@ -1,11 +1,11 @@
 package dev.fallingcloud.slate.building.client.settings;
 
-import dev.fallingcloud.slate.core.gfx.Fonts;
 import dev.fallingcloud.slate.core.layout.ui.Rect;
 import dev.fallingcloud.slate.core.screen.SlateScreen;
 import dev.fallingcloud.slate.core.widget.SlateDropdown;
 import dev.fallingcloud.slate.core.widget.SlateLabel;
 import dev.fallingcloud.slate.core.widget.SlateScrollPanel;
+import dev.fallingcloud.slate.core.widget.SlateSeparator;
 import dev.fallingcloud.slate.core.widget.SlateSlider;
 import dev.fallingcloud.slate.core.widget.SlateTextField;
 import dev.fallingcloud.slate.core.widget.SlateToggle;
@@ -44,9 +44,14 @@ public final class BuildingSettingsScreen extends SlateScreen {
         panel = sp;
         final int w = sp.innerWidth() - 4;
         int y = 0;
+        // The menu style stays reachable from every module's own settings (R6), Slate UI or not.
+        sp.add(new SlateSeparator(0, 0, w, Component.translatable("slate.settings.section.look")), 0, y);
+        y += 16;
+        sp.add(dev.fallingcloud.slate.core.client.settings.SettingRow.of(w, dev.fallingcloud.slate.core.client.settings.LayoutStyleRows.styleLabel(), null,
+            dev.fallingcloud.slate.core.client.settings.LayoutStyleRows.styleSegmented(0, 0, dev.fallingcloud.slate.core.client.settings.SettingRow.controlWidth(w), null)), 0, y);
+        y += dev.fallingcloud.slate.core.client.settings.SettingRow.HEIGHT + 10;
         for (final BuildingSettings.Group g : BuildingSettings.groups()) {
-            final SlateLabel head = new SlateLabel(0, 0, w, Fonts.heading(g.title())).style(SlateLabel.Style.TITLE);
-            sp.add(head, 0, y);
+            sp.add(new SlateSeparator(0, 0, w, g.title()), 0, y);
             y += 16;
             if (g.description() != null) {
                 final SlateLabel desc = new SlateLabel(0, 0, w, g.description()).style(SlateLabel.Style.MUTED).wrap(true);

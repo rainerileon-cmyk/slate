@@ -4,6 +4,9 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import dev.fallingcloud.slate.core.theme.Colors;
 import java.util.Arrays;
 import net.minecraft.client.renderer.texture.OverlayTexture;
+import org.jetbrains.annotations.Nullable;
+import org.joml.Matrix4f;
+import org.joml.Vector3f;
 
 /**
  * Ghost vertices recorded once, relative to an origin block, for the shader-pack fallback path (the vanilla
@@ -58,7 +61,18 @@ final class FallbackMesh implements GhostMesher.Sink {
      * tinted amber and removals red (45%, as the ghost shader's tint), alpha scaled by {@code opacity}.
      */
     void replay(final VertexConsumer consumer, final float ox, final float oy, final float oz, final float opacity, final int dangerRgb) {
+        replay(consumer, ox, oy, oz, null, opacity, dangerRgb);
+    }
+
+    /**
+     * The same, for a mesh that is not only moved: {@code placed} (when not null) takes a vertex from the mesh's own
+     * space to where it is seen from the camera, turned and scaled (a ghost on a Sable sub-level), and the offset is
+     * not used.
+     */
+    void replay(final VertexConsumer consumer, final float ox, final float oy, final float oz, final @Nullable Matrix4f placed, final float opacity,
+                final int dangerRgb) {
         final int[] d = data;
+        final Vector3f p = new Vector3f(), nrm = new Vector3f();
         for (int k = 0, n = vertices; k < n; k++) {
             final int i = k * STRIDE;
             final int argb = d[i + 5];
@@ -72,10 +86,18 @@ final class FallbackMesh implements GhostMesher.Sink {
             }
             final int a = Math.min(255, Math.round(((argb >>> 24) & 0xFF) * opacity));
             final int normal = d[i + 8];
-            consumer.addVertex(Float.intBitsToFloat(d[i]) + ox, Float.intBitsToFloat(d[i + 1]) + oy, Float.intBitsToFloat(d[i + 2]) + oz,
+            p.set(Float.intBitsToFloat(d[i]), Float.intBitsToFloat(d[i + 1]), Float.intBitsToFloat(d[i + 2]));
+            nrm.set((byte) normal / 127F, (byte) (normal >> 8) / 127F, (byte) (normal >> 16) / 127F);
+            if (placed == null) {
+                p.add(ox, oy, oz);
+            } else {
+                placed.transformPosition(p);
+                placed.transformDirection(nrm).normalize();
+            }
+            consumer.addVertex(p.x, p.y, p.z,
                 Colors.argb(a, Math.min(255, r), Math.min(255, g), Math.min(255, b)),
                 Float.intBitsToFloat(d[i + 3]), Float.intBitsToFloat(d[i + 4]), OverlayTexture.NO_OVERLAY, d[i + 6],
-                (byte) normal / 127F, (byte) (normal >> 8) / 127F, (byte) (normal >> 16) / 127F);
+                nrm.x, nrm.y, nrm.z);
         }
     }
 

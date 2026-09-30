@@ -146,7 +146,7 @@ public final class ChatInput extends SlateWidget {
         if (ctrl) {
             if (keyCode == 65) { allSelected = !text.isEmpty(); return true; }                                   // ctrl+a
             if (keyCode == 86) {                                                                             // ctrl+v
-                if (onPasteImage != null && dev.fallingcloud.slate.multiplayer.client.ClipboardImages.hasImage()) { onPasteImage.run(); return true; }
+                if (onPasteImage != null && dev.fallingcloud.slate.core.media.ClipboardImages.hasImage()) { onPasteImage.run(); return true; }
                 insert(Minecraft.getInstance().keyboardHandler.getClipboard());
                 return true;
             }

@@ -19,6 +19,7 @@ public class NavButton extends SlateButton {
     public static final int HEIGHT = 24;
 
     private boolean danger;
+    private boolean primary;
 
     public NavButton(final int x, final int y, final int width, final Icon icon, final Component label, final Runnable onPress) {
         super(x, y, width, HEIGHT, label, onPress);
@@ -29,6 +30,9 @@ public class NavButton extends SlateButton {
 
     /** Red label (Quit). */
     public NavButton danger() { this.danger = true; return this; }
+
+    /** The one a column is there for (Back to game): a face in the accent's colour, its bar always out. */
+    public NavButton primary() { this.primary = true; return this; }
 
     @Override
     protected void renderDark(final GuiGraphics g, final int mouseX, final int mouseY, final float partialTick) {
@@ -41,16 +45,20 @@ public class NavButton extends SlateButton {
 
         int fill = Colors.lerp(Colors.withAlpha(p.surface(), 0xB4), Colors.withAlpha(p.surfaceHover(), 0xF0), lift);
         int border = Colors.lerp(Colors.withAlpha(p.border(), 0xB0), p.borderStrong(), lift);
+        if (primary) {
+            fill = Colors.lerp(Colors.lerp(Colors.withAlpha(p.surface(), 0xD0), p.accent(), 0.2f), Colors.lerp(Colors.withAlpha(p.surfaceHover(), 0xF0), p.accent(), 0.34f), lift);
+            border = Colors.lerp(Colors.withAlpha(p.accent(), 0xA0), p.accent(), lift);
+        }
         if (!this.active) { fill = Colors.withAlpha(p.surface(), 0x70); border = Colors.withAlpha(p.border(), 0x70); }
         fill = Colors.brighten(fill, -0.1f * prs);
         SlateDraw.shadow(g, x, y, w, h, 0.3f * a * (1 - prs));
         SlateDraw.pixelRound(g, x, y, w, h, Colors.scaleAlpha(fill, a), t.radius());
         SlateDraw.outline(g, x, y, w, h, Colors.scaleAlpha(border, a), t.radius());
-        final int barH = Math.round((h - 10) * lift);
+        final int barH = Math.round((h - 10) * (primary && this.active ? 1f : lift));
         if (barH > 0) SlateDraw.rect(g, x + 2, y + (h - barH) / 2, 2, barH, Colors.scaleAlpha(danger ? p.danger() : p.accent(), a));
         SlateDraw.focusRing(g, x, y, w, h, foc * a);
 
-        final int ic = this.active ? Colors.lerp(p.textMuted(), danger ? p.danger() : p.accent(), lift) : p.textDim();
+        final int ic = this.active ? Colors.lerp(primary ? p.accent() : p.textMuted(), danger ? p.danger() : p.accent(), lift) : p.textDim();
         Icons.draw(g, icon, x + 9, y + (h - iconSize) / 2, iconSize, Colors.scaleAlpha(ic, a));
         final int fg = !this.active ? p.textDim() : danger ? Colors.lerp(p.text(), p.danger(), lift) : Colors.lerp(p.text(), 0xFFFFFFFF, lift * 0.3f);
         g.drawString(SlateDraw.font(), SlateDraw.truncate(getMessage(), w - iconSize - 24), x + 9 + iconSize + 7, y + (h - 9) / 2 + 1, Colors.scaleAlpha(fg, a), false);
@@ -61,7 +69,8 @@ public class NavButton extends SlateButton {
         final float a = effectiveAlpha();
         final int x = getX(), y = getY() + enterOffset() + Math.round(press()), w = getWidth(), h = getHeight();
         SlateDraw.vanillaButton(g, x, y, w, h, Math.max(hover(), focus()), this.active, a);
-        final int fg = !this.active ? 0xFFA0A0A0 : danger ? Theme.current().palette().danger() : 0xFFFFFFFF;
+        final int fg = !this.active ? 0xFFA0A0A0 : danger ? Theme.current().palette().danger()
+            : primary ? Colors.lerp(0xFFFFFFFF, Theme.current().palette().accent(), 0.35f) : 0xFFFFFFFF;
         Icons.draw(g, icon, x + 8, y + (h - iconSize) / 2, iconSize, Colors.scaleAlpha(fg, a));
         g.drawString(SlateDraw.font(), SlateDraw.truncate(getMessage(), w - iconSize - 22), x + 8 + iconSize + 6, y + (h - 9) / 2 + 1, Colors.scaleAlpha(fg, a), true);
     }

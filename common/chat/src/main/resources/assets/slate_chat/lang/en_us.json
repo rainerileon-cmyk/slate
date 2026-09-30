@@ -1,6 +1,7 @@
 {
   "slate_chat.name": "Slate Chat",
   "key.slate_chat.record": "Record voice message (hold)",
+  "key.slate_chat.gif": "Record a GIF (start and stop)",
 
   "slate_chat.tabs": "Chat channels",
   "slate_chat.tab.global": "Global",
@@ -17,6 +18,7 @@
 
   "slate_chat.button.attach": "Send an image (right-click: any file, Ctrl+V in chat pastes an image)",
   "slate_chat.button.gif": "GIF library",
+  "slate_chat.button.record_gif": "Record a GIF of the game (%s, up to %s s)",
   "slate_chat.button.emote": "Emotes",
   "slate_chat.button.voice": "Hold to record a voice message",
 
@@ -35,6 +37,18 @@
   "slate_chat.media.no_server.body": "Images, files and voice travel through the server's Slate relay.",
   "slate_chat.media.sent_image": "Image sent (%s KB)",
   "slate_chat.media.sent_gif": "GIF sent (%s KB)",
+  "slate_chat.gif.title": "Recorded GIF",
+  "slate_chat.gif.ready": "Recording starts...",
+  "slate_chat.gif.recording": "Recording %s / %s s  (%s to stop)",
+  "slate_chat.gif.making": "Making the GIF...",
+  "slate_chat.gif.too_short": "Too short for a GIF",
+  "slate_chat.gif.failed": "The GIF could not be made",
+  "slate_chat.gif.saved": "GIF saved as %s",
+  "slate_chat.gif.send": "Send to %s",
+  "slate_chat.gif.send.smaller": "Sent %s px wide (%s KB), to fit what a message may carry",
+  "slate_chat.gif.folder": "Open folder",
+  "slate_chat.gif.delete": "Delete",
+  "slate_chat.gif.frames": "frames",
   "slate_chat.media.failed": "Could not send",
   "slate_chat.media.paste_too_large": "Clipboard image is too large to fit",
   "slate_chat.file.saved": "File saved to downloads/",
@@ -82,6 +96,8 @@
   "slate_chat.settings.max_download": "Preview size limit",
   "slate_chat.settings.thumb_rows": "Preview height (lines)",
   "slate_chat.settings.max_record": "Max voice length",
+  "slate_chat.settings.gif_seconds": "Max GIF length",
+  "slate_chat.settings.gif_width": "GIF width",
   "slate_chat.settings.clear_media_cache": "Clear media cache",
   "slate_chat.settings.restore_history": "Restore history on join",
   "slate_chat.settings.typing": "Typing indicator",

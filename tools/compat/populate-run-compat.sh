@@ -29,7 +29,9 @@ rm -f "$RUN/mods/"*.jar
 JARS=(
   'sodium-neoforge-0.8.12+mc1.21.1.jar'              # rendering (nests fabric renderer api)
   'sodium-extra-neoforge-*.jar'                       # -> sodium
-  'iris-neoforge-*.jar'                               # shaders (irisveil only bridges Veil, which is not copied)
+  'iris-neoforge-*.jar'                               # shaders
+  'sable-neoforge-1.21.1-*.jar'                       # sub-levels with physics (nests its companion, Veil and the physics lib)
+  'irisveil-*.jar'                                    # -> iris; bridges it to the Veil that Sable brings
   'create-1.21.1-6.0.10.jar'                          # nests flywheel, ponder, registrate
   'DiagonalFences-*.jar' 'DiagonalWalls-*.jar' 'DiagonalWindows-*.jar'   # nest diagonalblocks
   'PuzzlesLib-*.jar'                                  # <- Diagonal*

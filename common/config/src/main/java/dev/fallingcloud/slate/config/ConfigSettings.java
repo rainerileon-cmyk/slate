@@ -32,6 +32,8 @@ public final class ConfigSettings {
     public Map<String, String> lastTabs = new LinkedHashMap<>();
     /** One-time migration done: the retired "DF pack" curated page ({@code pages/df.json}) was moved aside. */
     public boolean dfPageRetired = false;
+    /** The Overhaul hub's game view above General and Video folded to its slim bar. */
+    public boolean liveViewMinimised = false;
 
     /** A named snapshot of option values keyed by option id (JSON values as produced by OptionValues.toJson). */
     public static final class Preset {

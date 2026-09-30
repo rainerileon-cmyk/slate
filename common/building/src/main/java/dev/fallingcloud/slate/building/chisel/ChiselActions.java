@@ -1,6 +1,7 @@
 package dev.fallingcloud.slate.building.chisel;
 
 import dev.fallingcloud.slate.building.block.ShapeBlockEntity;
+import dev.fallingcloud.slate.building.compat.SubLevels;
 import dev.fallingcloud.slate.building.net.ChiselHeld;
 import dev.fallingcloud.slate.building.net.ChiselTarget;
 import dev.fallingcloud.slate.building.ops.ToolType;
@@ -162,7 +163,7 @@ public final class ChiselActions {
 
     /** The face of {@code pos} that points at the player (the "clicked" face for the loader's place event). */
     private static Direction facingToward(final ServerPlayer player, final BlockPos pos) {
-        final Vec3 d = player.getEyePosition().subtract(Vec3.atCenterOf(pos));
+        final Vec3 d = SubLevels.toSpaceOf(player.level(), pos, player.getEyePosition()).subtract(Vec3.atCenterOf(pos));
         return Direction.getNearest(d.x, d.y, d.z);
     }
 

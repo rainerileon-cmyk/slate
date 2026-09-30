@@ -1,5 +1,6 @@
 package dev.fallingcloud.slate.building.ops;
 
+import dev.fallingcloud.slate.building.compat.SubLevels;
 import dev.fallingcloud.slate.building.config.BuildingServerSettings;
 import dev.fallingcloud.slate.building.toolbox.ToolboxAccess;
 import java.util.List;
@@ -7,6 +8,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -60,6 +62,36 @@ public record PlanContext(Level level, Player player, BuildMode mode, ModeParams
     /** Anchor {@code i}, or the last anchor when there are fewer (so a one-click selection is a single block). */
     public BlockPos anchor(final int i) {
         return anchors.get(Math.min(i, anchors.size() - 1));
+    }
+
+    /** The horizontal direction the player faces ({@code Player.getDirection()}), in the space of the selection. */
+    public Direction facing() {
+        return facing(level, player, anchors);
+    }
+
+    /** The nearest of the six directions to the player's view ({@code Player.getNearestViewDirection()}), in the space of the selection. */
+    public Direction view() {
+        return view(level, player, anchors);
+    }
+
+    /**
+     * The horizontal direction {@code player} faces, as the space of a selection has it: the world's own directions,
+     * unless the first anchor lies on a Sable sub-level, which has axes of its own (north on a ship is where its
+     * plot's north is).
+     */
+    public static Direction facing(final Level level, final Player player, final List<BlockPos> anchors) {
+        final SubLevels.Pose space = anchors.isEmpty() || !SubLevels.present() ? null : SubLevels.at(level, anchors.get(0));
+        if (space == null) return player.getDirection();
+        final Vec3 look = space.dirToLocal(player.getLookAngle());
+        return Math.abs(look.x) + Math.abs(look.z) < 1.0E-4 ? player.getDirection() : Direction.getNearest(look.x, 0.0, look.z);
+    }
+
+    /** The nearest of the six directions to {@code player}'s view, as the space of a selection has it. */
+    public static Direction view(final Level level, final Player player, final List<BlockPos> anchors) {
+        final SubLevels.Pose space = anchors.isEmpty() || !SubLevels.present() ? null : SubLevels.at(level, anchors.get(0));
+        if (space == null) return player.getNearestViewDirection();
+        final Vec3 look = space.dirToLocal(player.getLookAngle());
+        return Direction.getNearest(look.x, look.y, look.z);
     }
 
     /**
