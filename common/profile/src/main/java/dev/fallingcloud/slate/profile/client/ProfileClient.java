@@ -43,6 +43,7 @@ public final class ProfileClient {
         MenuSlots.provide(CoreSlots.PROFILE, Layout.CUSTOM, p -> new ProfileScreen(p, false));
         MenuSlots.provide(CoreSlots.PROFILE, Layout.OVERHAUL, p -> new ProfileScreen(p, true));
         CoreActions.SCREEN_FACTORIES.put("slate_profile:profile", p -> new ProfileScreen(p, MenuSlots.effective(CoreSlots.PROFILE) == Layout.OVERHAUL));
+        CoreActions.SCREEN_FACTORIES.put("slate_profile:profile/new", p -> new ProfileScreen(p, MenuSlots.effective(CoreSlots.PROFILE) == Layout.OVERHAUL).startBlank());
         for (final Slot s : Slot.values()) {
             CoreActions.SCREEN_FACTORIES.put("slate_profile:profile/" + s.key(), p -> new ProfileScreen(p, MenuSlots.effective(CoreSlots.PROFILE) == Layout.OVERHAUL).startEditing(s));
         }

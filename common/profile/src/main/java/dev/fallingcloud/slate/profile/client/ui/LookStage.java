@@ -28,12 +28,15 @@ import org.joml.Vector3f;
 /**
  * The stage the looks stand on. They stand side by side in a shallow bow; the one in view in the middle, two more
  * to either side, smaller and further back the further out. A lamp hangs over the one in view; over the one that
- * is worn hangs a brighter one, which shines whether that look is in view or not. Turning to another look slides
- * the row along.
+ * is worn hangs a brighter one, which shines whether that look is in view or not. Every place of the row has its
+ * pool of light on the floor, faint where no lamp hangs: under the looks at the side, and where nobody stands yet,
+ * so the row reads as five places on a stage however few looks there are. Turning to another look slides the row
+ * along.
  *
  * <p>For editing, the other looks leave and the view comes closer; with a slot chosen it goes right up to the part
- * of the body the slot is about (for the back the player turns round). With {@code theatre} off the stage is plain:
- * one look, no lamps, the Custom layout's preview.</p>
+ * of the body the slot is about (for the back the player turns round), and the player can be turned by hand
+ * ({@link #turnBy}). With {@code theatre} off the stage is plain: one look, no lamps, the Custom layout's
+ * preview.</p>
  */
 final class LookStage {
 
@@ -54,6 +57,8 @@ final class LookStage {
     }
 
     private static final float STIFFNESS = 58f, DAMPING = 15f;
+    /** How bright the pool of a place is that no lamp hangs over, against one that a lamp does. */
+    private static final float FAINT = 0.55f;
     /** How far apart the looks stand: set for the shape of the view, so five of them fill it. */
     private float pace = 1.62f;
     /** Where the row is turning to, counted on without end: the look in view is this, wrapped to the row. */
@@ -62,6 +67,14 @@ final class LookStage {
     final Stage stage;
     private final boolean theatre;
     private final List<Stand> stands = new ArrayList<>();
+    /** The pools of the places nobody stands on, when the row has fewer than five. */
+    private final List<FxNode> places = new ArrayList<>();
+    /** How far the player has been turned by hand, in degrees; it goes back by itself when the view changes. */
+    private float turned;
+    private boolean turnHome;
+    /** The hall's floor and the dust in its air: both belong to the row, and step back when one look is edited. */
+    @Nullable private FxNode floor;
+    @Nullable private MotesNode motes;
     private final PivotNode driver = new PivotNode();
     private int viewed;
     private float position, velocity;
@@ -89,8 +102,18 @@ final class LookStage {
             // A dark hall: what light there is comes from the lamps.
             s.lighting().key(1.4f, 4.6f, 4.2f).keyColor(0.7f, 0.64f, 0.56f).ambientColor(0.26f, 0.26f, 0.3f)
                 .fill(-1f, 0.4f, 0.4f, 0.1f, 0.13f, 0.2f).rim(1f, 0.9f, 0.76f, 0.3f).wrap(0.5f).sun(0.3f, 1f, 0.6f);
-            s.add(FxNode.glow(9f, 0xD01C1B1A).fade(2.2f)).at(0f, -0.005f, -0.5f);
-            s.add(new MotesNode(46, 7f, 3.2f, 3f, 0.022f, 0x60FFE7C2, 12L)).at(0f, 1.7f, 0.2f);
+            floor = FxNode.glow(9f, 0xD01C1B1A).fade(2.2f);
+            s.add(floor).at(0f, -0.005f, -0.5f);
+            motes = new MotesNode(46, 7f, 3.2f, 3f, 0.022f, 0x60FFE7C2, 12L);
+            s.add(motes).at(0f, 1.7f, 0.2f);
+            final Theme t = Theme.current();
+            final int warm = Colors.lerp(0xFFFFE9C8, t.accent(), t.isVanilla() ? 0f : 0.22f);
+            for (int i = 0; i < 4; i++) {
+                final FxNode place = FxNode.glow(1.25f, Colors.withAlpha(warm, 0x70)).fade(1.7f);
+                place.visible(false);
+                s.add(place);
+                places.add(place);
+            }
         } else {
             s.lighting().key(2f, 4f, 5f).sun(0.3f, 1f, 0.6f);
             s.add(FxNode.glow(3f, 0xC01C1B1A).fade(2f)).at(0f, -0.005f, 0f);
@@ -187,9 +210,18 @@ final class LookStage {
         if (!on) focus(null);
     }
 
+    /** Turns the player in view by hand (the edit view's drag), {@code degrees} to the right. */
+    void turnBy(final float degrees) {
+        turned += degrees;
+        turnHome = false;
+    }
+
     /** Goes up to what {@code slot} is about; null steps back to the whole player. */
     void focus(@Nullable final Slot slot) {
         this.focus = slot;
+        // A new view starts facing the viewer (or, for the back, turned round): what was turned by hand goes back.
+        turned = Mth.wrapDegrees(turned);
+        turnHome = true;
         if (slot == null || slot == Slot.SKIN) {
             zoom.set(0f);
             turn.set(0f);
@@ -231,6 +263,10 @@ final class LookStage {
             }
         }
         final float e = edit.get();
+        if (turnHome) {
+            turned *= (float) Math.exp(-Math.min(0.1f, ctx.deltaMs / 1000f) * (motion <= 0f ? 1000f : 9f / motion));
+            if (Math.abs(turned) < 0.4f) { turned = 0f; turnHome = false; }
+        }
         for (int i = 0; i < stands.size(); i++) {
             final Stand st = stands.get(i);
             // The row is a ring: after the last look comes the first again, so there is always someone to either side.
@@ -247,17 +283,42 @@ final class LookStage {
             st.root.visible(seen > 0.01f);
             st.root.alpha(seen);
             // Turned a little towards the middle; turned right round to show the back.
-            st.node.yaw(-d * 13f * (1f - e) + 180f * turn.get() * inView);
+            st.node.yaw(-d * 13f * (1f - e) + 180f * turn.get() * inView + turned * inView * e);
             st.node.pickable(seen > 0.6f && e < 0.5f);
             st.node.lookAtCursor(false);
             final boolean isWorn = st.look != null && st.look.id().equals(worn);
-            st.lit.set(isWorn ? 1f : inView > 0.5f ? 0.62f : 0f);
+            st.lit.set(isWorn ? 1f : inView > 0.5f ? 0.72f : 0f);
             final float lit = st.lit.get();
             st.beam.alpha(lit * (1f - 0.55f * zoom.get()));
             st.beam.visible(theatre && lit > 0.01f);
-            st.pool.alpha(lit);
-            st.pool.visible(theatre && lit > 0.01f);
+            // Nobody stands in the dark: where no lamp hangs the floor still has a faint pool.
+            final float pool = Math.max(lit, FAINT);
+            st.pool.alpha(pool);
+            st.pool.visible(theatre && pool > 0.01f);
         }
+        // The places of the row nobody stands on: a row that goes round (five looks and more) has none.
+        int used = 0;
+        if (theatre && stands.size() < 5 && e < 0.99f) {
+            for (int j = Mth.floor(position - 2.7f); j <= Mth.ceil(position + 2.7f) && used < places.size(); j++) {
+                if (j >= 0 && j < stands.size()) continue;
+                final float d = j - position, far = Math.abs(d);
+                final float seen = Mth.clamp(2.7f - far, 0f, 1f) * (1f - e);
+                if (seen <= 0.01f) continue;
+                final FxNode place = places.get(used++);
+                place.at(d * pace, 0.01f, -(float) Math.pow(Math.min(far, 3.2f), 1.25) * 0.78f);
+                place.scale(1f - 0.13f * Math.min(far, 2.4f));
+                place.alpha(seen * FAINT * 0.75f);
+                place.visible(true);
+            }
+        }
+        for (; used < places.size(); used++) places.get(used).visible(false);
+        // The edit view is a smaller window on the stage, between the slots: the wide floor would show where that
+        // window ends, so it goes, and the player stands in the lamp's pool alone. Up close a mote is a large square.
+        if (floor != null) {
+            floor.alpha(1f - e);
+            floor.visible(e < 0.99f);
+        }
+        if (motes != null) motes.strength(1f - 0.8f * zoom.get());
         camera(e);
     }
 
@@ -270,10 +331,11 @@ final class LookStage {
         pace = Mth.clamp(2f * upright * tan * aspect * 0.8f / 4.6f, 1.45f, 2.3f);
         final float across = (pace * 4.6f) / (2f * aspect * tan * 0.86f);
         final float row = theatre ? Math.max(across, upright) : upright * 1.02f;
-        final float one = Math.max(2.5f / (2f * tan), 1.45f / (2f * aspect * tan));
+        // One look alone: far enough for the pool under its feet to be in the view whole.
+        final float one = Math.max(3f / (2f * tan), 1.5f / (2f * aspect * tan));
         final float dist = Mth.lerp(e, row, one);
-        eye.set(0f, 1.18f + dist * 0.06f, dist);
-        aim.set(0f, 1.04f, 0f);
+        eye.set(0f, 1.18f + dist * 0.06f - 0.06f * e, dist);
+        aim.set(0f, 1.04f - 0.06f * e, 0f);
         final float zm = zoom.get();
         if (zm > 0.001f) {
             final float side = turn.get() > 0.5f ? -1f : 1f;

@@ -4,6 +4,7 @@ import dev.fallingcloud.slate.building.ops.BuildMode;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
+import java.util.UUID;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceKey;
@@ -24,6 +25,9 @@ final class History {
     /**
      * One changed position.
      *
+     * @param space          the Sable sub-level the position lay on when it was changed, null in the world itself: a
+     *                       position of a ship's plot means nothing once the ship is gone, and something else once
+     *                       another ship has the plot, so it is only reverted while it is still that ship's
      * @param before         the state before
      * @param beforeMaterial our shape block's material before, else null
      * @param beforeData     block-entity data before (creative only), else null
@@ -32,7 +36,7 @@ final class History {
      * @param paid           what the player paid for {@code after}
      * @param gained         what the player got for {@code before} (drops, refunds)
      */
-    record BlockRecord(BlockPos pos, BlockState before, @Nullable BlockState beforeMaterial, @Nullable CompoundTag beforeData,
+    record BlockRecord(BlockPos pos, @Nullable UUID space, BlockState before, @Nullable BlockState beforeMaterial, @Nullable CompoundTag beforeData,
                        BlockState after, @Nullable BlockState afterMaterial, List<Economy.Cost> paid, List<Economy.Cost> gained) {}
 
     /**

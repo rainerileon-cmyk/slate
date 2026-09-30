@@ -10,7 +10,7 @@ import dev.fallingcloud.slate.core.event.SlateEvents;
  * ({@link ModeController}) as a {@link BuildInput} handler at priority 50, its tick (mode / undo / redo / confirm /
  * cancel / exit keybinds, robustness checks), its reactions to {@link ClientModeState} changes (symmetry sync,
  * results), the per-frame preview + overlay submission, and the dev harness scenarios {@code selection},
- * {@code mirror}, {@code paste} and {@code dimension} ({@link ModeHarness}).
+ * {@code mirror}, {@code paste} and {@code dimension} ({@link ModeHarness}) and {@code sable} ({@link SableHarness}).
  *
  * <p>The per-frame work runs as the FIRST listener of {@code SlateRenderEvents.AFTER_TRANSLUCENT}, so the ghosts and
  * overlays it submits are drawn by the renderers' own listener in the same frame (one raycast per frame; planning is
@@ -35,6 +35,7 @@ public final class ModeClient {
             SlateRenderEvents.AFTER_TRANSLUCENT.register(frame);
         }
         ModeHarness.register();
+        SableHarness.register();
         SlateBuilding.LOGGER.debug("[Slate Building] building modes ready");
     }
 

@@ -1,6 +1,7 @@
 package dev.fallingcloud.slate.building.block;
 
 import com.mojang.serialization.MapCodec;
+import dev.fallingcloud.slate.building.compat.SubLevels;
 import dev.fallingcloud.slate.building.variant.Shape;
 import java.util.ArrayList;
 import java.util.List;
@@ -68,7 +69,8 @@ public class VerticalStairsBlock extends CustomShapeBlock {
     protected @Nullable BlockState placementShape(final BlockPlaceContext ctx) {
         final BlockPos pos = ctx.getClickedPos();
         final Player player = ctx.getPlayer();
-        final Vec3 towards = player != null ? player.getEyePosition() : ctx.getClickLocation();
+        // Where the player stands, as the block's own space has it: on a Sable sub-level that is not where the world has them.
+        final Vec3 towards = player != null ? SubLevels.toSpaceOf(ctx.getLevel(), pos, player.getEyePosition()) : ctx.getClickLocation();
         final double fx = towards.x - pos.getX();
         final double fz = towards.z - pos.getZ();
         final Direction notch = Math.abs(fx - 0.5) < 1.0E-4 && Math.abs(fz - 0.5) < 1.0E-4

@@ -3,6 +3,7 @@ package dev.fallingcloud.slate.building.client.mode;
 import dev.fallingcloud.slate.building.SlateBuilding;
 import dev.fallingcloud.slate.building.client.input.BuildInput;
 import dev.fallingcloud.slate.building.client.input.BuildKeys;
+import dev.fallingcloud.slate.building.compat.SubLevels;
 import dev.fallingcloud.slate.building.config.BuildingServerSettings;
 import dev.fallingcloud.slate.building.config.HudSettings;
 import dev.fallingcloud.slate.building.config.ModeSettings;
@@ -180,7 +181,8 @@ final class ModeController implements BuildInput.Handler {
         if (mode == null || player == null || action == GLFW.GLFW_RELEASE) return false;
         if (!ClientModeState.settings().arrowNudge) return false;
         final boolean shift = (mods & GLFW.GLFW_MOD_SHIFT) != 0;
-        final Direction facing = ModeTarget.horizontalFacing(player);
+        final List<BlockPos> held = ClientModeState.anchors();
+        final Direction facing = ModeTarget.horizontalFacing(player, held.isEmpty() ? null : held.get(0));
         final Direction dir = switch (key) {
             case GLFW.GLFW_KEY_UP -> shift ? Direction.UP : facing;
             case GLFW.GLFW_KEY_DOWN -> shift ? Direction.DOWN : facing.getOpposite();
@@ -461,7 +463,7 @@ final class ModeController implements BuildInput.Handler {
                     final AABB box = ModePreview.shape().box();
                     if (box == null) return;
                     final float pt = Minecraft.getInstance().getTimer().getGameTimeDeltaPartialTick(true);
-                    face = ModeTarget.lookedAtFace(box, player.getEyePosition(pt), player.getViewVector(pt));
+                    face = ModeTarget.lookedAtFace(box, SubLevels.eye(player, pt), player.getViewVector(pt));
                 }
                 List<BlockPos> next = anchors;
                 for (int i = 0; i < Math.abs(steps) && next != null; i++) next = ModeGeometry.pushFace(mode, next, face, Integer.signum(steps));
@@ -471,7 +473,10 @@ final class ModeController implements BuildInput.Handler {
             }
             case NUDGE -> {
                 final float pt = Minecraft.getInstance().getTimer().getGameTimeDeltaPartialTick(true);
-                final Vec3 look = player.getViewVector(pt);
+                // Towards where the player looks, as the space of the selection has it (a ship's own axes).
+                final List<BlockPos> held = ClientModeState.anchors();
+                final SubLevels.Pose space = held.isEmpty() || !SubLevels.present() ? null : SubLevels.renderAt(held.get(0));
+                final Vec3 look = space == null ? player.getViewVector(pt) : space.dirToLocal(player.getViewVector(pt));
                 final Direction dir = Direction.getNearest(look.x, look.y, look.z);
                 for (int i = 0; i < Math.abs(steps); i++) nudge(mode, steps > 0 ? dir : dir.getOpposite());
             }

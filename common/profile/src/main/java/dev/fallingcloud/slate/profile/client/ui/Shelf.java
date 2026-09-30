@@ -40,8 +40,10 @@ import org.jetbrains.annotations.Nullable;
 /**
  * The row of boxes under the player in the edit view: what there is for the chosen slot, each thing in a box of its
  * own, in 3D. A hat turns in its box; a shirt is shown on a plain figure, cut down to the part it covers. One scene
- * lies over the whole row and holds all the things, so a row of twenty costs what a row of two does. The wheel
- * (or the arrows at the ends) moves the row; the pointer on a box lets the player try the thing on, a click keeps it.
+ * lies over the whole row and holds all the things, so a row of twenty costs what a row of two does. The boxes are
+ * as large as the screen has room for ({@link #boxFor}); a row that does not fill the width stands in its middle,
+ * under the player. The wheel (or the arrows at the ends) moves a longer one; the pointer on a box lets the player
+ * try the thing on, a click keeps it.
  */
 final class Shelf extends SlateWidget {
 
@@ -102,10 +104,19 @@ final class Shelf extends SlateWidget {
         }
     }
 
-    static final int BOX = 44, GAP = 4;
+    static final int GAP = 4;
+    /** Under a box: the name of what it holds. */
+    static final int LABEL = 12;
     /** Blocks of the scene from the top of the row to its foot. */
     private static final float TALL = 1.24f;
 
+    /** The side of a box on a screen this high: a seventh of it, within what still reads and what still fits. */
+    static int boxFor(final int screenHeight) {
+        return Mth.clamp(screenHeight / 7, 44, 72);
+    }
+
+    /** The side of a box. */
+    private final int box;
     private final Stage stage;
     private final List<Entry> entries = new ArrayList<>();
     private final Consumer<Entry> onPick;
@@ -113,8 +124,9 @@ final class Shelf extends SlateWidget {
     private final Anim scroll = new Anim(0, 200, Ease.OUT_CUBIC);
     @Nullable private Entry hovered;
 
-    Shelf(final Screen owner, final int x, final int y, final int width, final Consumer<Entry> onPick, final Consumer<Entry> onHover) {
-        super(x, y, width, BOX + 12, Component.empty());
+    Shelf(final Screen owner, final int x, final int y, final int width, final int box, final Consumer<Entry> onPick, final Consumer<Entry> onHover) {
+        super(x, y, width, box + LABEL, Component.empty());
+        this.box = box;
         this.onPick = onPick;
         this.onHover = onHover;
         final Stage s = new Stage().bind(owner);
@@ -207,18 +219,25 @@ final class Shelf extends SlateWidget {
         };
     }
 
-    private int pitch() { return BOX + GAP; }
+    private int pitch() { return box + GAP; }
 
-    private int maxScroll() { return Math.max(0, entries.size() * pitch() - GAP - getWidth()); }
+    /** How wide the row of boxes is. */
+    private int rowWidth() { return Math.max(0, entries.size() * pitch() - GAP); }
 
-    private int boxX(final int index) { return getX() + index * pitch() - Math.round(scroll.get()); }
+    private int maxScroll() { return Math.max(0, rowWidth() - getWidth()); }
+
+    private int boxX(final int index) {
+        // A row shorter than the shelf stands in its middle.
+        final int lead = Math.max(0, (getWidth() - rowWidth()) / 2);
+        return getX() + lead + index * pitch() - Math.round(scroll.get());
+    }
 
     @Nullable
     private Entry at(final double mx, final double my) {
-        if (my < getY() || my >= getY() + BOX || mx < getX() || mx >= getX() + getWidth()) return null;
+        if (my < getY() || my >= getY() + box || mx < getX() || mx >= getX() + getWidth()) return null;
         for (int i = 0; i < entries.size(); i++) {
             final int bx = boxX(i);
-            if (mx >= bx && mx < bx + BOX) return entries.get(i);
+            if (mx >= bx && mx < bx + box) return entries.get(i);
         }
         return null;
     }
@@ -261,69 +280,69 @@ final class Shelf extends SlateWidget {
             hovered = over;
             onHover.accept(over);
         }
-        g.enableScissor(x, y - 2, x + w, y + BOX + 14);
+        g.enableScissor(x, y - 2, x + w, y + box + 14);
         // The boxes.
         for (int i = 0; i < entries.size(); i++) {
             final Entry e = entries.get(i);
             final int bx = boxX(i);
-            if (bx + BOX < x || bx > x + w) continue;
+            if (bx + box < x || bx > x + w) continue;
             e.hover.set(e == over);
             final float h = e.hover.get();
             final int by = y - Math.round(h * 1.5f);
             if (van) {
-                g.fill(bx, by, bx + BOX, by + BOX, Colors.scaleAlpha(Colors.lerp(0x70000000, 0x90303030, h), a));
-                SlateDraw.outline(g, bx, by, BOX, BOX, Colors.scaleAlpha(e.chosen ? 0xFFFFFFFF : Colors.lerp(0xFF000000, 0xFFC0C0C0, h), a), 0);
+                g.fill(bx, by, bx + box, by + box, Colors.scaleAlpha(Colors.lerp(0x70000000, 0x90303030, h), a));
+                SlateDraw.outline(g, bx, by, box, box, Colors.scaleAlpha(e.chosen ? 0xFFFFFFFF : Colors.lerp(0xFF000000, 0xFFC0C0C0, h), a), 0);
             } else {
-                SlateDraw.pixelRound(g, bx, by, BOX, BOX, Colors.scaleAlpha(Colors.lerp(Colors.withAlpha(p.surface(), 0xB0), Colors.withAlpha(p.surfaceHover(), 0xE8), h), a), t.radius());
-                if (e.chosen) SlateDraw.vgradient(g, bx + 1, by + BOX / 2, BOX - 2, BOX / 2 - 1, Colors.withAlpha(p.accent(), 0), Colors.scaleAlpha(Colors.withAlpha(p.accent(), 0x50), a));
-                SlateDraw.outline(g, bx, by, BOX, BOX, Colors.scaleAlpha(e.chosen ? p.accent() : Colors.lerp(Colors.withAlpha(p.border(), 0xB0), p.borderStrong(), h), a), t.radius());
+                SlateDraw.pixelRound(g, bx, by, box, box, Colors.scaleAlpha(Colors.lerp(Colors.withAlpha(p.surface(), 0xB0), Colors.withAlpha(p.surfaceHover(), 0xE8), h), a), t.radius());
+                if (e.chosen) SlateDraw.vgradient(g, bx + 1, by + box / 2, box - 2, box / 2 - 1, Colors.withAlpha(p.accent(), 0), Colors.scaleAlpha(Colors.withAlpha(p.accent(), 0x50), a));
+                SlateDraw.outline(g, bx, by, box, box, Colors.scaleAlpha(e.chosen ? p.accent() : Colors.lerp(Colors.withAlpha(p.border(), 0xB0), p.borderStrong(), h), a), t.radius());
             }
-            if (e.icon != null) Icons.draw(g, e.icon, bx + (BOX - 16) / 2, by + (BOX - 16) / 2, 16, Colors.scaleAlpha(van ? 0xFFE0E0E0 : Colors.lerp(p.textMuted(), p.text(), h), a));
+            if (e.icon != null) Icons.draw(g, e.icon, bx + (box - 16) / 2, by + (box - 16) / 2, 16, Colors.scaleAlpha(van ? 0xFFE0E0E0 : Colors.lerp(p.textMuted(), p.text(), h), a));
         }
         g.disableScissor();
 
         // The things, all in one scene laid over the row.
         place(w);
-        g.enableScissor(x, y - 2, x + w, y + BOX + 2);
+        g.enableScissor(x, y - 2, x + w, y + box + 2);
         stage.alpha(a);
-        stage.render(g, x, y - 2, w, BOX + 2, -1e9, -1e9, partialTick);
+        stage.render(g, x, y - 2, w, box + 2, -1e9, -1e9, partialTick);
         g.disableScissor();
 
         // What the box under the pointer holds, by name; the name of what is chosen stands under its box.
-        g.enableScissor(x, y, x + w, y + BOX + 14);
+        g.enableScissor(x, y, x + w, y + box + 14);
         for (int i = 0; i < entries.size(); i++) {
             final Entry e = entries.get(i);
             if (!e.chosen && e != over) continue;
             final int bx = boxX(i);
             final var label = SlateDraw.truncate(e.label, Math.min(getWidth(), 150));
             final int lw = SlateDraw.font().width(label);
-            final int lx = Mth.clamp(bx + BOX / 2 - lw / 2, x, Math.max(x, x + w - lw));
-            if (e == over || over == null) g.drawString(SlateDraw.font(), label, lx, y + BOX + 3, Colors.scaleAlpha(e.chosen && !van ? p.accent() : van ? 0xFFFFFFFF : p.text(), a), van);
+            final int lx = Mth.clamp(bx + box / 2 - lw / 2, x, Math.max(x, x + w - lw));
+            if (e == over || over == null) g.drawString(SlateDraw.font(), label, lx, y + box + 3, Colors.scaleAlpha(e.chosen && !van ? p.accent() : van ? 0xFFFFFFFF : p.text(), a), van);
         }
         g.disableScissor();
         // Arrows where the row goes on.
         final float sc = scroll.get();
-        if (sc > 1f) Icons.draw(g, Icon.CHEVRON_LEFT, x + 1, y + BOX / 2 - 5, 10, Colors.scaleAlpha(van ? 0xFFFFFFFF : p.accent(), a));
-        if (sc < maxScroll() - 1f) Icons.draw(g, Icon.CHEVRON_RIGHT, x + w - 11, y + BOX / 2 - 5, 10, Colors.scaleAlpha(van ? 0xFFFFFFFF : p.accent(), a));
+        if (sc > 1f) Icons.draw(g, Icon.CHEVRON_LEFT, x + 1, y + box / 2 - 5, 10, Colors.scaleAlpha(van ? 0xFFFFFFFF : p.accent(), a));
+        if (sc < maxScroll() - 1f) Icons.draw(g, Icon.CHEVRON_RIGHT, x + w - 11, y + box / 2 - 5, 10, Colors.scaleAlpha(van ? 0xFFFFFFFF : p.accent(), a));
         if (over != null && SlateDraw.font().width(over.label) > Math.min(getWidth(), 150)) SlateTooltips.request(over.label, this);
     }
 
     /** Sets every thing where its box is, and the camera so that a block of the scene is a box of the row. */
     private void place(final int width) {
-        final float viewTall = TALL * (BOX + 2) / (float) BOX;
+        final float viewTall = TALL * (box + 2) / (float) box;
         final float fov = 9f;
         final float dist = viewTall / (2f * (float) Math.tan(Math.toRadians(fov / 2f)));
         stage.camera().at(0f, 0f, dist).lookAt(0f, 0f, 0f).fov(fov).clip(0.05f, 60f);
-        final float perPixel = viewTall / (BOX + 2);
+        final float perPixel = viewTall / (box + 2);
         for (int i = 0; i < entries.size(); i++) {
             final Entry e = entries.get(i);
             if (e.node == null) continue;
             final int bx = boxX(i);
-            final boolean seen = bx + BOX > getX() - BOX && bx < getX() + width + BOX;
+            final boolean seen = bx + box > getX() - box && bx < getX() + width + box;
             e.node.visible(seen);
             if (!seen) continue;
             final float h = e.hover.get();
-            final float cx = (bx + BOX / 2f - (getX() + width / 2f)) * perPixel;
+            final float cx = (bx + box / 2f - (getX() + width / 2f)) * perPixel;
             final float cy = (h * 1.5f - 1f) * perPixel;
             if (e.node instanceof LookNode figure) {
                 final float[] f = frame(e);

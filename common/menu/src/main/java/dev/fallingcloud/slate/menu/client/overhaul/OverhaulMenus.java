@@ -6,11 +6,13 @@ import dev.fallingcloud.slate.core.screen.slot.CoreSlots;
 import dev.fallingcloud.slate.core.screen.slot.Layout;
 import dev.fallingcloud.slate.core.screen.slot.MenuSlots;
 import dev.fallingcloud.slate.menu.client.overhaul.create.OverhaulCreateWorldScreen;
+import dev.fallingcloud.slate.menu.client.overhaul.pause.OverhaulPauseScreen;
 import dev.fallingcloud.slate.menu.client.overhaul.play.OverhaulPlayScreen;
 import dev.fallingcloud.slate.menu.client.overhaul.title.OverhaulTitleScreen;
 import dev.fallingcloud.slate.menu.mixin.JoinMultiplayerScreenAccessor;
 import dev.fallingcloud.slate.menu.mixin.SelectWorldScreenAccessor;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.PauseScreen;
 import net.minecraft.client.gui.screens.worldselection.CreateWorldScreen;
 
 /**
@@ -30,6 +32,12 @@ public final class OverhaulMenus {
         MenuSlots.provide(CoreSlots.SERVERS, Layout.OVERHAUL, s -> new OverhaulPlayScreen(((JoinMultiplayerScreenAccessor) s).slate$lastScreen(), true));
         CoreActions.SCREEN_FACTORIES.put("slate_menu:play_overhaul", p -> new OverhaulPlayScreen(p, false));
         CoreActions.SCREEN_FACTORIES.put("slate_menu:play_overhaul_servers", p -> new OverhaulPlayScreen(p, true));
+
+        // The escape menu: the list of what can be done, and the player on the piece of world they stand on. Vanilla's
+        // bare pause (F3 + Esc) stays vanilla's.
+        ScreenIds.register(OverhaulPauseScreen.class, "slate_menu:pause_overhaul", "Pause menu (Overhaul)");
+        MenuSlots.provide(CoreSlots.PAUSE, Layout.OVERHAUL, s -> s instanceof PauseScreen p && p.showsPauseMenu() ? new OverhaulPauseScreen() : null);
+        CoreActions.SCREEN_FACTORIES.put("slate_menu:pause_overhaul", p -> new OverhaulPauseScreen());
 
         // World creation: vanilla's screen stays behind Slate's and does the creating. The Overhaul layout shows the
         // world that is about to be made; the Custom layout is the same settings without the view.

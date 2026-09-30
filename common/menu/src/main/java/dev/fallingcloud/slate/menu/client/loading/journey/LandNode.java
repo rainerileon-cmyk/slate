@@ -38,8 +38,8 @@ import org.joml.Vector3f;
  *
  * <p>The tiles of a ring are dealt into a few groups that come up a moment after one another, so a ring does not
  * rise as one slab. A group is one mesh, built when it is its turn and every cell of it has been looked at, and
- * moved as a whole while it rises. Where a group borders on another its cut goes all the way down, in a few tall
- * pieces: that is what shows while the neighbour is not up yet, and is hidden for good once it is.</p>
+ * moved as a whole while it rises. Where a group borders on another its cut goes all the way down, on the sides the
+ * camera can see: that is what shows while the neighbour is not up yet, and is hidden for good once it is.</p>
  *
  * <p>The node's origin is the middle of the land, on the ground everything stands on. One cell is one unit.</p>
  */
@@ -52,8 +52,13 @@ final class LandNode extends StageNode {
     private static final float DROP = 15f;
     private static final float RISE_MS = 760f, SINK_MS = 620f;
     private static final int TEXELS = 8;
-    /** Cells of a cut laid cell by cell under a surface; below them the cut is laid in pieces this tall. */
-    private static final int FINE = 5, PIECE = 8;
+    /**
+     * Cells of a cut laid cell by cell under a surface. Below them the cut is laid two cells to a piece: a cell shows
+     * half the texture's height, so two show all of it, and nothing is drawn out.
+     */
+    private static final int FINE = 5;
+    /** The camera stands before the land, in its middle, and sways a little: how far past the middle, in cells, a side that looks away from the middle is still seen. */
+    private static final int SEEN_PAST = 28;
     private static final int WHITE = 0xFFFFFFFF;
     private static final int MAX_BUILDS = 2;
 
@@ -170,11 +175,14 @@ final class LandNode extends StageNode {
             quad(face, x, y, y + 1f, z, sprite, u0, u0 + t / 16f, v0, v0 + t / 16f, argb);
         }
 
-        /** The {@code face} side of the cells from {@code y0} up to {@code y1}, as one piece: the texture is drawn out over it. */
-        void piece(final Direction face, final int x, final int y0, final int y1, final int z, final TextureAtlasSprite sprite, final int argb) {
+        /**
+         * The {@code face} side of the two cells from {@code y} up, {@code y} even, as one piece: the two windows
+         * {@link #face} would lay there one over the other are the texture's whole height.
+         */
+        void pair(final Direction face, final int x, final int y, final int z, final TextureAtlasSprite sprite, final int argb) {
             final int a = face.getAxis() == Direction.Axis.X ? z : x;
             final float u0 = Math.floorMod(a, 2) * 0.5f;
-            quad(face, x, y0, y1, z, sprite, u0, u0 + 0.5f, 0f, 1f, argb);
+            quad(face, x, y, y + 2f, z, sprite, u0, u0 + 0.5f, 0f, 1f, argb);
         }
 
         private void quad(final Direction face, final float x, final float y, final float y1, final float z, final TextureAtlasSprite sprite,
@@ -249,13 +257,33 @@ final class LandNode extends StageNode {
         return argb & 0xFF000000 | r << 16 | g << 8 | b;
     }
 
-    /** A cut from {@code from} up to {@code to}, in tall pieces, as the ground shows it that far under {@code c}'s surface. */
+    /**
+     * A cut from {@code from} up to {@code to}, as the ground shows it that far under {@code c}'s surface: two cells
+     * to a piece wherever two lie on an even cell, the odd ones singly. Nothing of it on a side the camera cannot see.
+     */
     private void pieces(final Sheet sheet, final Direction d, final int wx, final int wz, final int from, final int to, final Land.Cell c) {
-        for (int y1 = to; y1 > from; y1 -= PIECE) {
-            final int y0 = Math.max(from, y1 - PIECE);
-            final int below = c.ground() - y1;
-            sheet.piece(d, wx, y0, y1, wz, sprite(stratum(c, Math.max(1, below))), tint(c, Math.max(1, below)));
+        if (!seen(d, wx)) return;
+        int y = from;
+        while (y < to) {
+            final int below = Math.max(1, c.ground() - 1 - y);
+            if ((y & 1) == 0 && y + 2 <= to) {
+                sheet.pair(d, wx, y, wz, sprite(stratum(c, below)), tint(c, below));
+                y += 2;
+            } else {
+                sheet.face(d, wx, y, wz, sprite(stratum(c, below)), TEXELS, tint(c, below));
+                y++;
+            }
         }
+    }
+
+    /** Whether the camera, which stands before the land's middle and looks at it, can see a side that looks this way. */
+    private static boolean seen(final Direction d, final int wx) {
+        return switch (d) {
+            case NORTH -> false;
+            case EAST -> wx < SEEN_PAST;
+            case WEST -> wx > -SEEN_PAST;
+            default -> true;
+        };
     }
 
     private void build(final Group group) {

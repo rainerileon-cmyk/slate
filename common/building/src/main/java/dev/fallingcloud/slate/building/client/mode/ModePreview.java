@@ -80,9 +80,11 @@ final class ModePreview {
     /** What planners read from the player besides the selection (re-planned at a pace the plan's cost allows). */
     private record Stance(Direction facing, Direction view, int rotation, boolean secondary, Item offhand, int offhandComponents,
                           Map<ToolType, Integer> tiers) {
-        static Stance of(final Player player) {
+        /** @param anchors the selection: on a Sable sub-level the facing is the one the planners read, the sub-level's own */
+        static Stance of(final Player player, final List<BlockPos> anchors) {
             final ItemStack off = player.getOffhandItem();
-            return new Stance(player.getDirection(), player.getNearestViewDirection(), RotationSegment.convertToSegment(player.getYRot()),
+            return new Stance(PlanContext.facing(player.level(), player, anchors), PlanContext.view(player.level(), player, anchors),
+                RotationSegment.convertToSegment(player.getYRot()),
                 player.isSecondaryUseActive(), off.getItem(), off.isEmpty() ? 0 : ItemStack.hashItemAndComponents(off),
                 ModeRules.capabilities(player).tiers());
         }
@@ -173,7 +175,7 @@ final class ModePreview {
         final boolean creative = player.isCreative();
         final Key next = new Key(mode.id(), params.copy(), List.copyOf(anchors), face, ClientPalette.signature(palette),
             ClientModeState.clipboardVersion(), limits, level.dimension(), creative);
-        final Stance nextStance = Stance.of(player);
+        final Stance nextStance = Stance.of(player, anchors);
 
         final boolean changed = !next.equals(key);
         final boolean drifted = plan != null && (!nextStance.equals(stance) || WorldChanges.count() != worldSeen);

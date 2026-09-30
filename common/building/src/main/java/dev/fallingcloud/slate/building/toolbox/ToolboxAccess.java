@@ -273,7 +273,8 @@ public final class ToolboxAccess {
         if (!link.pos().dimension().equals(level.dimension())) return null;
         final BlockPos pos = link.pos().pos();
         final double range = Math.max(0, BuildingServerSettings.effective(p).toolbox().supplyLinkRange);
-        if (p.position().distanceToSqr(Vec3.atCenterOf(pos)) > range * range) return null;
+        // The player's own measure, which Sable has follow a block that is on a sub-level.
+        if (p.distanceToSqr(Vec3.atCenterOf(pos)) > range * range) return null;
         if (!level.isLoaded(pos)) return null;
         final Container container = linkableContainer(level, pos);
         return container == null ? null : new LinkedContainer(level.dimension(), pos, container);

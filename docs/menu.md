@@ -22,11 +22,15 @@ the model and `docs/LAYOUTS.md` for the design.
   recent servers, LAN games, and a **Community** section from `config/slate/menu/community_servers.json`
   that a modpack can pre-fill. A "friends here" chip appears when Multiplayer knows friends are on a
   server. Right-click a server for its menu.
-- **Pause menu** — one floating card over the blurred world: the world or server name, the time played
-  this session and chips for the game mode, dimension, in-game day and time and difficulty; then the vanilla
-  actions grouped by rules (Back to game; Advancements, Statistics; Options, Open to LAN / server links /
-  player reporting; Screenshots, Friends; Disconnect / Save & quit with confirmation). Vanilla's feedback and
-  bug-report links are gone, and there is no Slate button: Options opens Slate's settings hub.
+- **Pause menu** — laid out as the main menu is, over the blurred world: a column of large buttons on one plate
+  (Back to game, marked as the one the column is there for; Advancements; Statistics; Options; Open to LAN / server
+  links / player reporting; Screenshots; Friends; Mods; Save & quit / Disconnect, red, with confirmation), and
+  beside it two cards. The world's card has its picture (the save's own, or the server's), its name and chips for
+  the game mode, the day and hour and the difficulty. The player's card has their face and name, how they are doing
+  in the HUD's own signs (hearts, armour, hunger, level; nothing in Creative), and where they stand (coordinates
+  and biome, left out under reduced debug info); a click on it opens the profile. "Game Menu" stands over both,
+  large, with the time played this session at the other end of its line. A narrow window keeps the column alone.
+  Vanilla's feedback and bug-report links are gone, and there is no Slate button: Options opens Slate's settings hub.
 - **Options** — a sidebar screen whose first page holds the options people actually change (FOV, render
   distance, GUI scale, fullscreen, vsync, max FPS, master volume) and whose other pages open the vanilla
   sub-screens, all restyled by Core; a "Slate settings hub" entry appears when the Config module is
@@ -92,6 +96,13 @@ both styles, and with animations off (`motion` 0) it stands still in its end sta
   encrypting, joining); when the terrain is being sent the view goes in through it. Leaving a server shows the gate
   going out. The server's name and picture, the step and Cancel stand over it.
 - Waits inside a world (another dimension, a respawn) keep the game's own backdrop under the same words.
+- **Pause menu** — the world stays behind everything, out of focus. On the left, in the words of the loading
+  screens, what is paused (the world's name, large; the mode, the dimension, the day and hour) and the list of what
+  can be done, in the heading font on no plate at all: Back to game has the accent's bar beside it from the start,
+  the others take it under the pointer. On the right stands the player as they are at that moment (armour, what
+  they hold) on the piece of the world they stand on, cut out the way a doll's house is: the ground under their
+  feet, and behind them what they were looking at, with no ceiling and nothing between them and the viewer. Under
+  it are their hearts, armour, hunger and level, and where they are. A click on the figure opens the profile.
 
 Dev-mode extras: element types `slate_menu:continue_card`, `slate_menu:world_list`,
 `slate_menu:server_status`; actions `slate_menu:open_screenshots`, `open_worlds`, `open_servers`,

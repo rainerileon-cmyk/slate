@@ -579,6 +579,22 @@ blocks are in `#minecraft:stairs`, `slabs`, `walls`, `fences` and `fence_gates`.
   installed, Slate Building's copy stays idle and the mod does the work.
 - **Chisel mods:** Rechiseled, Chipped, Chisel (Modern) and Chisel (Reborn) groups are read when installed (see
   [Chisel groups](#chisel-groups)).
+- **Sable** (ships and other sub-levels with physics): building works on a sub-level as it does on the ground. The
+  placement ghost, a mode's selection box, its planned blocks, markers, mirror planes and labels are drawn where the
+  sub-level is and move and turn with it, with a shader pack too. A selection lies in one space, the one of its
+  first corner: the second corner is looked for on the same ship (a block of the world under the crosshair is not
+  taken for it), and a corner in the air beside a ship is found along the ship's own axes, however it is turned.
+  Mirror and Radial centred on a ship copy across the ship's own planes. Move may take blocks off a ship into the
+  world, or on to one: both ends of it are previewed, each where its own space is. Shapes that turn towards the
+  player (vertical stairs), a chisel's clicked face, Extend's and Stack's "the way I look", the arrow keys and
+  accurate placement's backing off all measure the player as the ship sees them; a linked supply chest may stand
+  on a ship. Undo and redo put back what was done on a ship only while it is still that ship: once it is gone (or
+  its place is another's) that part is left alone, and what the same operation did in the world is still undone.
+  Reach and permissions were Sable's already (the game's own reach check follows a sub-level). Slate Building talks
+  to Sable through its companion library by reflection: nothing of Sable is compiled against or shipped, and
+  without Sable none of this costs anything. Checked in the game against Sable 2.0.3 on NeoForge (the `sable`
+  scenario below), with and without Sodium, Iris and a shader pack; a scaled sub-level is handled by the same
+  arithmetic but was not tried.
 
 ## Known limitations
 
@@ -607,7 +623,8 @@ blocks are in `#minecraft:stairs`, `slabs`, `walls`, `fences` and `fence_gates`.
 
 Unattended in-game checks: `./gradlew :dev:runClient -PbuildingHarness=<scenarios> -PautoWorld=true -PautoQuit=true`
 (scenarios `smoke`, `variants`, `render`, `wheel`, `menu`, `input`, `selection`, `mirror`, `paste`, `move`,
-`dimension`, `ops`, `toolbox`, `chisel`). Screenshots go to `dev/run/screenshots/building-*.png`. On NeoForge,
-`:dev:runClientCompat` runs the same harness with the DF-pack mods copied into `neoforge/dev/run-compat` by
-`tools/compat/populate-run-compat.sh` (scenarios `compat` and `compat-*`). Design contract:
+`dimension`, `ops`, `toolbox`, `chisel`, and `sable`, which needs Sable's jar in the run's `mods` folder).
+Screenshots go to `dev/run/screenshots/building-*.png`. On NeoForge, `:dev:runClientCompat` runs the same harness
+with the DF-pack mods copied into `neoforge/dev/run-compat` by `tools/compat/populate-run-compat.sh` (scenarios
+`compat` and `compat-*`; Sable is among the copied mods, so `sable` runs there too). Design contract:
 [building-design.md](building-design.md).

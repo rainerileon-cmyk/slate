@@ -33,7 +33,10 @@ Said later, on the built screens (29 and 30 September 2026):
   chests are zoomed out far enough to leave room between them and the line at the bottom. The Profile button is the
   player's head alone, centred, and it does not follow the pointer. In the Slate style there is no splash text
   beside the logo.
-- **Profile screen.** The figures never look at the pointer.
+- **Profile screen.** The figures never look at the pointer. Things are to fit and look better (built as: the stage
+  has most of the screen; the look's name stands large under it with what it is made of and a dot per look; the
+  account, picture and bio are one card at the foot; in the edit view a slot says what is in it on a line of its
+  own, the boxes of things grow with the window, and the player can be turned by dragging).
 - **Buttons in a scene.** Clicking one draws no box around it (the outline is for the keyboard).
 - **Play screen.** The small ring in the middle hangs low, in the ring's middle. The button that adds a world is not
   in the scene but a plus beside Play, where the pencil was; beside the details, where a second Play button used to
@@ -43,7 +46,11 @@ Said later, on the built screens (29 and 30 September 2026):
   coming out of it.
 - **Options screen.** There is a Gameplay tab, and the Building settings are in it.
 - **World and server loading.** Not sketched: they are Overhaul screens of their own design, each cool in its own
-  way (built as the world's land rising while it opens, and a gate that takes fire while a server is joined).
+  way (built as the world's land rising while it opens, and a gate that takes fire while a server is joined). No
+  texture on the land is stretched.
+- **Escape menu.** Reworked in both layouts, because the one card in the middle of the screen was not liked (built
+  as the main menu's column and cards in the Custom layout; as a list beside the player on their piece of the world
+  in the Overhaul one).
 - **Chat.** It can record GIFs of the game.
 
 Contents:

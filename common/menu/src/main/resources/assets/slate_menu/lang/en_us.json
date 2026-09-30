@@ -105,6 +105,10 @@
   "slate_menu.pause.confirm_quit_mp": "Disconnect from the server?",
   "slate_menu.pause.session": "Playing for %s",
   "slate_menu.pause.day_time": "Day %s · %s",
+  "slate_menu.pause.level": "Lv %s",
+  "slate_menu.pause.card.world": "THIS WORLD",
+  "slate_menu.pause.card.server": "THIS SERVER",
+  "slate_menu.pause.card.you": "YOU",
 
   "slate_menu.disconnected.reconnect": "Reconnect to %s",
 

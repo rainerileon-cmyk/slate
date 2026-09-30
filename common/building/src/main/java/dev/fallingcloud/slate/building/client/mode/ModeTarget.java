@@ -1,5 +1,6 @@
 package dev.fallingcloud.slate.building.client.mode;
 
+import dev.fallingcloud.slate.building.compat.SubLevels;
 import dev.fallingcloud.slate.building.ops.BuildMode;
 import dev.fallingcloud.slate.building.ops.BuildModes;
 import dev.fallingcloud.slate.building.ops.ModeParams;
@@ -33,6 +34,11 @@ import org.jetbrains.annotations.Nullable;
  * axis plane through corner A that faces the camera most directly (so a box drawn in the air stays a flat floor or
  * wall until the view tilts), within reach.
  *
+ * <p>With Sable a corner may lie on a sub-level (a ship): its position is then one of the ship's plot. A selection
+ * lies in one space, the one of its first corner. The second corner is looked for there: a block of another space
+ * under the crosshair is not a corner of it, and the point in the air is found with the eye and the view as the
+ * ship has them, so the box is drawn along the ship's own axes, however the ship is turned.
+ *
  * @param pos     the anchor a click would set
  * @param face    the clicked face, or the face towards the player on air (UP for paste / move destinations)
  * @param air     true when nothing within reach was hit
@@ -46,11 +52,12 @@ record ModeTarget(BlockPos pos, Direction face, boolean air, @Nullable BlockPos 
     static ModeTarget compute(final Player player, final BuildMode mode, final ModeParams params, final Role role,
                               final @Nullable BlockPos planeAnchor, final float partialTick) {
         final Level level = player.level();
-        final double reach = ModeRules.reach(player);
-        final Vec3 eye = player.getEyePosition(partialTick);
-        final Vec3 look = player.getViewVector(partialTick);
+        double reach = ModeRules.reach(player);
+        Vec3 eye = SubLevels.eye(player, partialTick);
+        Vec3 look = player.getViewVector(partialTick);
         final HitResult hit = player.pick(reach, partialTick, false);
-        if (hit instanceof BlockHitResult bhr && hit.getType() == HitResult.Type.BLOCK) {
+        if (hit instanceof BlockHitResult bhr && hit.getType() == HitResult.Type.BLOCK
+            && (planeAnchor == null || SubLevels.same(level, planeAnchor, bhr.getBlockPos()))) {
             final BlockPos clicked = bhr.getBlockPos();
             final Direction face = bhr.getDirection();
             if (against(mode, role)) {
@@ -61,6 +68,13 @@ record ModeTarget(BlockPos pos, Direction face, boolean air, @Nullable BlockPos 
             final BlockState state = level.getBlockState(clicked);
             final BlockPos pos = state.canBeReplaced() ? clicked : clicked.relative(face);
             return new ModeTarget(pos, face, false, clicked);
+        }
+        // In the air. A second corner is found in the space of the first: on a sub-level, as the sub-level sees it.
+        final SubLevels.Pose space = planeAnchor == null ? null : SubLevels.renderAt(planeAnchor);
+        if (space != null) {
+            eye = space.toLocal(eye);
+            look = space.dirToLocal(look);
+            reach /= space.size();
         }
         final Direction towardsPlayer = Direction.getNearest(look.x, look.y, look.z).getOpposite();
         if (planeAnchor != null) {
@@ -121,7 +135,11 @@ record ModeTarget(BlockPos pos, Direction face, boolean air, @Nullable BlockPos 
      * The face of {@code box} the player is looking at (the near face the view ray enters), or, when the ray misses
      * the box or starts inside it, the face in the view direction ("push the side I am looking towards").
      */
-    static Direction lookedAtFace(final AABB box, final Vec3 eye, final Vec3 look) {
+    static Direction lookedAtFace(final AABB box, final Vec3 worldEye, final Vec3 worldLook) {
+        // A box on a sub-level is looked at as the sub-level sees the player.
+        final SubLevels.Pose space = SubLevels.present() ? SubLevels.renderAt(BlockPos.containing(box.getCenter())) : null;
+        final Vec3 eye = space == null ? worldEye : space.toLocal(worldEye);
+        final Vec3 look = space == null ? worldLook : space.dirToLocal(worldLook);
         if (!box.contains(eye)) {
             final Optional<Vec3> hit = box.clip(eye, eye.add(look.scale(256)));
             if (hit.isPresent()) {
@@ -138,8 +156,14 @@ record ModeTarget(BlockPos pos, Direction face, boolean air, @Nullable BlockPos 
         return Direction.getNearest(look.x, look.y, look.z);
     }
 
-    /** The horizontal direction the player faces (arrow-key "forward"). */
-    static Direction horizontalFacing(final Player player) {
-        return player.getDirection();
+    /**
+     * The horizontal direction the player faces (arrow-key "forward"), as the space {@code anchor} lies in has it:
+     * the world's, or a sub-level's own.
+     */
+    static Direction horizontalFacing(final Player player, final @Nullable BlockPos anchor) {
+        final SubLevels.Pose space = anchor == null || !SubLevels.present() ? null : SubLevels.renderAt(anchor);
+        if (space == null) return player.getDirection();
+        final Vec3 look = space.dirToLocal(player.getLookAngle());
+        return Math.abs(look.x) + Math.abs(look.z) < 1.0E-4 ? player.getDirection() : Direction.getNearest(look.x, 0.0, look.z);
     }
 }

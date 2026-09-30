@@ -327,7 +327,7 @@ final class ModeHarness {
     // ---- helpers ----
 
     /** A clean smooth-stone floor, the player hovering (creative flight) a few blocks up and back, looking at it. */
-    private static void stage(final BuildingHarness.Script s) {
+    static void stage(final BuildingHarness.Script s) {
         s.command("time set noon")
             .command("weather clear")
             .command("fill -12 -60 -10 12 -48 18 minecraft:air")
@@ -368,7 +368,7 @@ final class ModeHarness {
     }
 
     /** Turns the player to look at {@code at} (client rotation; the server follows with the next movement packet). */
-    private static void aim(final Vec3 at) {
+    static void aim(final Vec3 at) {
         final LocalPlayer p = Minecraft.getInstance().player;
         if (p == null) return;
         final Vec3 d = at.subtract(p.getEyePosition());
@@ -394,13 +394,13 @@ final class ModeHarness {
         return mc.level == null || mc.player == null ? null : mc.level.dimension();
     }
 
-    private static void checkSize(final int x, final int y, final int z) {
+    static void checkSize(final int x, final int y, final int z) {
         final ClientModeState.Stats st = ClientModeState.stats();
         check(st.sizeX() == x && st.sizeY() == y && st.sizeZ() == z,
             "size is " + x + "×" + y + "×" + z + " (got " + st.sizeX() + "×" + st.sizeY() + "×" + st.sizeZ() + ")");
     }
 
-    private static void check(final boolean ok, final String what) {
+    static void check(final boolean ok, final String what) {
         if (ok) SlateBuilding.LOGGER.info("[BuildingHarness] CHECK ok: {}", what);
         else SlateBuilding.LOGGER.warn("[BuildingHarness] CHECK FAILED: {}", what);
     }
@@ -412,7 +412,7 @@ final class ModeHarness {
         SlateBuilding.LOGGER.info("[BuildingHarness] world {} {}: {}", what, pos.toShortString(), BuiltInRegistries.BLOCK.getKey(state.getBlock()));
     }
 
-    private static void state(final String what) {
+    static void state(final String what) {
         final BuildMode m = ClientModeState.current();
         final ClientModeState.Stats st = ClientModeState.stats();
         final ModeTarget t = ModeController.INSTANCE.target();
