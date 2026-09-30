@@ -45,10 +45,11 @@ public final class MultiplayerClient {
         Placeholders.register("friends_total", () -> Integer.toString(SocialClient.get().friends().size()));
         Placeholders.register("unread_messages", () -> Integer.toString(SocialClient.get().unreadTotal()));
         CoreActions.SCREEN_FACTORIES.put("slate_multiplayer:hub", FriendsHubScreen::new);
-        for (final String page : List.of("friends", "requests", "groups", "messages", "settings")) {
+        for (final String page : List.of("friends", "requests", "groups", "messages", "screenshots", "settings")) {
             CoreActions.SCREEN_FACTORIES.put("slate_multiplayer:hub/" + page, p -> FriendsHubScreen.create(p, page));
         }
-        MenuSlots.provide(CoreSlots.FRIENDS, Layout.CUSTOM, FriendsHubScreen::new);
+        MenuSlots.provide(CoreSlots.FRIENDS, Layout.CUSTOM, p -> new FriendsHubScreen(p, FriendsHubScreen.Presentation.LISTS));
+        MenuSlots.provide(CoreSlots.FRIENDS, Layout.OVERHAUL, p -> new FriendsHubScreen(p, FriendsHubScreen.Presentation.SCENES));
         SlateEvents.CLIENT_TICK_END.register(MultiplayerClient::tick);
         MenuBridge.install();
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {

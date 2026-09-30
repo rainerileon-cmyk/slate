@@ -1,4 +1,4 @@
-package dev.fallingcloud.slate.earlywindow;
+package dev.fallingcloud.slate.menu.client.loading.scene;
 
 import static org.lwjgl.opengl.GL32C.*;
 
@@ -6,27 +6,31 @@ import java.nio.ByteBuffer;
 import org.lwjgl.system.MemoryUtil;
 
 /**
- * A small 2D renderer for the start-up window, in FML's GL context (its render thread early on, the game's main
- * thread once the game has the window): coloured and gradient quads, a vignette and alpha-atlas text, batched per mode
- * into one stream buffer. Positions are GUI units, scaled to canvas pixels here. Everything it binds is restored in
- * {@link #end}, since FML (and later the game's GlStateManager, which caches bindings) keeps drawing afterwards.
+ * A small 2D renderer in plain OpenGL 3.2, for pictures drawn where the game's own drawing is not there yet or not
+ * usable: NeoForge's start-up window (FML's GL context, its render thread early on and the game's main thread once the
+ * game has the window) and the loading overlay. Coloured and gradient quads, a vignette, alpha-atlas text and pictures,
+ * batched per mode into one stream buffer. Positions are GUI units, scaled to canvas pixels here. Everything it
+ * touches is put back in {@link #end} ({@link GlSave}).
  */
-final class Gfx {
+public final class Gfx {
 
-    static final int SOLID = 0, TEXT = 1, VIGNETTE = 2;
+    static final int SOLID = 0, TEXT = 1, VIGNETTE = 2, IMAGE = 3;
 
-    // y = 0 at the bottom of GL's target, as FML's own shader: FML flips its canvas when it shows it (the window blit
-    // and the game's loading overlay both), so this puts y = 0 at the top of the screen.
+    // uFlip 1: y = 0 at the bottom of GL's target, as FML's own shader has it (FML flips its canvas when it shows it,
+    // in its window blit and in the game's loading overlay both), which puts y = 0 at the top of the screen.
+    // uFlip -1: a target shown as it is, y = 0 at its top.
     private static final String VERTEX = """
         #version 150
         in vec2 aPos;
         in vec2 aUv;
         in vec4 aColor;
         uniform vec2 uScreen;
+        uniform float uFlip;
         out vec2 vUv;
         out vec4 vColor;
         void main() {
-            gl_Position = vec4(aPos / uScreen * 2.0 - 1.0, 0.0, 1.0);
+            vec2 p = aPos / uScreen * 2.0 - 1.0;
+            gl_Position = vec4(p.x, p.y * uFlip, 0.0, 1.0);
             vUv = aUv;
             vColor = aColor;
         }
@@ -44,6 +48,8 @@ final class Gfx {
             } else if (uMode == 2) {
                 vec2 d = (vUv - 0.5) * 2.0;
                 fragColor = vec4(vColor.rgb, vColor.a * clamp(dot(d, d) * 0.5, 0.0, 1.0));
+            } else if (uMode == 3) {
+                fragColor = texture(uTex, vUv) * vColor;
             } else {
                 fragColor = vColor;
             }
@@ -53,34 +59,23 @@ final class Gfx {
     private static final int STRIDE = 4 * 4 + 4;
     private static final int CAPACITY = 6 * 2048;
 
-    private int program, vao, vbo, uScreen, uMode, uTex;
+    private int program, vao, vbo, uScreen, uMode, uTex, uFlip;
     private final ByteBuffer buffer = MemoryUtil.memAlloc(CAPACITY * STRIDE);
     private int vertices;
     private int mode = -1, texture;
     private float scale = 1f;
     /** Every colour's alpha is multiplied by this (the fade-in). */
     private float alpha = 1f;
-
-    // GL state saved in begin, restored in end.
-    private int savedProgram, savedVao, savedBuffer, savedActive, savedTexture, savedSrcRgb, savedDstRgb, savedSrcA, savedDstA, savedUnpack;
-    private boolean savedBlend;
+    private final GlSave saved = new GlSave();
+    /** Whether this frame saved the state itself and has to put it back. */
+    private boolean own;
 
     private void init() {
-        final int vs = shader(GL_VERTEX_SHADER, VERTEX), fs = shader(GL_FRAGMENT_SHADER, FRAGMENT);
-        program = glCreateProgram();
-        glAttachShader(program, vs);
-        glAttachShader(program, fs);
-        glBindAttribLocation(program, 0, "aPos");
-        glBindAttribLocation(program, 1, "aUv");
-        glBindAttribLocation(program, 2, "aColor");
-        glBindFragDataLocation(program, 0, "fragColor");
-        glLinkProgram(program);
-        glDeleteShader(vs);
-        glDeleteShader(fs);
-        if (glGetProgrami(program, GL_LINK_STATUS) == GL_FALSE) throw new IllegalStateException("link: " + glGetProgramInfoLog(program));
+        program = link(VERTEX, FRAGMENT, "aPos", "aUv", "aColor");
         uScreen = glGetUniformLocation(program, "uScreen");
         uMode = glGetUniformLocation(program, "uMode");
         uTex = glGetUniformLocation(program, "uTex");
+        uFlip = glGetUniformLocation(program, "uFlip");
         vao = glGenVertexArrays();
         vbo = glGenBuffers();
         glBindVertexArray(vao);
@@ -94,56 +89,86 @@ final class Gfx {
         glVertexAttribPointer(2, 4, GL_UNSIGNED_BYTE, true, STRIDE, 16);
     }
 
+    /** A program of the two sources, its attributes bound to 0, 1, ... in the order given. */
+    static int link(final String vertex, final String fragment, final String... attributes) {
+        final int vs = shader(GL_VERTEX_SHADER, vertex), fs = shader(GL_FRAGMENT_SHADER, fragment);
+        final int p = glCreateProgram();
+        glAttachShader(p, vs);
+        glAttachShader(p, fs);
+        for (int i = 0; i < attributes.length; i++) glBindAttribLocation(p, i, attributes[i]);
+        glBindFragDataLocation(p, 0, "fragColor");
+        glLinkProgram(p);
+        glDeleteShader(vs);
+        glDeleteShader(fs);
+        if (glGetProgrami(p, GL_LINK_STATUS) == GL_FALSE) {
+            final String log = glGetProgramInfoLog(p);
+            glDeleteProgram(p);
+            throw new IllegalStateException("link: " + log);
+        }
+        return p;
+    }
+
     private static int shader(final int type, final String source) {
         final int s = glCreateShader(type);
         glShaderSource(s, source);
         glCompileShader(s);
-        if (glGetShaderi(s, GL_COMPILE_STATUS) == GL_FALSE) throw new IllegalStateException("compile: " + glGetShaderInfoLog(s));
+        if (glGetShaderi(s, GL_COMPILE_STATUS) == GL_FALSE) {
+            final String log = glGetShaderInfoLog(s);
+            glDeleteShader(s);
+            throw new IllegalStateException("compile: " + log);
+        }
         return s;
     }
 
-    /** Starts a frame on a {@code pixelW} x {@code pixelH} target with {@code scale} pixels per GUI unit. */
-    void begin(final int pixelW, final int pixelH, final float scale) {
-        savedProgram = glGetInteger(GL_CURRENT_PROGRAM);
-        savedVao = glGetInteger(GL_VERTEX_ARRAY_BINDING);
-        savedBuffer = glGetInteger(GL_ARRAY_BUFFER_BINDING);
-        savedActive = glGetInteger(GL_ACTIVE_TEXTURE);
-        glActiveTexture(GL_TEXTURE0);
-        savedTexture = glGetInteger(GL_TEXTURE_BINDING_2D);
-        savedBlend = glIsEnabled(GL_BLEND);
-        savedSrcRgb = glGetInteger(GL_BLEND_SRC_RGB);
-        savedDstRgb = glGetInteger(GL_BLEND_DST_RGB);
-        savedSrcA = glGetInteger(GL_BLEND_SRC_ALPHA);
-        savedDstA = glGetInteger(GL_BLEND_DST_ALPHA);
-        savedUnpack = glGetInteger(GL_UNPACK_ALIGNMENT);
+    /** Starts a frame on FML's canvas of {@code pixelW} x {@code pixelH} with {@code scale} pixels per GUI unit. */
+    public void begin(final int pixelW, final int pixelH, final float scale) {
+        begin(pixelW, pixelH, scale, true);
+    }
+
+    /**
+     * Starts a frame on a {@code pixelW} x {@code pixelH} target with {@code scale} pixels per GUI unit.
+     *
+     * @param flipped whether the target is shown upside down (FML's canvas), so that y = 0 has to be drawn at GL's
+     *                bottom to be seen at the top
+     */
+    public void begin(final int pixelW, final int pixelH, final float scale, final boolean flipped) {
+        begin(pixelW, pixelH, scale, flipped, true);
+    }
+
+    /** As {@link #begin(int, int, float, boolean)}; with {@code save} off the caller keeps OpenGL's state itself. */
+    void begin(final int pixelW, final int pixelH, final float scale, final boolean flipped, final boolean save) {
+        own = save;
+        if (save) saved.save();
         if (program == 0) init();
         this.scale = scale;
         glUseProgram(program);
         glBindVertexArray(vao);
         glBindBuffer(GL_ARRAY_BUFFER, vbo);
         glUniform2f(uScreen, pixelW, pixelH);
+        glUniform1f(uFlip, flipped ? 1f : -1f);
         glUniform1i(uTex, 0);
+        glActiveTexture(GL_TEXTURE0);
+        glDisable(GL_DEPTH_TEST);
+        glDisable(GL_CULL_FACE);
+        glDisable(GL_SCISSOR_TEST);
+        glDisable(GL_STENCIL_TEST);
+        glDepthMask(false);
+        glColorMask(true, true, true, true);
         glEnable(GL_BLEND);
+        glBlendEquationSeparate(GL_FUNC_ADD, GL_FUNC_ADD);
         glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
         mode = -1;
         vertices = 0;
         alpha = 1f;
     }
 
-    void end() {
+    public void end() {
         flush();
-        glUseProgram(savedProgram);
-        glBindVertexArray(savedVao);
-        glBindBuffer(GL_ARRAY_BUFFER, savedBuffer);
-        glBindTexture(GL_TEXTURE_2D, savedTexture);
-        glActiveTexture(savedActive);
-        if (!savedBlend) glDisable(GL_BLEND);
-        glBlendFuncSeparate(savedSrcRgb, savedDstRgb, savedSrcA, savedDstA);
-        glPixelStorei(GL_UNPACK_ALIGNMENT, savedUnpack);
+        if (own) saved.restore();
     }
 
     /** Frees the GL objects; call with the context current. */
-    void delete() {
+    public void delete() {
         if (program != 0) {
             glDeleteProgram(program);
             glDeleteVertexArrays(vao);
@@ -153,25 +178,36 @@ final class Gfx {
         MemoryUtil.memFree(buffer);
     }
 
-    void alpha(final float a) {
+    public void alpha(final float a) {
         this.alpha = Math.max(0f, Math.min(1f, a));
+    }
+
+    /** Pixels per GUI unit of the frame being drawn. */
+    public float scale() {
+        return scale;
     }
 
     // ------------------------------------------------------------------ shapes (GUI units)
 
-    void rect(final float x, final float y, final float w, final float h, final int argb) {
+    public void rect(final float x, final float y, final float w, final float h, final int argb) {
         if (w <= 0 || h <= 0) return;
         quad(SOLID, 0, x, y, x + w, y + h, 0, 0, 1, 1, argb, argb, argb, argb);
     }
 
     /** Left to right from {@code left} to {@code right}. */
-    void hgradient(final float x, final float y, final float w, final float h, final int left, final int right) {
+    public void hgradient(final float x, final float y, final float w, final float h, final int left, final int right) {
         if (w <= 0 || h <= 0) return;
         quad(SOLID, 0, x, y, x + w, y + h, 0, 0, 1, 1, left, right, right, left);
     }
 
+    /** Top to bottom from {@code top} to {@code bottom}. */
+    public void vgradient(final float x, final float y, final float w, final float h, final int top, final int bottom) {
+        if (w <= 0 || h <= 0) return;
+        quad(SOLID, 0, x, y, x + w, y + h, 0, 0, 1, 1, top, top, bottom, bottom);
+    }
+
     /** A rectangle with stepped pixel corners of {@code radius}, as Slate's panels ({@code SlateDraw.pixelRound}). */
-    void pixelRound(final float x, final float y, final float w, final float h, final int argb, final int radius) {
+    public void pixelRound(final float x, final float y, final float w, final float h, final int argb, final int radius) {
         final int r = (int) Math.max(0, Math.min(radius, Math.min(w, h) / 2));
         if (r == 0) {
             rect(x, y, w, h, argb);
@@ -186,7 +222,7 @@ final class Gfx {
     }
 
     /** A one-unit outline matching {@link #pixelRound} ({@code SlateDraw.outline}). */
-    void outline(final float x, final float y, final float w, final float h, final int argb, final int radius) {
+    public void outline(final float x, final float y, final float w, final float h, final int argb, final int radius) {
         final int r = (int) Math.max(0, Math.min(radius, Math.min(w, h) / 2));
         rect(x + r, y, w - 2 * r, 1, argb);
         rect(x + r, y + h - 1, w - 2 * r, 1, argb);
@@ -202,14 +238,24 @@ final class Gfx {
     }
 
     /** Slate's hard panel shadow: only its visible L (bottom and right bands), so it never doubles under the panel. */
-    void shadow(final float x, final float y, final float w, final float h, final int argb, final int radius) {
+    public void shadow(final float x, final float y, final float w, final float h, final int argb, final int radius) {
         pixelRound(x + 2, y + h - radius - 2, w, radius + 4, argb, radius);
         rect(x + w, y + 2, 2, h - radius - 4, argb);
     }
 
     /** Edges darkened towards the corners, over the whole target. */
-    void vignette(final float w, final float h, final int argb) {
+    public void vignette(final float w, final float h, final int argb) {
         quad(VIGNETTE, 0, 0, 0, w, h, 0, 0, 1, 1, argb, argb, argb, argb);
+    }
+
+    /**
+     * A picture from a colour texture, tinted by {@code argb}. {@code v0} is the texture row shown at the top of the
+     * rectangle: a texture rendered by OpenGL has its first row at the bottom, so it is drawn from 1 to 0.
+     */
+    public void image(final int tex, final float x, final float y, final float w, final float h,
+                      final float u0, final float v0, final float u1, final float v1, final int argb) {
+        if (w <= 0 || h <= 0) return;
+        quad(IMAGE, tex, x, y, x + w, y + h, u0, v0, u1, v1, argb, argb, argb, argb);
     }
 
     /** A textured quad in pixel space from a glyph atlas (positions already in pixels). */
@@ -228,7 +274,8 @@ final class Gfx {
     /** Corners clockwise from the top left: {@code c0} top left, {@code c1} top right, {@code c2} bottom right, {@code c3} bottom left. */
     private void quadPx(final int m, final int tex, final float x0, final float y0, final float x1, final float y1,
                         final float u0, final float v0, final float u1, final float v1, final int c0, final int c1, final int c2, final int c3) {
-        if (m != mode || m == TEXT && tex != texture) {
+        final boolean textured = m == TEXT || m == IMAGE;
+        if (m != mode || textured && tex != texture) {
             flush();
             mode = m;
             texture = tex;
@@ -254,7 +301,7 @@ final class Gfx {
         buffer.flip();
         glBufferSubData(GL_ARRAY_BUFFER, 0, buffer);
         glUniform1i(uMode, mode);
-        if (mode == TEXT) glBindTexture(GL_TEXTURE_2D, texture);
+        if (mode == TEXT || mode == IMAGE) glBindTexture(GL_TEXTURE_2D, texture);
         glDrawArrays(GL_TRIANGLES, 0, vertices);
         buffer.clear();
         vertices = 0;

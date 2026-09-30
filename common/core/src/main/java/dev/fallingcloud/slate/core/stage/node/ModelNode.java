@@ -3,6 +3,7 @@ package dev.fallingcloud.slate.core.stage.node;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import dev.fallingcloud.slate.core.stage.StageRenderContext;
 import dev.fallingcloud.slate.core.stage.StageResources;
+import dev.fallingcloud.slate.core.stage.StageSoft;
 import dev.fallingcloud.slate.core.stage.mesh.StageModels;
 import dev.fallingcloud.slate.core.theme.Theme;
 import java.util.List;
@@ -24,6 +25,7 @@ import org.joml.Quaternionf;
 public class ModelNode extends StageNode {
 
     private final ResourceLocation modelId;
+    @Nullable private ResourceLocation fallbackId;
     @Nullable private BakedModel model;
     private int resources = -1;
     private RenderType layer = RenderType.cutoutMipped();
@@ -37,6 +39,9 @@ public class ModelNode extends StageNode {
         this.modelId = modelId;
         named(modelId.getPath());
     }
+
+    /** A model to draw instead when the node's own cannot be loaded (another mod's model that may not be there). */
+    public ModelNode fallback(@Nullable final ResourceLocation model) { this.fallbackId = model; this.resources = -1; return this; }
 
     /** The chunk layer to draw with ({@code solid}, {@code cutout}, {@code cutoutMipped}, {@code translucent}). */
     public ModelNode layer(final RenderType type) { this.layer = type; return this; }
@@ -62,25 +67,29 @@ public class ModelNode extends StageNode {
         final int gen = StageResources.generation();
         if (model == null || gen != resources) {
             model = StageModels.get(modelId);
+            if (model == null && fallbackId != null) model = StageModels.get(fallbackId);
             resources = gen;
         }
         if (model == null) return;
         ctx.pose.pushPose();
         if (spin != 0f) ctx.pose.mulPose(spinRotation.rotationY((float) Math.toRadians(spin)));
         ctx.pose.translate(-0.5f, 0f, -0.5f);
-        final VertexConsumer vc = ctx.buffers.getBuffer(alpha < 1f ? RenderType.translucentMovingBlock() : layer);
+        final com.mojang.blaze3d.vertex.BufferBuilder soft = ctx.soft ? StageSoft.begin(StageSoft.BLOCK) : null;
+        final VertexConsumer vc = soft != null ? soft : ctx.buffers.getBuffer(alpha() < 1f ? RenderType.translucentMovingBlock() : layer);
         for (final Direction d : Direction.values()) {
             random.setSeed(42L);
-            emit(ctx, vc, model.getQuads(null, d, random));
+            emit(ctx, vc, model.getQuads(null, d, random), soft != null);
         }
         random.setSeed(42L);
-        emit(ctx, vc, model.getQuads(null, null, random));
+        emit(ctx, vc, model.getQuads(null, null, random), soft != null);
+        if (soft != null) StageSoft.end(soft, StageSoft.BLOCK, net.minecraft.client.renderer.texture.TextureAtlas.LOCATION_BLOCKS, alpha());
         ctx.pose.popPose();
     }
 
-    private void emit(final StageRenderContext ctx, final VertexConsumer vc, final List<BakedQuad> quads) {
+    private void emit(final StageRenderContext ctx, final VertexConsumer vc, final List<BakedQuad> quads, final boolean soft) {
         for (final BakedQuad q : quads) {
-            final float s = ctx.lighting.shade(q.getDirection(), q.isShade());
+            // The soft shader lights by the normal; the baked per-face shade belongs to the vanilla path.
+            final float s = soft ? 1f : ctx.lighting.shade(q.getDirection(), q.isShade());
             vc.putBulkData(ctx.pose.last(), q, s, s, s, 1f, ctx.light, OverlayTexture.NO_OVERLAY);
         }
     }

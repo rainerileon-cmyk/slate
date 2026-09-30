@@ -28,6 +28,11 @@ public final class FabricPlatform implements SlatePlatform {
     }
 
     @Override
+    public Optional<Path> modFile(final String modId, final String path) {
+        return FabricLoader.getInstance().getModContainer(modId).flatMap(c -> c.findPath(path)).filter(java.nio.file.Files::isRegularFile);
+    }
+
+    @Override
     public List<ModInfo> allMods() {
         return FabricLoader.getInstance().getAllMods().stream().map(FabricPlatform::convert).toList();
     }

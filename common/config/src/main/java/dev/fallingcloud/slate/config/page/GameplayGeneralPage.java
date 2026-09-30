@@ -42,7 +42,7 @@ public final class GameplayGeneralPage extends OptionPageBase {
 
     /**
      * The world's difficulty as a dropdown (only meaningful while a world is open; greyed out when it cannot change here).
-     * {@code rebuild} refreshes the page once the server has echoed the change. Shared with General › Essentials.
+     * {@code rebuild} refreshes the page once the server has echoed the change. Shared with the hub's General tab.
      */
     static Binding difficultyBinding(final Runnable rebuild) {
         final Minecraft mc = Minecraft.getInstance();

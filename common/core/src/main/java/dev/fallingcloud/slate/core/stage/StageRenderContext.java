@@ -27,6 +27,10 @@ public final class StageRenderContext {
     public float deltaMs;
     /** Stage time in ms: advances only while the stage renders. */
     public float timeMs;
+    /** The stage is lit by the soft, stylized shader ({@link StageSoft}) and it is ready: nodes that can, use it. */
+    public boolean soft;
+    /** Counts rendered frames; nodes use it to prepare once per frame. */
+    public long frame;
     /** Wall clock, for {@code Anim}s. */
     public long nowMs;
     /** True when the mouse is over the stage; the ray is then valid (world space). */

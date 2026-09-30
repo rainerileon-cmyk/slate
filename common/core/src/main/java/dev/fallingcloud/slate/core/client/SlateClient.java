@@ -69,6 +69,7 @@ public final class SlateClient {
     private static void tick() {
         // Once every module has provided its layouts: the settings file the NeoForge start-up window reads.
         if (!propsWritten) { propsWritten = true; EarlyWindowProps.write(); }
+        dev.fallingcloud.slate.core.screen.reskin.BetterInventoryPalette.tick();
         // The editor key works in-game (no screen) and on screens (handled in ScreenInput).
         while (EDITOR_KEY.consumeClick()) {
             if (Minecraft.getInstance().screen == null && Slate.config().devMode) LayoutEditor.toggle();
@@ -107,6 +108,7 @@ public final class SlateClient {
         SlateToasts.render(g, mouseX, mouseY, screen.width);
         SlateTooltips.render(g, mouseX, mouseY, screen.width, screen.height);
         Transitions.render(g, screen, screen.width, screen.height);
+        DevHarness.screenFrame();
     }
 
     /** The in-game HUD rendered (no screen open): toasts still show. */

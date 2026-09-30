@@ -29,6 +29,7 @@ import dev.fallingcloud.slate.config.ui.ConfigTextField;
 import dev.fallingcloud.slate.config.ui.Entrance;
 import dev.fallingcloud.slate.config.ui.LiveGameView;
 import dev.fallingcloud.slate.config.ui.OptionPageBase;
+import dev.fallingcloud.slate.config.ui.PageColumns;
 import dev.fallingcloud.slate.config.ui.TabHost;
 import dev.fallingcloud.slate.core.gfx.Fonts;
 import dev.fallingcloud.slate.core.gfx.Icon;
@@ -63,16 +64,19 @@ import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * The unified settings screen, in nine categories: General (Essentials, Gameplay, the tabs modules add), Video,
- * Controls, Audio, Multiplayer, Interface, Language &amp; accessibility, Customization and Advanced. Advanced holds
+ * The unified settings screen, in ten categories: General (the few options everybody changes), Gameplay (how the
+ * game plays, and the tabs modules add: Slate Building's is one), Video, Controls, Audio, Multiplayer, Interface,
+ * Language &amp; accessibility, Customization and Advanced. Advanced holds
  * every row flagged {@link dev.fallingcloud.slate.config.option.OptionBinding#advanced() advanced}, page by page
  * with the same structure, plus Favourites, Presets, the raw config files and the curated pages a modpack ships.
  * Every page shows its sections as top tabs; a category holds whole pages as tabs (see {@link CategoryPage}). A
  * header search filters the tab on screen and lists hits everywhere else (advanced rows included), reset works
  * on the current tab, and an escape hatch opens vanilla's options.
  *
- * <p>Two presentations of the same pages: the Custom layout's sidebar, and the Overhaul layout's tab strip across
- * the top with the game view ({@link LiveGameView}) above General and Video while a world is open.</p>
+ * <p>Two presentations of the same pages. The Custom layout's is the sidebar and a list of rows. The Overhaul
+ * layout's is its sketch (docs/LAYOUTS.md, 8): the tabs listed down the left in the heading font, the header
+ * reading "Settings – Tab", the game view ({@link LiveGameView}) over General and Video while a world is open, and
+ * the rows as tiles in two columns.</p>
  *
  * <p>Pages are opened by path: a category id, {@code category/tab}, or {@code page/tab} for a top tab of an
  * option page (e.g. {@code controls/keys}); a tab's own id alone finds it inside its category ({@code presets},
@@ -80,12 +84,12 @@ import org.jetbrains.annotations.Nullable;
  * are aliases. Keyboard: Ctrl+Tab cycles the categories, Ctrl+PgUp/PgDn the top tabs, Ctrl+Shift+PgUp/PgDn the
  * small tabs under them.</p>
  */
-public final class ConfigHubScreen extends SidebarScreen {
+public final class ConfigHubScreen extends SidebarScreen implements PageColumns {
 
-    public static final String GAMEPLAY = "gameplay", MULTIPLAYER = "multiplayer", CUSTOMIZATION = "customization",
+    public static final String GENERAL = "general", GAMEPLAY = "gameplay", MULTIPLAYER = "multiplayer", CUSTOMIZATION = "customization",
         LANGUAGE_ACCESSIBILITY = "language_accessibility", ADVANCED = "advanced";
 
-    /** How the pages are presented: the Custom layout's sidebar, or the Overhaul layout's top tabs and game view. */
+    /** How the pages are presented: the Custom layout's sidebar, or the Overhaul layout's tab list, game view and tiles. */
     public enum Presentation { SIDEBAR, OVERHAUL }
 
     /** Page ids from before the categories, and handy shortcuts. */
@@ -100,9 +104,10 @@ public final class ConfigHubScreen extends SidebarScreen {
         Map.entry("skin", "multiplayer/skin"),
         Map.entry("language", "language_accessibility/language"),
         Map.entry("accessibility", "language_accessibility/accessibility"),
-        Map.entry("general", "gameplay/general"),
-        Map.entry("essentials", "gameplay/essentials"),
+        Map.entry("essentials", "general"),
+        Map.entry("gameplay/essentials", "general"),
         Map.entry("difficulty", "gameplay/general"),
+        Map.entry("building", "gameplay/building"),
         Map.entry("files", "advanced/files"),
         Map.entry("configs", "advanced/files"),
         Map.entry("keybinds", "controls/keys"),
@@ -132,7 +137,7 @@ public final class ConfigHubScreen extends SidebarScreen {
         this.presentation = presentation;
     }
 
-    /** The hub in the presentation the options menu's effective layout asks for (Overhaul: top tabs and the game view). */
+    /** The hub in the presentation the options menu's effective layout asks for. */
     public static ConfigHubScreen forLayout(@Nullable final Screen parent, @Nullable final String page) {
         final boolean overhaul = MenuSlots.effective(CoreSlots.OPTIONS) == Layout.OVERHAUL;
         return new ConfigHubScreen(parent, page, overhaul ? Presentation.OVERHAUL : Presentation.SIDEBAR);
@@ -140,14 +145,30 @@ public final class ConfigHubScreen extends SidebarScreen {
 
     public Presentation presentation() { return presentation; }
 
+    private boolean overhaul() { return presentation == Presentation.OVERHAUL; }
+
+    /** Two columns of tiles in the Overhaul layout, wherever a page is wide enough to hold two. */
     @Override
-    protected boolean topNav() { return presentation == Presentation.OVERHAUL; }
+    public int columns(final int pageWidth) { return overhaul() && pageWidth >= 272 ? 2 : 1; }
+
+    @Override
+    protected boolean overhaulNav() { return overhaul(); }
+
+    /** What a tab is called in the list: the Overhaul list is short of room and says "Accessibility" for the long one. */
+    @Override
+    protected Component navTitle(final SidebarPage p) {
+        if (overhaul() && LANGUAGE_ACCESSIBILITY.equals(p.id())) return Component.translatable("slate_config.page.accessibility_short");
+        return p.title();
+    }
 
     @Override
     protected void definePages(final List<SidebarPage> pages) {
-        // The category keeps id "gameplay" (paths, remembered tabs, the tabs modules contribute); it reads "General".
-        pages.add(new CategoryPage(GAMEPLAY, Component.translatable("slate_config.category.general"), Icon.GAMEPLAY,
-            List.of(new EssentialsPage(), new GameplayGeneralPage())));
+        // General: the handful of options everybody changes, on the page the hub opens with.
+        pages.add(new EssentialsPage(GENERAL, Component.translatable("slate_config.category.general"), Icon.HOME));
+        // Gameplay: how the game plays (the world's difficulty, the player's options), and the tabs modules add to it:
+        // Slate Building's settings are one.
+        pages.add(new CategoryPage(GAMEPLAY, Component.translatable("slate_config.category.gameplay"), Icon.GAMEPLAY,
+            List.of(new GameplayGeneralPage())));
         pages.add(new VideoPage());
         pages.add(new ControlsPage());
         pages.add(new AudioPage());
@@ -181,7 +202,7 @@ public final class ConfigHubScreen extends SidebarScreen {
     private boolean liveViewWanted() {
         if (presentation != Presentation.OVERHAUL || minecraft == null || minecraft.level == null) return false;
         final SidebarPage p = currentPage();
-        return p != null && (GAMEPLAY.equals(p.id()) || "video".equals(p.id()));
+        return p != null && (GENERAL.equals(p.id()) || "video".equals(p.id()));
     }
 
     /** The page area starts under the game view when it is shown. */
@@ -250,6 +271,16 @@ public final class ConfigHubScreen extends SidebarScreen {
         return Math.max(NAV_W, Math.min(widest + 34, Math.max(NAV_W, width / 4)));
     }
 
+
+    @Override
+    public void renderBackground(final GuiGraphics g, final int mouseX, final int mouseY, final float partialTick) {
+        super.renderBackground(g, mouseX, mouseY, partialTick);
+        if (!overhaul() || Theme.current().isVanilla() || (minecraft != null && minecraft.level != null)) return;
+        // Out of a world the screen stands on a dark that has depth: near black above, a breath of warmth below.
+        SlateDraw.vgradient(g, 0, HEADER_H, width, height - HEADER_H, 0xFF0B0C0F, 0xFF1A1816);
+        SlateDraw.vignette(g, 0, HEADER_H, width, height - HEADER_H, 0.4f);
+    }
+
     /** With top tabs right below, the title drops its rule: the strip's baseline is the divider. */
     /** No title row inside the page: the header reads "Settings › Controls" and the tabs start right under it. */
     @Override
@@ -258,7 +289,9 @@ public final class ConfigHubScreen extends SidebarScreen {
     @Override
     public Component getTitle() {
         final SidebarPage page = pages().isEmpty() ? null : currentPage();
-        return page == null ? super.getTitle() : Component.literal(super.getTitle().getString() + " › " + page.title().getString());
+        if (page == null) return super.getTitle();
+        // The sketch's "Settings – Tab".
+        return Component.literal(super.getTitle().getString() + (overhaul() ? " – " : " › ") + page.title().getString());
     }
 
     // ------------------------------------------------------------------ navigation

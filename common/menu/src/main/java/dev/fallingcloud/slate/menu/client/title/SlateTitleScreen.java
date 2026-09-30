@@ -256,7 +256,8 @@ public final class SlateTitleScreen extends SlateScreen {
         final Theme t = Theme.current();
         final Palette p = t.palette();
         final float fade = fadeIn();
-        if (splash != null && !splash.isEmpty()) renderSplash(g, fade);
+        // The splash belongs to the Vanilla style: the Slate style leaves the logo alone.
+        if (splash != null && !splash.isEmpty() && t.isVanilla()) renderSplash(g, fade);
         if (!SlateMenu.config().showFooter) return;
         // Footer: version + loader + mod count; copyright as vanilla requires.
         final int fg = Colors.scaleAlpha(t.isVanilla() ? 0xFFFFFFFF : p.textMuted(), fade);

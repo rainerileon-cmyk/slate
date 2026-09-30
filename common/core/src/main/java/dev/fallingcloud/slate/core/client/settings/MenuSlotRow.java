@@ -30,6 +30,8 @@ public final class MenuSlotRow extends SlateCard {
 
     public static final int LINE = 22, GAP = 6;
     private static final int NARROW = 330;
+    /** Room between the row's edge and what stands in it: the row sits in a card, whose border is its edge. */
+    private static final int PAD = 6;
 
     private final MenuSlot slot;
     private final SlateSegmented<Layout> layout;
@@ -43,8 +45,9 @@ public final class MenuSlotRow extends SlateCard {
         this.slot = slot;
         this.onChange = onChange;
         final boolean stacked = width < NARROW;
-        final int layoutW = stacked ? width : Math.min(240, (width - GAP) * 3 / 5);
-        final int styleW = stacked ? Math.min(width, 160) : Math.min(160, width - GAP - layoutW);
+        final int inner = width - PAD * 2;
+        final int layoutW = stacked ? inner : Math.min(240, (inner - GAP) * 3 / 5);
+        final int styleW = stacked ? Math.min(inner, 160) : Math.min(160, inner - GAP - layoutW);
         layout = new SlateSegmented<>(0, 0, layoutW, List.of(Layout.values()), MenuSlots.requested(slot.id()),
             LayoutStyleRows::layoutName, l -> { MenuSlots.setLayoutOverride(slot.id(), l); changed(); });
         layout.disable(l -> !MenuSlots.available(slot.id()).contains(l));
@@ -54,10 +57,10 @@ public final class MenuSlotRow extends SlateCard {
         style.optionTip(LayoutStyleRows::styleDescription);
         reset = new SlateIconButton(0, 0, 16, Icon.REFRESH, Component.translatable("slate.slot.follow_global"),
             () -> { MenuSlots.clearOverrides(slot.id()); changed(); });
-        add(reset, width - 16, (LINE - 16) / 2);
-        add(layout, 0, LINE + 1);
-        if (stacked) { add(style, 0, LINE * 2 + GAP + 1); setHeight(LINE * 3 + GAP + 2); }
-        else { add(style, layoutW + GAP, LINE + 1); setHeight(LINE * 2 + 2); }
+        add(reset, width - 16 - PAD, (LINE - 16) / 2);
+        add(layout, PAD, LINE + 1);
+        if (stacked) { add(style, PAD, LINE * 2 + GAP + 1); setHeight(LINE * 3 + GAP + 6); }
+        else { add(style, PAD + layoutW + GAP, LINE + 1); setHeight(LINE * 2 + 6); }
         sync();
     }
 
@@ -93,7 +96,7 @@ public final class MenuSlotRow extends SlateCard {
         final float a = alpha * enterProgress();
         final int ty = SlateDraw.textY(y, LINE);
         final Component name = Fonts.heading(slot.name());
-        g.drawString(SlateDraw.font(), SlateDraw.truncate(name, w - 24), x, ty, Colors.scaleAlpha(van ? 0xFFFFFFFF : p.text(), a), van);
+        g.drawString(SlateDraw.font(), SlateDraw.truncate(name, w - 24 - PAD * 2), x + PAD, ty, Colors.scaleAlpha(van ? 0xFFFFFFFF : p.text(), a), van);
         // Right of the name: what the slot shows when the choice cannot be honoured, or the module it waits for.
         Component note = null;
         int noteColor = van ? 0xFFC0C0C0 : p.textMuted();
@@ -109,9 +112,9 @@ public final class MenuSlotRow extends SlateCard {
             noteColor = p.accent();
         }
         if (note != null) {
-            final int nx = x + SlateDraw.width(name) + 8, maxW = w - 24 - (nx - x);
+            final int nx = x + PAD + SlateDraw.width(name) + 8, maxW = w - 24 - PAD - (nx - x);
             if (maxW > 30) g.drawString(SlateDraw.font(), SlateDraw.truncate(note, maxW), nx, ty, Colors.scaleAlpha(noteColor, a), van);
         }
-        SlateDraw.hline(g, x, y + h - 1, w, Colors.scaleAlpha(van ? 0x30FFFFFF : Colors.withAlpha(p.border(), 0x90), a));
+        SlateDraw.hline(g, x + PAD, y + h - 1, w - PAD * 2, Colors.scaleAlpha(van ? 0x30FFFFFF : Colors.withAlpha(p.border(), 0x90), a));
     }
 }

@@ -90,6 +90,11 @@ public final class Stage implements AutoCloseable {
     private float alpha = 1f;
     private boolean showFocusOutline = true;
     private int outlineColor;
+    @Nullable private StageFinish finish;
+    @Nullable private StagePost post;
+    private boolean glowReady;
+    private boolean soft;
+    private boolean targetLinear;
 
     private long lastRenderMs;
     private float tickAccMs;
@@ -100,9 +105,14 @@ public final class Stage implements AutoCloseable {
 
     @Nullable private StageNode hovered, pressed, focused;
     private boolean focusVisible;
+    /** The focus was moved with the keyboard: only then is it outlined. Who clicks sees where the pointer is. */
+    private boolean focusByKey;
     private long hoverSinceMs;
     @Nullable private Screen owner;
     private boolean closed;
+    /** The node list is being walked: removals wait in {@link #leaving} until the walk is over. */
+    private boolean walking;
+    private final List<StageNode> leaving = new ArrayList<>();
 
     @Nullable private Camera farCamera;
     @Nullable private Entity cameraAnchor;
@@ -134,6 +144,11 @@ public final class Stage implements AutoCloseable {
     }
 
     public void remove(final StageNode node) {
+        if (walking) {
+            // A node taking another off the stage from its own update: the list is being walked, so it goes after.
+            if (!leaving.contains(node)) leaving.add(node);
+            return;
+        }
         if (nodes.remove(node)) {
             if (hovered == node) hovered = null;
             if (pressed == node) pressed = null;
@@ -166,6 +181,22 @@ public final class Stage implements AutoCloseable {
     }
 
     public Stage fog(final boolean on) { this.fog = on && fogEnd > fogStart; return this; }
+
+    /**
+     * The look the finished scene is shown with (glow, grade, dark corners); null shows it as rendered. The object
+     * is kept, not copied: change its values and the next frame follows.
+     */
+    public Stage finish(@Nullable final StageFinish look) { this.finish = look; return this; }
+
+    @Nullable public StageFinish finish() { return finish; }
+
+    /**
+     * Lights the scene with the soft, stylized shader ({@link StageSoft}) instead of the game's own shading: a warm key
+     * light that wraps round forms, a cool fill, light along the edges. The rig is the stage's {@link #lighting()}.
+     */
+    public Stage soft(final boolean on) { this.soft = on; return this; }
+
+    public boolean soft() { return soft; }
 
     /** Whole-stage opacity applied at the blit (fade in/out). */
     public Stage alpha(final float a) { this.alpha = Mth.clamp(a, 0f, 1f); return this; }
@@ -257,6 +288,7 @@ public final class Stage implements AutoCloseable {
         pressed = null;
         p.setPressed(false);
         if (p == hovered) {
+            focusByKey = false;
             focus(p);
             SlateSounds.click();
             p.activate();
@@ -268,9 +300,9 @@ public final class Stage implements AutoCloseable {
     public boolean keyPressed(final int key, final int scan, final int modifiers) {
         final boolean shift = (modifiers & 1) != 0;
         switch (key) {
-            case 258 -> { return focusNext(shift ? -1 : 1); }
-            case 262, 264 -> { if (!focusNext(1)) focusNext(1); return true; }
-            case 263, 265 -> { if (!focusNext(-1)) focusNext(-1); return true; }
+            case 258 -> { focusByKey = true; return focusNext(shift ? -1 : 1); }
+            case 262, 264 -> { focusByKey = true; if (!focusNext(1)) focusNext(1); return true; }
+            case 263, 265 -> { focusByKey = true; if (!focusNext(-1)) focusNext(-1); return true; }
             case 257, 335, 32 -> {
                 if (focused == null) return false;
                 SlateSounds.click();
@@ -306,7 +338,8 @@ public final class Stage implements AutoCloseable {
         final double guiScale = mc.getWindow().getGuiScale();
         final int pw = Mth.clamp((int) Math.round(w * guiScale * resolutionScale), 1, MAX_TEXTURE);
         final int ph = Mth.clamp((int) Math.round(h * guiScale * resolutionScale), 1, MAX_TEXTURE);
-        ensureTarget(pw, ph, pw != Math.round(w * guiScale) || ph != Math.round(h * guiScale));
+        // A finished scene is read through the glow's smaller targets: it wants smooth sampling either way.
+        ensureTarget(pw, ph, finish != null || pw != Math.round(w * guiScale) || ph != Math.round(h * guiScale));
 
         // ---- context
         camera.update(delta, (float) w / (float) h);
@@ -320,6 +353,7 @@ public final class Stage implements AutoCloseable {
         ctx.deltaMs = delta;
         ctx.timeMs = timeMs;
         ctx.nowMs = now;
+        ctx.frame++;
         ctx.hasMouse = mouseX >= x && mouseX < x + w && mouseY >= y && mouseY < y + h;
         if (ctx.hasMouse) {
             ctx.mouseNdcX = (float) ((mouseX - x) / w * 2.0 - 1.0);
@@ -327,9 +361,21 @@ public final class Stage implements AutoCloseable {
             camera.ray(ctx.mouseNdcX, ctx.mouseNdcY, ctx.rayOrigin, ctx.rayDir);
         }
         for (int i = 0; i < ticks; i++) tick();
-        for (final StageNode n : nodes) {
-            n.update(ctx);
-            n.prepare(ctx);
+        // By index: a node may put others on the stage from its update (a ring growing its planets), and those are
+        // updated in this same frame, so nothing is ever drawn where it was not yet placed.
+        walking = true;
+        try {
+            for (int i = 0; i < nodes.size(); i++) {
+                final StageNode n = nodes.get(i);
+                n.update(ctx);
+                n.prepare(ctx);
+            }
+        } finally {
+            walking = false;
+        }
+        if (!leaving.isEmpty()) {
+            for (final StageNode n : leaving) remove(n);
+            leaving.clear();
         }
         updateHover(now);
 
@@ -357,6 +403,13 @@ public final class Stage implements AutoCloseable {
         try {
             renderPass(mc);
             if (DEBUG && frames < 3) debugReadback(mc, pw, ph);
+            glowReady = false;
+            final StageFinish look = finish;
+            if (look != null && target != null && StagePost.ready()) {
+                if (post == null) post = new StagePost();
+                post.glow(target, look);
+                glowReady = true;
+            }
         } catch (final Exception e) {
             Slate.LOGGER.error("[Slate] stage render failed", e);
         } finally {
@@ -407,7 +460,7 @@ public final class Stage implements AutoCloseable {
         RenderSystem.depthFunc(GL11.GL_LEQUAL);
         RenderSystem.depthMask(true);
         RenderSystem.enableBlend();
-        RenderSystem.defaultBlendFunc();
+        StageBlend.over();
         RenderSystem.enableCull();
         final float b = lighting.brightness();
         RenderSystem.setShaderColor(b, b, b, 1f);
@@ -425,6 +478,8 @@ public final class Stage implements AutoCloseable {
 
         mc.gameRenderer.lightTexture().turnOnLightLayer();
         lighting.applyShaderLights(camera.view());
+        ctx.soft = soft && StageSoft.ready();
+        if (ctx.soft) StageSoft.light(lighting, camera.view());
         prepareDispatchers(mc);
 
         ctx.pose.setIdentity();
@@ -476,7 +531,7 @@ public final class Stage implements AutoCloseable {
 
     private void drawFocusOutline() {
         final StageNode f = focused;
-        if (f == null || !focusVisible || !showFocusOutline || !f.visible()) return;
+        if (f == null || !focusVisible || !focusByKey || !showFocusOutline || !f.visible()) return;
         final float a = f.focus() * (0.75f + 0.25f * Mth.sin(timeMs / 1000f * 4f));
         if (a <= 0.01f) return;
         final int color = outlineColor != 0 ? outlineColor : Theme.current().accent();
@@ -495,6 +550,30 @@ public final class Stage implements AutoCloseable {
     private void blit(final GuiGraphics g, final int x, final int y, final int w, final int h) {
         final TextureTarget fbo = target;
         if (fbo == null) return;
+        final StageFinish look = finish;
+        final net.minecraft.client.renderer.ShaderInstance shader = StagePost.finishShader();
+        if (glowReady && look != null && post != null && shader != null) {
+            shader.safeGetUniform("Bloom").set(look.bloom);
+            shader.safeGetUniform("Vignette").set(look.vignette);
+            shader.safeGetUniform("Contrast").set(look.contrast);
+            shader.safeGetUniform("Saturation").set(look.saturation);
+            shader.safeGetUniform("Warmth").set(look.warmth);
+            shader.safeGetUniform("Alpha").set(alpha);
+            RenderSystem.setShader(() -> shader);
+            RenderSystem.setShaderTexture(0, fbo.getColorTextureId());
+            RenderSystem.setShaderTexture(1, post.glowTexture());
+            RenderSystem.enableBlend();
+            RenderSystem.blendFunc(GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+            final Matrix4f pose = g.pose().last().pose();
+            final BufferBuilder quad = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX);
+            quad.addVertex(pose, x, y, 0f).setUv(0f, 1f);
+            quad.addVertex(pose, x, y + h, 0f).setUv(0f, 0f);
+            quad.addVertex(pose, x + w, y + h, 0f).setUv(1f, 0f);
+            quad.addVertex(pose, x + w, y, 0f).setUv(1f, 1f);
+            BufferUploader.drawWithShader(quad.buildOrThrow());
+            RenderSystem.defaultBlendFunc();
+            return;
+        }
         RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
         RenderSystem.setShaderTexture(0, fbo.getColorTextureId());
         RenderSystem.enableBlend();
@@ -511,17 +590,21 @@ public final class Stage implements AutoCloseable {
         RenderSystem.defaultBlendFunc();
     }
 
-    private void ensureTarget(final int w, final int h, final boolean scaled) {
+    private void ensureTarget(final int w, final int h, final boolean smooth) {
         if (target == null) {
             target = new TextureTarget(w, h, true, Minecraft.ON_OSX);
             targetW = w;
             targetH = h;
-            target.setFilterMode(scaled ? GL11.GL_LINEAR : GL11.GL_NEAREST);
+            targetLinear = !smooth;                     // forces the filter to be set below
         } else if (targetW != w || targetH != h) {
             target.resize(w, h, Minecraft.ON_OSX);
             targetW = w;
             targetH = h;
-            target.setFilterMode(scaled ? GL11.GL_LINEAR : GL11.GL_NEAREST);
+            targetLinear = !smooth;
+        }
+        if (targetLinear != smooth) {
+            target.setFilterMode(smooth ? GL11.GL_LINEAR : GL11.GL_NEAREST);
+            targetLinear = smooth;
         }
     }
 
@@ -595,6 +678,7 @@ public final class Stage implements AutoCloseable {
         nodes.clear();
         hovered = pressed = focused = null;
         if (target != null) { target.destroyBuffers(); target = null; }
+        if (post != null) { post.close(); post = null; }
         synchronized (LIVE) { LIVE.remove(this); }
     }
 

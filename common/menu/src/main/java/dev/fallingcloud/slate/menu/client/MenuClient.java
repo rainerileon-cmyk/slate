@@ -74,6 +74,7 @@ public final class MenuClient {
             return new SlateDisconnectedScreen(acc.slate$parent(), s.getTitle(), acc.slate$details());
         });
         MenuSlots.provide(CoreSlots.SCREENSHOTS, Layout.CUSTOM, SlateScreenshotsScreen::new);
+        dev.fallingcloud.slate.menu.client.overhaul.OverhaulMenus.register();
         refreshLoadingSupport();
         migrateScreenFlags();
 
@@ -99,6 +100,7 @@ public final class MenuClient {
 
         SlateEvents.CLIENT_JOINED_SERVER.register(LastPlayed::recordJoin);
         SlateEvents.CLIENT_LEFT_SERVER.register(LastPlayed::clearSession);
+        SlateEvents.CLIENT_TICK_END.register(dev.fallingcloud.slate.menu.client.loading.journey.Journey::tick);
     }
 
     public static MenuConfig cfg() {
@@ -122,6 +124,9 @@ public final class MenuClient {
         final boolean on = cfg().loadingScreens;
         MenuSlots.support(CoreSlots.LEVEL_LOADING, Layout.CUSTOM, on);
         MenuSlots.support(CoreSlots.LOADING, Layout.CUSTOM, on);
+        // The Overhaul loading screen is the factory: NeoForge's start-up window and the game's loading overlay.
+        MenuSlots.support(CoreSlots.LOADING, Layout.OVERHAUL, on);
+        MenuSlots.support(CoreSlots.LEVEL_LOADING, Layout.OVERHAUL, on);
     }
 
     /**

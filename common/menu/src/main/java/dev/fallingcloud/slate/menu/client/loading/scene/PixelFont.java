@@ -1,4 +1,4 @@
-package dev.fallingcloud.slate.earlywindow;
+package dev.fallingcloud.slate.menu.client.loading.scene;
 
 import static org.lwjgl.opengl.GL32C.*;
 
@@ -17,12 +17,12 @@ import org.lwjgl.system.MemoryUtil;
  * size 9 one font pixel is one GUI pixel, and the atlas is baked at the canvas' scale so that stays one screen pixel
  * per GUI pixel times the scale. Text is placed by the top of its capitals, as the game's {@code drawString}.
  */
-final class PixelFont {
+public final class PixelFont {
 
     /** Latin-1, for mod names and log lines. */
-    static final int LATIN_1 = 224;
+    public static final int LATIN_1 = 224;
     /** Printable ASCII, for the large wordmark. */
-    static final int ASCII = 95;
+    public static final int ASCII = 95;
     private static final int FIRST = 32;
 
     private final STBTTBakedChar.Buffer chars;
@@ -46,7 +46,7 @@ final class PixelFont {
      * fonts). Call with the GL context current (inside {@link Gfx#begin}, which restores the texture binding and unpack
      * alignment this changes).
      */
-    static PixelFont bake(final ByteBuffer ttf, final float size, final float scale, final int count, final boolean crisp) {
+    public static PixelFont bake(final ByteBuffer ttf, final float size, final float scale, final int count, final boolean crisp) {
         final float em = size * scale;
         final float pixelHeight, capPx;
         try (MemoryStack stack = MemoryStack.stackPush()) {
@@ -77,7 +77,7 @@ final class PixelFont {
             final int filter = crisp ? GL_NEAREST : GL_LINEAR;
             final int tex = glGenTextures();
             glBindTexture(GL_TEXTURE_2D, tex);
-            glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+            GlSave.plainUnpack();
             glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, side, side, 0, GL_RED, GL_UNSIGNED_BYTE, bitmap);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter);
@@ -89,17 +89,17 @@ final class PixelFont {
         }
     }
 
-    void delete() {
+    public void delete() {
         glDeleteTextures(texture);
         chars.free();
     }
 
     /** Height of the capitals, GUI units. */
-    float capHeight() {
+    public float capHeight() {
         return capPx / scale;
     }
 
-    float width(final String s) {
+    public float width(final String s) {
         float w = 0;
         for (int i = 0; i < s.length(); i++) {
             final int c = s.charAt(i) - FIRST;
@@ -109,7 +109,7 @@ final class PixelFont {
     }
 
     /** {@code s} cut to {@code maxWidth} GUI units, with an ellipsis when cut. */
-    String fit(final String s, final float maxWidth) {
+    public String fit(final String s, final float maxWidth) {
         if (width(s) <= maxWidth) return s;
         final float dots = width("...");
         int end = s.length();
@@ -118,7 +118,7 @@ final class PixelFont {
     }
 
     /** Draws {@code s} with the top of its capitals at {@code y} (GUI units). */
-    void draw(final Gfx g, final String s, final float x, final float y, final int argb) {
+    public void draw(final Gfx g, final String s, final float x, final float y, final int argb) {
         try (MemoryStack stack = MemoryStack.stackPush()) {
             final STBTTAlignedQuad q = STBTTAlignedQuad.malloc(stack);
             final var px = stack.floats(Math.round(x * scale));

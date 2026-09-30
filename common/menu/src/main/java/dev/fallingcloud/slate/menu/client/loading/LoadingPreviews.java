@@ -14,7 +14,8 @@ import net.minecraft.world.level.chunk.status.ChunkStatus;
 /**
  * Dev harness only ({@code slate.autoScreens}, never in a normal launch): the loading screens with made-up progress,
  * so a screenshot run can capture them ({@code slate_menu:loading_world}, {@code _terrain}, {@code _message},
- * {@code _progress}, {@code _connect}).
+ * {@code _progress}, {@code _connect}). {@code slate_menu:loading_join} is the real thing: a connection to a server
+ * that is not there (an address nothing answers at), for the way a join begins: the server's name, its picture, the first status.
  */
 public final class LoadingPreviews {
 
@@ -28,6 +29,12 @@ public final class LoadingPreviews {
             s.progressStage(Component.translatable("menu.generatingTerrain"));
             s.progressStagePercentage(42);
             return s;
+        });
+        CoreActions.SCREEN_FACTORIES.put("slate_menu:loading_join", p -> {
+            final net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+            net.minecraft.client.gui.screens.ConnectScreen.startConnecting(p, mc, net.minecraft.client.multiplayer.resolver.ServerAddress.parseString("10.255.255.1:25565"),
+                new net.minecraft.client.multiplayer.ServerData("Hollow Peak", "10.255.255.1:25565", net.minecraft.client.multiplayer.ServerData.Type.OTHER), false, null);
+            return mc.screen;
         });
         CoreActions.SCREEN_FACTORIES.put("slate_menu:loading_connect", p -> ConnectScreenAccessor.slate$create(p, Component.translatable("connect.failed")));
     }

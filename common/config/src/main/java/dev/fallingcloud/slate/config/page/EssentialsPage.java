@@ -9,7 +9,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 
 /**
- * General › Essentials: the handful of options players change most (FOV, render distance, GUI scale, brightness,
+ * General: the handful of options players change most (FOV, render distance, GUI scale, brightness,
  * fullscreen, frame rate cap, master volume, and the world's difficulty while a world is open), on one short page.
  * Every row also has its proper home on another tab, so this page stays out of the search index and never hides a
  * row as advanced.
@@ -17,7 +17,12 @@ import net.minecraft.network.chat.Component;
 public final class EssentialsPage extends OptionPageBase {
 
     public EssentialsPage() {
-        super("essentials", Component.translatable("slate_config.page.essentials"), Icon.SPARKLE);
+        this("essentials", Component.translatable("slate_config.page.essentials"), Icon.SPARKLE);
+    }
+
+    /** The page under another name: the hub's General tab is this page. */
+    public EssentialsPage(final String id, final Component title, final Icon icon) {
+        super(id, title, icon);
         level(Level.ALL);
         indexed(false);
     }

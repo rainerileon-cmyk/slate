@@ -32,15 +32,19 @@ public class StageWidget extends AbstractWidget {
         stage.render(g, getX(), getY(), getWidth(), getHeight(), mouse ? mouseX : -1e9, mouse ? mouseY : -1e9, partialTick);
     }
 
+    /**
+     * Takes the click only when something on the stage is under the pointer: a stage often fills the whole screen,
+     * and the widgets drawn over its empty parts must still get their clicks.
+     */
     @Override
-    public void onClick(final double mouseX, final double mouseY) {
-        stage.mouseClicked(mouseX, mouseY, 0);
+    public boolean mouseClicked(final double mouseX, final double mouseY, final int button) {
+        if (!this.active || !this.visible || !isMouseOver(mouseX, mouseY)) return false;
+        return stage.mouseClicked(mouseX, mouseY, button);
     }
 
     @Override
     public boolean mouseReleased(final double mouseX, final double mouseY, final int button) {
-        stage.mouseReleased(mouseX, mouseY, button);
-        return super.mouseReleased(mouseX, mouseY, button);
+        return stage.mouseReleased(mouseX, mouseY, button);
     }
 
     @Override

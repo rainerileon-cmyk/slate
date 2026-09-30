@@ -4,6 +4,48 @@ This is the handwritten design page "Minecraft Slate mod" (OneNote, 28 September
 It is only transcribed and organized: nothing was added and nothing was left out. Every sketch is kept as the original
 drawing, followed by a text version of it. `(?)` marks a word that was hard to read.
 
+## Corrections from the author (29 September 2026)
+
+**The sketches are the design; where the text below disagrees with a sketch, the sketch wins.** The "text version"
+boxes are a rough transcription and are wrong in places. The sketches themselves are rough too: what is built has to
+look good in the game, not copy the pencil lines. Said while the Overhaul layout was being built:
+
+- **The look.** Overhaul must look very polished and stylized, like something you would see in a Minecraft trailer.
+  That is the premise of the whole style. "Clean" means that finish, never "fewer things".
+- **Main menu.** The "Minecraft" title is big and centred, not at the top left. The camera is zoomed in so the chests
+  are big and the three buttons read as sitting on the open lids; the chests may stand right next to each other. The
+  pools of light on the floor stay.
+- **Cube world.** The Play button, and every world and server on the ring, is a **cube planet**: land, seas, forests
+  and snow on all six faces, with clouds circling it. It has to read as a real miniature world, not as a few blocks.
+- **Play screen.** "Select world" and the search sit in one header row above both halves (the ring and the world's
+  details), with a line under it. The two halves do not each have their own.
+- **Profile screen.** Five looks show at once: the selected one in the middle and two on either side.
+
+Said later, on the built screens (29 and 30 September 2026):
+
+- **Loading screen.** It uses Create's items, blocks, conveyor belts and containers. The title on it is the real
+  Minecraft logo. The final container shows clearly how far the loading is, and what it holds is the very thing
+  that is being made: the sheet item itself, stacked. Things are being made from the first moment on, and stay in
+  sight all the way up the sloping belt.
+- **Main menu.** The three buttons are centred in their lids and lie wholly inside the lid: they overlap nothing else,
+  not even the lid's walls. The inside of the lid is dark, to match the theme. The Options button is the large
+  cogwheel, set at an angle. The signs are centred on the chests' fronts. The Mojang copyright line is gone, and the
+  chests are zoomed out far enough to leave room between them and the line at the bottom. The Profile button is the
+  player's head alone, centred, and it does not follow the pointer. In the Slate style there is no splash text
+  beside the logo.
+- **Profile screen.** The figures never look at the pointer.
+- **Buttons in a scene.** Clicking one draws no box around it (the outline is for the keyboard).
+- **Play screen.** The small ring in the middle hangs low, in the ring's middle. The button that adds a world is not
+  in the scene but a plus beside Play, where the pencil was; beside the details, where a second Play button used to
+  be, stand Open folder and Backup. The ring
+  shows two planets more than it did; those at the back are smaller and closer together, and where there are more
+  worlds than the ring shows, something at the back of it shows that, with the feel of worlds going into it and
+  coming out of it.
+- **Options screen.** There is a Gameplay tab, and the Building settings are in it.
+- **World and server loading.** Not sketched: they are Overhaul screens of their own design, each cool in its own
+  way (built as the world's land rising while it opens, and a gate that takes fire while a server is joined).
+- **Chat.** It can record GIFs of the game.
+
 Contents:
 1. [Ground rules](#1-ground-rules)
 2. [Main menu](#2-main-menu--ui-module--overhaul)

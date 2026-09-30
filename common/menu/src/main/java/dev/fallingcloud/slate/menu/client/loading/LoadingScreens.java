@@ -6,6 +6,7 @@ import dev.fallingcloud.slate.core.theme.Palette;
 import dev.fallingcloud.slate.core.theme.Theme;
 import dev.fallingcloud.slate.core.widget.SlateSpinner;
 import dev.fallingcloud.slate.menu.SlateMenu;
+import dev.fallingcloud.slate.menu.client.loading.journey.Journey;
 import dev.fallingcloud.slate.core.screen.slot.CoreSlots;
 import dev.fallingcloud.slate.core.screen.slot.Layout;
 import dev.fallingcloud.slate.core.screen.slot.MenuSlots;
@@ -33,6 +34,9 @@ import org.jetbrains.annotations.Nullable;
  * background (Slate's with the dark skin, the portal for a portal trip), then one floating card with a spinner, the
  * title, the status, the chunk map while the spawn area generates, a progress bar (sliding while the length of the
  * wait is unknown) and the screen's own buttons along the bottom.
+ *
+ * <p>That is the Custom layout. With the Overhaul layout the same screens are drawn by {@link Journey}: a scene in
+ * place of the card.</p>
  */
 public final class LoadingScreens {
 
@@ -64,6 +68,7 @@ public final class LoadingScreens {
     public static void render(final Screen screen, final GuiGraphics g, final int mouseX, final int mouseY, final float partialTick,
                               final Component title, @Nullable final Component status, final float progress,
                               @Nullable final StoringChunkProgressListener chunks, final List<? extends AbstractWidget> buttons) {
+        if (Journey.active() && Journey.render(screen, g, mouseX, mouseY, partialTick, title, status, progress, chunks, buttons)) return;
         screen.renderBackground(g, mouseX, mouseY, partialTick);
         final Theme t = Theme.current();
         final Palette p = t.palette();

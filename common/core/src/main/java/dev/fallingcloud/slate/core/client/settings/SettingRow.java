@@ -19,7 +19,10 @@ import org.jetbrains.annotations.Nullable;
  */
 public final class SettingRow extends SlateCard {
 
-    public static final int HEIGHT = 24;
+    /** The line with the label and the control: a control is 20 high, and has four pixels over and under it. */
+    public static final int HEIGHT = 28;
+    /** Room between the row's edge and what stands in it: the row sits in a card, whose border is its edge. */
+    private static final int PAD = 6;
 
     private final Component label;
     @Nullable private final Component tooltip;
@@ -33,13 +36,13 @@ public final class SettingRow extends SlateCard {
         this.tooltip = tooltip;
         int h = HEIGHT;
         if (description != null) {
-            this.description = new SlateLabel(0, 0, width, description).style(SlateLabel.Style.MUTED).wrap(true);
-            add(this.description, 0, HEIGHT + 2);
+            this.description = new SlateLabel(0, 0, width - PAD * 2, description).style(SlateLabel.Style.MUTED).wrap(true);
+            add(this.description, PAD, HEIGHT + 2);
             h = HEIGHT + 2 + this.description.getHeight() + 4;
         } else {
             this.description = null;
         }
-        add(control, width - control.getWidth(), (HEIGHT - control.getHeight()) / 2);
+        add(control, Math.max(0, width - PAD - control.getWidth()), (HEIGHT - control.getHeight()) / 2);
         setHeight(h);
     }
 
@@ -55,7 +58,8 @@ public final class SettingRow extends SlateCard {
 
     /** The control's width for a row of {@code width}: three fifths of the row, at most 320 px, leaving the label at least 80. */
     public static int controlWidth(final int width) {
-        return Math.max(Math.min(width - 80, 120), Math.min(320, width * 3 / 5));
+        final int inner = width - PAD * 2;
+        return Math.max(Math.min(inner - 80, 120), Math.min(320, inner * 3 / 5));
     }
 
     @Override
@@ -64,10 +68,10 @@ public final class SettingRow extends SlateCard {
         final Palette p = t.palette();
         final float a = alpha * enterProgress();
         final int controlW = widgets().isEmpty() ? 0 : widgets().get(widgets().size() - 1).getWidth();
-        final int labelW = w - controlW - 8;
+        final int labelW = w - controlW - 8 - PAD * 2;
         final int color = t.isVanilla() ? 0xFFFFFFFF : p.text();
-        g.drawString(SlateDraw.font(), SlateDraw.truncate(label, labelW), x, SlateDraw.textY(y, HEIGHT), Colors.scaleAlpha(color, a), t.isVanilla());
-        if (tooltip != null && mouseX >= x && mouseX < x + labelW && mouseY >= y && mouseY < y + HEIGHT) {
+        g.drawString(SlateDraw.font(), SlateDraw.truncate(label, labelW), x + PAD, SlateDraw.textY(y, HEIGHT), Colors.scaleAlpha(color, a), t.isVanilla());
+        if (tooltip != null && mouseX >= x && mouseX < x + PAD + labelW && mouseY >= y && mouseY < y + HEIGHT) {
             SlateTooltips.request(tooltip, this);
         }
     }

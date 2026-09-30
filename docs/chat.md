@@ -12,6 +12,10 @@ fallback tokens, so players without the mod still see readable text).
   (hold to record; needs Simple Voice Chat), pasted clipboard images, video links (opens an embedded
   browser when MCEF is installed), link previews; a zoom/pan image viewer. Media travels over Slate's
   own chunked transfer through the server, never through a third party, except link embeds you opt into.
+- **GIF capture** — **F8** (Controls > Slate, or the camera button beside the chat's input) records the game as
+  you see it: press again to stop, or let it run out (6 seconds by default). The GIF is saved to `screenshots/` and
+  shown playing, with Send to the open channel, Open folder and Delete. One that is too large for a message is sent
+  narrower; the saved file keeps its size. Length and width are on the Chat settings page (`gifSeconds`, `gifWidth`).
 - **Emotes** — `:smile:`, `:fire:`, `:creeper:` and friends render as pixel emotes; a picker inserts them.
 - **History and search** — recent messages are kept per server and restored when you rejoin; Ctrl+F
   filters the visible list. Hover a message for copy/reply/open-link actions. Typing indicators show who

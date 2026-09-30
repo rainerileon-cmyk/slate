@@ -445,9 +445,17 @@ public final class SlateDraw {
         g.fill(0, 0, w, h, color);
     }
 
-    /** 1 px "focus ring" in the accent colour, outside the widget. */
+    /**
+     * Whether focus is to be shown: only to whoever is finding their way with the keyboard (Tab, the arrows). Who
+     * clicks sees where the pointer is, and wants no box left round what was clicked.
+     */
+    public static boolean focusShown() {
+        return Minecraft.getInstance().getLastInputType().isKeyboard();
+    }
+
+    /** 1 px "focus ring" in the accent colour, outside the widget: there while {@link #focusShown() focus is shown}. */
     public static void focusRing(final GuiGraphics g, final int x, final int y, final int w, final int h, final float alpha) {
-        if (alpha <= 0.02f) return;
+        if (alpha <= 0.02f || !focusShown()) return;
         outline(g, x - 1, y - 1, w + 2, h + 2, Colors.scaleAlpha(Theme.current().accent(), alpha), Theme.current().radius() + 1);
     }
 

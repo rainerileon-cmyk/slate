@@ -3,23 +3,31 @@
 The base every other Slate module builds on. On its own it gives you the theme (dark modern or polished
 vanilla), restyled vanilla screens, the Slate hub, and the development mode.
 
-## First launch: the three switches
+## Layouts and styles
 
-The first time the game starts with Slate, a **setup screen** appears before the title screen: three switches with
-explanations and live previews (a title screen in either layout and style, the inventory in either container
-style). Every switch applies the moment it is flipped, so the screen itself changes with the style switch; Confirm
-(or Esc) keeps what is on screen. The same three switches live in Slate settings ("What Slate changes"), in the
-Slate hub's theme card and on Slate Config's Interface page, and "Run setup again" reopens the screen.
+Every menu has a **layout** (where things are) and a **style** (what they look like), and the two are independent:
+any layout works with any style. The design behind them is `docs/LAYOUTS.md`.
 
-| Switch | `core.json` | On | Off |
-|---|---|---|---|
-| **Custom layout** | `customLayout` | Slate Menu's rebuilt screens (title, worlds, servers, pause, options, disconnected) replace vanilla's | Vanilla's own screens and button placement stay; Core adds a **Slate** button to vanilla's title screen (right of the accessibility button) and pause menu (in place of the feedback / bug-report row, which is removed) |
-| **Custom menu style** | `skin` (`DARK` / `VANILLA`) | The dark modern look for every menu | Vanilla's stone buttons and panels, still animated |
-| **Custom container style** | `reskinContainers` | Inventories and containers get Slate's panel, sunken slot wells, an accent hover ring and light labels, with either menu style | Their own textures |
+| | What it is | Needs |
+|---|---|---|
+| Layout **Vanilla** | Minecraft's own screens and button placement; Core adds a **Slate** button to vanilla's title screen and pause menu so Slate stays reachable | nothing |
+| Layout **Custom** | Slate's rebuilt screens (title, worlds, servers, pause, options, disconnected, loading) | Slate UI (`slate_menu`) |
+| Layout **Overhaul** | Animated 3D scenes built from real Minecraft blocks, players and items: chests for buttons, worlds as cube planets, a factory that loads the game | Slate UI |
+| Style **Slate** | The dark modern look: layered panels, an accent colour, pixel-stepped corners | nothing |
+| Style **Vanilla** | Vanilla's stone buttons and panels, still animated | nothing |
 
-They are independent: a vanilla layout with the dark style restyles vanilla's own screens; a custom layout with the
-vanilla style gives Slate's screens stone buttons; the container style never depends on the menu style. Slate's own
-rebuilt screens carry no Slate button (their Options lead to Slate's settings and hub).
+A menu that does not exist in vanilla (Friends, Profile, Screenshots, the Slate hub) has no Vanilla layout. Without
+Slate UI every vanilla menu stays in the Vanilla layout and the new menus use Custom.
+
+- **First launch.** A setup screen appears before the title screen: the layout, the menu style and the container
+  style, each with an explanation. Every choice applies the moment it is made; Confirm (or Esc) keeps what is on
+  screen. "Run setup again" on the Interface page reopens it.
+- **Per menu.** Options > Interface > Menus lists every menu Slate touches with its own layout and style. A menu
+  follows the global choice until it is given its own; a layout a menu cannot show right now is greyed out and says
+  why (the module that would provide it is missing, or the menu has no such layout).
+- **Missing modules.** A feature of a module that is not installed is left out of the Custom and Vanilla layouts. In
+  the Overhaul layout its button stays, greyed, with the tooltip "Install <module> to get this feature".
+- **Containers** have a style switch of their own (`reskinContainers`), independent of the menu style.
 
 ## Skins and theme
 
@@ -40,7 +48,8 @@ pixel grid, so they stay crisp at every GUI scale; characters a font lacks fall 
 
 | key | default | meaning |
 |---|---|---|
-| `customLayout` | `true` | Slate Menu's screens replace vanilla's (the layout switch) |
+| `layout` | `CUSTOM` | the layout every menu shows in unless it has its own: `VANILLA`, `CUSTOM` or `OVERHAUL` |
+| `screens` | `{}` | per-menu overrides, keyed by menu id: `{"minecraft:title": {"layout": "OVERHAUL", "style": "VANILLA"}}` |
 | `setupDone` | `false` | the first-launch setup was confirmed; delete the key to see it again |
 | `skin` | `DARK` | `DARK` or `VANILLA` (the menu-style switch) |
 | `accent` | `#D9805E` | accent colour |
@@ -66,6 +75,13 @@ skin, so it works with the vanilla menu style too. Progress arrows, flames and a
 on top. A screen that paints its background in pieces gets a dark veil with the same wells, the creative
 inventory's tabs and scroller become Slate's, and the deny-list applies (Create, JEI, Xaero's and FancyMenu
 screens by default).
+
+**Better Inventory** draws its screens from sheets of pixel art in a palette of its own, so it gets a palette swap
+instead of the panel: with the container style on, its art, its hotbar and the few colours it paints from code take
+the colours containers are painted with (the dark palette and the accent in use; the ornaments and whatever is
+pointed at take the accent). Both of its looks are handled, the dark one and its Vanilla Style pack, whichever
+resource pack the art comes from, and a change of accent shows at once. Nothing of that mod is changed on disk; with
+the container style off, or with its screens on the deny-list, it looks as it always did.
 
 ## Development mode
 

@@ -30,6 +30,7 @@ public final class MenuConfig {
 
     // ---- title screen
     public boolean panorama = true;
+    /** The splash text beside the logo: shown in the Vanilla style only, the Slate style has none. */
     public boolean splash = true;
     /** Minecraft logo (true) or a Slate wordmark (false). */
     public boolean showLogo = true;
@@ -61,6 +62,19 @@ public final class MenuConfig {
     public boolean showCommunity = true;
     public boolean showRecent = true;
     public int recentServersMax = 8;
+
+    // ---- play screen (Overhaul layout: worlds and servers as rings of planets)
+    /** {@code RECENT}, {@code NAME}, {@code SIZE}. Favourites stand first in every order. */
+    public String playSort = "RECENT";
+    /**
+     * How many planets a ring shows at once (4..24); the rest come out of the whirl at its back as the ring turns.
+     * (Called {@code ringVisible} while the rings showed nine: a file that still has that key gets this default.)
+     */
+    public int ringPlanets = 11;
+
+    // ---- world creation (Overhaul layout)
+    /** The view of the world about to be made is folded to a bar. */
+    public boolean createPreviewMinimised = false;
 
     // ---- screenshots
     /** {@code NEWEST}, {@code OLDEST}, {@code NAME}. */

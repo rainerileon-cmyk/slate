@@ -78,6 +78,19 @@ public class BlockNode extends StageNode {
         return this;
     }
 
+    /**
+     * Chests: the lid is open (or shut) at once, without the swing: for a scene that shows its end state straight away
+     * (animations off, a screen coming back).
+     */
+    public BlockNode openNow(final boolean open) {
+        open(open);
+        if (blockEntity instanceof ChestBlockEntity chest) {
+            // The lid moves a tenth per tick; two ticks more bring the previous-tick value along, so nothing interpolates.
+            for (int i = 0; i < 12; i++) ChestBlockEntity.lidAnimateTick(level, levelPos, state, chest);
+        }
+        return this;
+    }
+
     public boolean isOpen() { return open; }
 
     public BlockNode toggle() { return open(!open); }
@@ -113,7 +126,7 @@ public class BlockNode extends StageNode {
         ctx.pose.pushPose();
         ctx.pose.translate(-0.5f, 0f, -0.5f);
         if (state.getRenderShape() == RenderShape.MODEL) {
-            final RenderType type = alpha < 1f ? RenderType.translucentMovingBlock() : ItemBlockRenderTypes.getMovingBlockRenderType(state);
+            final RenderType type = alpha() < 1f ? RenderType.translucentMovingBlock() : ItemBlockRenderTypes.getMovingBlockRenderType(state);
             final VertexConsumer vc = ctx.buffers.getBuffer(type);
             mc.getBlockRenderer().renderBatched(state, levelPos, level, ctx.pose, vc, true, random);
         }

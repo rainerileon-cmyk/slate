@@ -226,7 +226,7 @@ REPLY REACT HISTORY TYPING MENTION HASH PENCIL_OFF SNAP ALIGN_LEFT ALIGN_CENTER 
   - `hover()`, `press()`, `focus()`, `effectiveAlpha()` (alpha × entrance), `isEntering()`, `contains(mx,my)`
   - protected `enterProgress()`, `enterOffset()` (6 px → 0), `isPressed()`, `flashPress()`
 - Input: `onClick` snaps press, `onRelease`/`mouseReleased` clear it, `playDownSound` → `SlateSounds.click` unless `silent`. Narration uses the default button text.
-- Focus: standard vanilla `FocusNavigationEvent` via AbstractWidget. The focus ring shows only when focused and not hovered.
+- Focus: standard vanilla `FocusNavigationEvent` via AbstractWidget. The focus ring shows only when focused and not hovered, and only to the keyboard (`SlateDraw.focusShown()`: the last input was Tab or an arrow key): a click leaves no ring. A stage outlines its focused node on the same terms.
 
 **Buttons**
 - **`SlateButton`**

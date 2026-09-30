@@ -9,6 +9,7 @@
     "MinecraftSetupMixin",
     "ScreenMixin",
     "MouseHandlerMixin",
+    "MouseHandlerAccessor",
     "KeyboardHandlerMixin",
     "AbstractWidgetMixin",
     "AbstractButtonMixin",
@@ -25,7 +26,8 @@
     "TabNavigationBarMixin",
     "TitleScreenMixin",
     "ScreenLayoutMixin",
-    "GameRendererMixin"
+    "GameRendererMixin",
+    "SpriteContentsAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

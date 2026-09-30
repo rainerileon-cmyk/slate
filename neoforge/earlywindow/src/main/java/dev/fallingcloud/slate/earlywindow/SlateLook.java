@@ -52,14 +52,24 @@ final class SlateLook {
     private static String replaced;
 
     /**
-     * Slate draws the start-up window: as its other loading screens (Menu's {@code LoadingScreens.active}), with Core's
-     * custom layout on and Menu's {@code loadingScreens}, and, having no vanilla-skin version, with the dark skin.
-     * Each is on while its file does not exist yet, as the settings' defaults.
+     * Slate draws the start-up window: with a Slate layout on its slot and Menu's {@code loadingScreens}. The Custom
+     * layout has no vanilla-skin version, so with the Vanilla style NeoForge's own screen stays; the Overhaul layout
+     * has both. Each setting is on while its file does not exist yet, as the settings' defaults.
      */
     static boolean enabled() {
         final Properties p = props();
-        if (p != null) return !"VANILLA".equalsIgnoreCase(p.getProperty("layout", "CUSTOM")) && !"VANILLA".equalsIgnoreCase(p.getProperty("style", "SLATE"));
+        if (p != null) {
+            final String layout = p.getProperty("layout", "CUSTOM").trim();
+            if ("VANILLA".equalsIgnoreCase(layout)) return false;
+            return "OVERHAUL".equalsIgnoreCase(layout) || !vanillaStyle();
+        }
         return darkSkin() && flag(LAYOUT, core()) && flag(LOADING, menu());
+    }
+
+    /** The Vanilla style is chosen for the start-up window: the game's own colours and font instead of Slate's. */
+    static boolean vanillaStyle() {
+        final Properties p = props();
+        return p != null ? "VANILLA".equalsIgnoreCase(p.getProperty("style", "SLATE").trim()) : !darkSkin();
     }
 
     /** The layout of the start-up window slot ({@code VANILLA}, {@code CUSTOM} or {@code OVERHAUL}) as Core resolved it last. */

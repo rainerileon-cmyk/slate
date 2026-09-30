@@ -33,6 +33,18 @@ public final class NeoForgePlatform implements SlatePlatform {
         return ModList.get().getMods().stream().map(NeoForgePlatform::convert).toList();
     }
 
+    @Override
+    public Optional<Path> modFile(final String modId, final String path) {
+        try {
+            final var file = ModList.get().getModFileById(modId);
+            if (file == null) return Optional.empty();
+            final Path p = file.getFile().findResource(path);
+            return java.nio.file.Files.isRegularFile(p) ? Optional.of(p) : Optional.empty();
+        } catch (final Exception e) {
+            return Optional.empty();
+        }
+    }
+
     private static ModInfo convert(final IModInfo info) {
         final List<String> authors = info.getConfig().getConfigElement("authors")
             .map(o -> List.of(String.valueOf(o).split(",\\s*"))).orElse(List.of());

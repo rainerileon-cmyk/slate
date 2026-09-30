@@ -1,0 +1,36 @@
+modLoader = "javafml"
+loaderVersion = "[1,)"
+license = "MIT"
+
+[[mods]]
+modId = "slate_profile"
+version = "${version}"
+displayName = "Slate Profile"
+authors = "falling_colud"
+logoFile = "assets/slate_profile/icon.png"
+displayTest = "IGNORE_ALL_VERSION"
+description = '''Slate's player customization: several looks to switch between, each a skin with things to wear (hats, shirts, packs, pets), a profile picture and a bio, kept on the PC for every instance and version. Other players with the mod see what you wear on servers that have it.'''
+
+[[mixins]]
+config = "slate_profile.mixins.json"
+
+[[dependencies.slate_profile]]
+modId = "slate"
+type = "required"
+versionRange = "[1.0,)"
+ordering = "AFTER"
+side = "BOTH"
+
+[[dependencies.slate_profile]]
+modId = "neoforge"
+type = "required"
+versionRange = "[21.1,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.slate_profile]]
+modId = "minecraft"
+type = "required"
+versionRange = "[1.21.1,1.22)"
+ordering = "NONE"
+side = "BOTH"

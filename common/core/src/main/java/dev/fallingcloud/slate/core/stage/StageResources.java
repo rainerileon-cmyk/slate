@@ -39,6 +39,8 @@ public final class StageResources implements ResourceManagerReloadListener {
         generation++;
         StageModels.clear();
         SceneLoader.clear();
+        StagePost.reload();
+        StageSoft.reload();
         Slate.LOGGER.debug("[Slate] stage: resources reloaded (generation {})", generation);
     }
 }

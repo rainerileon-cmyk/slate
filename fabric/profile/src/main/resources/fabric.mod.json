@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "slate_profile",
+  "version": "${version}",
+  "name": "Slate Profile",
+  "description": "Slate's player customization: several looks to switch between, each a skin with things to wear (hats, shirts, packs, pets), a profile picture and a bio, kept on the PC for every instance and version. Other players with the mod see what you wear on servers that have it.",
+  "authors": ["falling_colud"],
+  "license": "MIT",
+  "icon": "assets/slate_profile/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["dev.fallingcloud.slate.profile.fabric.SlateProfileFabric"],
+    "client": ["dev.fallingcloud.slate.profile.fabric.SlateProfileFabricClient"]
+  },
+  "mixins": ["slate_profile.mixins.json"],
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "minecraft": "~1.21.1",
+    "java": ">=21",
+    "fabric-api": "*",
+    "slate": ">=1.0.0"
+  }
+}

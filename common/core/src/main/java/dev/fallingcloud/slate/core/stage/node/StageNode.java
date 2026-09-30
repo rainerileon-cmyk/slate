@@ -26,6 +26,7 @@ public abstract class StageNode {
     protected float yaw, pitch, roll;
     protected final Vector3f scale = new Vector3f(1f, 1f, 1f);
     protected float alpha = 1f;
+    protected float muted;
     protected boolean visible = true;
     private boolean pickable;
     protected final Vector3f boundsMin = new Vector3f(-0.5f, 0f, -0.5f);
@@ -42,6 +43,9 @@ public abstract class StageNode {
     @Nullable private Component tooltip;
     private Component name = Component.empty();
     private boolean hovered, pressed, focused;
+    /** The node this one rides on: its transform, visibility and alpha apply on top of this node's own. */
+    @Nullable private StageNode parent;
+    private long preparedFrame = -1;
 
     /** Model matrix (local → world) and its inverse, rebuilt by {@link #prepare} every frame. */
     public final Matrix4f model = new Matrix4f();
@@ -69,6 +73,12 @@ public abstract class StageNode {
 
     public StageNode visible(final boolean v) { this.visible = v; return this; }
 
+    /**
+     * 0..1: how far the node is drawn grey and dim, the look of a thing that is there but cannot be used. Children
+     * take it over. Seen under a stage's soft light; without it the node looks as it always does.
+     */
+    public StageNode muted(final float amount) { this.muted = Math.max(0f, Math.min(1f, amount)); return this; }
+
     /** Pickable nodes take hover, clicks and keyboard focus. */
     public StageNode pickable(final boolean p) { this.pickable = p; return this; }
 
@@ -90,6 +100,18 @@ public abstract class StageNode {
         return this;
     }
 
+    /**
+     * Makes this node ride on {@code parent}: its position, rotation and scale become relative to the parent's, and it
+     * shows only while the parent does, at the parent's alpha times its own. Both still go on the stage themselves.
+     * {@code null} detaches.
+     */
+    public StageNode attachTo(@Nullable final StageNode parent) {
+        this.parent = parent == this ? null : parent;
+        return this;
+    }
+
+    @Nullable public StageNode parent() { return parent; }
+
     /** How hover feels: {@code lift} in blocks and {@code scale} as a factor (1 = none). */
     public StageNode hoverFeel(final float lift, final float scale) { this.hoverLift = lift; this.hoverScale = scale; return this; }
 
@@ -105,9 +127,14 @@ public abstract class StageNode {
 
     public Vector3f scale() { return scale; }
 
-    public float alpha() { return alpha; }
+    /** The alpha the node is drawn with: its own times its parent's. */
+    public float alpha() { return parent == null ? alpha : alpha * parent.alpha(); }
 
-    public boolean visible() { return visible; }
+    /** Whether the node is drawn and picked: its own switch, and its parent's. */
+    public boolean visible() { return visible && (parent == null || parent.visible()); }
+
+    /** How muted the node is drawn: its own, or its parent's when that is more. */
+    public float muted() { return parent == null ? muted : Math.max(muted, parent.muted()); }
 
     public boolean pickable() { return pickable; }
 
@@ -165,6 +192,9 @@ public abstract class StageNode {
 
     /** Rebuilds the model matrix with the hover/press feel applied. Called by the stage before picking and drawing. */
     public void prepare(final StageRenderContext ctx) {
+        // Once per frame: a child prepares its parent first, and the stage comes by again later.
+        if (preparedFrame == ctx.frame) return;
+        preparedFrame = ctx.frame;
         if (spinDegPerSec != 0f && dev.fallingcloud.slate.core.theme.Theme.current().motion() > 0f) {
             yaw = (yaw + spinDegPerSec * ctx.deltaMs / 1000f) % 360f;
         }
@@ -174,6 +204,10 @@ public abstract class StageNode {
         rotation.rotationYXZ((float) Math.toRadians(yaw), (float) Math.toRadians(pitch), (float) Math.toRadians(roll));
         model.translationRotateScale(position.x, position.y + hoverLift * h, position.z,
             rotation.x, rotation.y, rotation.z, rotation.w, scale.x * s, scale.y * s, scale.z * s);
+        if (parent != null) {
+            parent.prepare(ctx);
+            model.mulLocal(parent.model);
+        }
         model.invert(modelInverse);
     }
 
@@ -185,12 +219,14 @@ public abstract class StageNode {
 
     /** Pushes the model transform and calls {@link #draw}. */
     public void render(final StageRenderContext ctx) {
-        if (!visible || alpha <= 0.004f) return;
+        if (!visible() || alpha() <= 0.004f) return;
         ctx.pose.pushPose();
         ctx.pose.mulPose(model);
+        dev.fallingcloud.slate.core.stage.StageSoft.muted(muted());
         try {
             draw(ctx);
         } finally {
+            dev.fallingcloud.slate.core.stage.StageSoft.muted(0f);
             ctx.pose.popPose();
         }
     }
@@ -203,12 +239,14 @@ public abstract class StageNode {
 
     /** Pushes the model transform and calls {@link #drawTranslucent}; the stage runs this after the opaque batch. */
     public void renderTranslucent(final StageRenderContext ctx) {
-        if (!visible || alpha <= 0.004f || !hasTranslucentPass()) return;
+        if (!visible() || alpha() <= 0.004f || !hasTranslucentPass()) return;
         ctx.pose.pushPose();
         ctx.pose.mulPose(model);
+        dev.fallingcloud.slate.core.stage.StageSoft.muted(muted());
         try {
             drawTranslucent(ctx);
         } finally {
+            dev.fallingcloud.slate.core.stage.StageSoft.muted(0f);
             ctx.pose.popPose();
         }
     }

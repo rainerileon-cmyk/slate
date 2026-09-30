@@ -6,10 +6,11 @@ polished and animated. Minecraft 1.21.1, **NeoForge and Fabric** from one shared
 
 | Module | Mod id | What it does |
 |---|---|---|
-| Core | `slate` | The first-launch setup (three switches with live previews: custom layout, custom menu style, custom container style), theme engine (dark + vanilla skins, accent colours), widget toolkit, animations, screen transitions, restyling of vanilla screens and containers, the **development mode** layout editor (edit any menu: move/hide/add buttons, labels, images, panels with actions), Slate hub |
-| Menu | `slate_menu` | Rebuilt title, worlds, servers, pause, options screens; favourites, search, live pings, quick connect, community servers, screenshot gallery |
+| Core | `slate` | The layout and style model (three layouts: Vanilla, Custom, Overhaul; two styles: Slate, Vanilla; any combination, per menu) with its first-launch setup, the stage engine behind the Overhaul layout's 3D scenes, theme engine (dark + vanilla skins, accent colours), widget toolkit, animations, screen transitions, restyling of vanilla screens and containers, the **development mode** layout editor (edit any menu: move/hide/add buttons, labels, images, panels with actions), Slate hub |
+| Menu (Slate UI) | `slate_menu` | The Custom layout: rebuilt title, worlds, servers, pause, options screens; favourites, search, live pings, quick connect, community servers, screenshot gallery. The Overhaul layout: a main menu of chests, worlds as cube planets, a preview of the world about to be made, a factory that loads the game, the world's own land rising while it opens, a gate that takes fire while a server is joined ([docs](docs/menu.md)) |
+| Profile | `slate_profile` | Looks (a skin with cosmetics and mixed limbs), accounts, bio and picture; what you wear shows in the game and to others on servers that have the module ([docs](docs/profile.md)) |
 | Multiplayer | `slate_multiplayer` | Friends, friend groups, presence, DMs and group chats with media, invites, screen sharing, Simple Voice Chat integration; a social hub on any server that has it |
-| Chat | `slate_chat` | In-game chat rebuilt: channels, grouped messages with heads, images/GIFs/voice clips/video, emotes, mentions, history and search |
+| Chat | `slate_chat` | In-game chat rebuilt: channels, grouped messages with heads, images/GIFs/voice clips/video, GIF capture of the game, emotes, mentions, history and search |
 | Config | `slate_config` | One unified settings screen: video (Sodium included), audio, controls, chat, interface, multiplayer, every mod's config, curated modpack pages, search, favourites, presets |
 | Building | `slate_building` | Every block's shapes in one family (stairs, slabs, vertical slabs, walls, steps, panels, …) swapped on an Alt wheel, placement ghost, an R build menu with 20 building modes (fill, walls, sphere, replace, copy/paste, move, mirror, …) unlocked by tiered tools in a Builder's Toolbox, chisel variants, undo/redo; one-material-unit economy, no dupes. Adds blocks, so the server needs it too ([docs](docs/building.md)) |
 
@@ -36,7 +37,7 @@ compile against vendored jars in `MinecraftMods/Source/libs` (or `-Pslate.libs=<
 
 ## Configuration
 
-Everything lives under `config/slate/`: `core.json` (the three switches: `customLayout`, `skin`, `reskinContainers`; accent, pixel font, motion, dev mode, restyle scope; `setupDone`),
+Everything lives under `config/slate/`: `core.json` (`layout`, `skin` and `reskinContainers`, the per-menu overrides in `screens`; accent, pixel font, motion, dev mode, restyle scope; `setupDone`),
 `menu.json`, `multiplayer.json`, `chat.json`, `config.json`, `building.json` (client building preferences),
 `building-server.json` (server building rules, synced to players), `building-chisel.json` (chisel groups),
 `layouts/<screen>.json` (dev-mode layouts), `config/pages/*.json` (curated settings pages). Modpacks ship

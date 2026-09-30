@@ -26,6 +26,16 @@ public final class StageLighting {
     private float brightness = 1f;
     private int generation;
 
+    // The soft rig: what the stylized shader (StageSoft) lights with. Colours are linear multipliers, not 0..255.
+    private final Vector3f keyPos = new Vector3f(2.6f, 5.2f, 6.5f);
+    private final Vector3f keyColor = new Vector3f(0.6f, 0.555f, 0.48f);
+    private final Vector3f fillDir = new Vector3f(-1f, 0.25f, 0.2f).normalize();
+    private final Vector3f fillColor = new Vector3f(0.11f, 0.14f, 0.2f);
+    private final Vector3f ambientColor = new Vector3f(0.37f, 0.35f, 0.36f);
+    private final Vector3f rimColor = new Vector3f(1f, 0.9f, 0.76f);
+    private float rimStrength = 0.2f;
+    private float wrap = 0.45f;
+
     // Scratch vectors (no per-frame allocation).
     private final Vector3f light0 = new Vector3f();
     private final Vector3f light1 = new Vector3f();
@@ -72,6 +82,50 @@ public final class StageLighting {
     public StageLighting brightness(final float b) { this.brightness = Mth.clamp(b, 0f, 2f); return this; }
 
     public float brightness() { return brightness; }
+
+    // ------------------------------------------------------------------ the soft rig
+
+    /** Where the key light hangs, in scene blocks: a lamp, so faces are lit across, not flat. */
+    public StageLighting key(final float x, final float y, final float z) { keyPos.set(x, y, z); return this; }
+
+    public StageLighting keyColor(final float r, final float g, final float b) { keyColor.set(r, g, b); return this; }
+
+    /** The direction the fill light comes from, and its colour (keep it weak and cool against a warm key). */
+    public StageLighting fill(final float x, final float y, final float z, final float r, final float g, final float b) {
+        fillDir.set(x, y, z);
+        if (fillDir.lengthSquared() < 1e-6f) fillDir.set(-1f, 0f, 0f);
+        fillDir.normalize();
+        fillColor.set(r, g, b);
+        return this;
+    }
+
+    public StageLighting ambientColor(final float r, final float g, final float b) { ambientColor.set(r, g, b); return this; }
+
+    /** The line of light along edges that turn away from the viewer. */
+    public StageLighting rim(final float r, final float g, final float b, final float strength) {
+        rimColor.set(r, g, b);
+        rimStrength = Math.max(0f, strength);
+        return this;
+    }
+
+    /** How far the key light reaches round a form (0 = a hard terminator, 1 = nearly all the way). */
+    public StageLighting wrap(final float w) { this.wrap = Mth.clamp(w, 0f, 1f); return this; }
+
+    public Vector3f keyPos() { return keyPos; }
+
+    public Vector3f keyColor() { return keyColor; }
+
+    public Vector3f fillDir() { return fillDir; }
+
+    public Vector3f fillColor() { return fillColor; }
+
+    public Vector3f ambientColor() { return ambientColor; }
+
+    public Vector3f rimColor() { return rimColor; }
+
+    public float rimStrength() { return rimStrength; }
+
+    public float wrap() { return wrap; }
 
     /** Bumped whenever something baked into meshes changes. */
     public int generation() { return generation; }

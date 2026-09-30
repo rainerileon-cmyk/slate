@@ -1,5 +1,6 @@
 package dev.fallingcloud.slate.core.mixin;
 
+import dev.fallingcloud.slate.core.screen.reskin.BetterInventoryPalette;
 import dev.fallingcloud.slate.core.screen.reskin.ContainerReskin;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.resources.ResourceLocation;
@@ -14,6 +15,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * public {@code blit} overload ends in one of the two hooked here), sprite blits (the creative inventory's tabs and
  * scroller) and the text colour of labels (the {@code Component} overload delegates to the
  * {@code FormattedCharSequence} one). All of them are no-ops outside the windows {@code ContainerScreenMixin} opens.
+ * The colours Better Inventory paints from code pass through {@link BetterInventoryPalette} while one of its screens is
+ * open (every {@code fill} and {@code renderOutline} ends in the one hooked here).
  */
 @Mixin(GuiGraphics.class)
 public abstract class GuiGraphicsMixin {
@@ -43,6 +46,11 @@ public abstract class GuiGraphicsMixin {
         "drawString(Lnet/minecraft/client/gui/Font;Lnet/minecraft/util/FormattedCharSequence;IIIZ)I" },
         at = @At("HEAD"), argsOnly = true, ordinal = 2, require = 0)
     private int slate$containerLabel(final int color) {
-        return ContainerReskin.labelColor(color);
+        return ContainerReskin.labelColor(BetterInventoryPalette.text(color));
+    }
+
+    @ModifyVariable(method = "fill(Lnet/minecraft/client/renderer/RenderType;IIIIII)V", at = @At("HEAD"), argsOnly = true, ordinal = 5, require = 0)
+    private int slate$modFill(final int color) {
+        return BetterInventoryPalette.fill(color);
     }
 }

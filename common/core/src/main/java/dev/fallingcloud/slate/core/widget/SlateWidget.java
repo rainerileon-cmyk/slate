@@ -3,6 +3,7 @@ package dev.fallingcloud.slate.core.widget;
 import dev.fallingcloud.slate.core.gfx.Anim;
 import dev.fallingcloud.slate.core.gfx.Clock;
 import dev.fallingcloud.slate.core.gfx.Ease;
+import dev.fallingcloud.slate.core.gfx.SlateDraw;
 import dev.fallingcloud.slate.core.theme.Theme;
 import java.util.List;
 import net.minecraft.client.gui.GuiGraphics;
@@ -134,7 +135,7 @@ public abstract class SlateWidget extends AbstractWidget {
     protected final void renderWidget(final GuiGraphics g, final int mouseX, final int mouseY, final float partialTick) {
         final boolean hovered = this.active && this.isHovered() && g.containsPointInScissor(mouseX, mouseY);
         hoverAnim.set(hovered);
-        focusAnim.set(this.active && this.isFocused() && !hovered);
+        focusAnim.set(this.active && this.isFocused() && !hovered && SlateDraw.focusShown());
         pressAnim.set(pressed && hovered);
         if (hovered) {
             if (hoverSinceMs == 0) hoverSinceMs = Clock.nowMs();

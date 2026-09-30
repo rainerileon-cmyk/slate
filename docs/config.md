@@ -19,6 +19,9 @@ Ctrl+Shift+PgUp / PgDn the secondary tabs, `/` or Ctrl+F focuses search.
 
 ## Sidebar
 
+- **General**: the page the screen opens with, and one short list: the handful of options players change
+  most (FOV, render distance, GUI scale, brightness, fullscreen, frame rate cap, master volume, and the
+  world's difficulty while a world is open). Every row also has its proper home on another page.
 - **Video**: tabs by topic, never by mod: **Display**, **Graphics**, **Performance**, **Animations &
   effects** and **HUD & extras**. Each tab lists vanilla's rows first, then a collapsible header per mod page
   on Sodium's option model ("Sodium › Quality", "Sodium Extra › Animations", Iris, Reese's, ...) holding the
@@ -56,7 +59,7 @@ reset button resets the **current tab** after a confirmation.
 
 ## Opening a page
 
-`SlateConfigApi.openHub(parent, path)`. A path is a sidebar id (`video`, `audio`, `controls`, `gameplay`,
+`SlateConfigApi.openHub(parent, path)`. A path is a sidebar id (`general`, `video`, `audio`, `controls`, `gameplay`,
 `multiplayer`, `customization`, `interface`, `language_accessibility`, `favourites`, `presets`),
 `category/tab` (`multiplayer/chat`, `multiplayer/skin`, `customization/shaders`, `gameplay/building`), or
 `page/tab` for a top tab of a page (`controls/keys`, `video/graphics`). The old ids `chat`, `online`,

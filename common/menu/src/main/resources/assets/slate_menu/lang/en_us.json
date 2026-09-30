@@ -189,5 +189,12 @@
   "slate_menu.loading.spawn": "Preparing the spawn area",
   "slate_menu.loading.joining": "Joining %s",
   "slate_menu.loading.joining_server": "Joining server",
-  "slate_menu.loading.generic": "Loading"
+  "slate_menu.loading.generic": "Loading",
+  "slate_menu.loading.resources": "Loading resources",
+  "slate_menu.journey.opening_world": "Opening world",
+  "slate_menu.journey.leaving_world": "Leaving world",
+  "slate_menu.journey.joining_server": "Joining server",
+  "slate_menu.journey.leaving_server": "Leaving server",
+  "slate_menu.journey.disconnecting": "Disconnecting",
+  "slate_menu.journey.waiting": "One moment"
 }

@@ -1,6 +1,7 @@
 package dev.fallingcloud.slate.core.stage;
 
 import dev.fallingcloud.slate.core.Slate;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import java.util.ArrayList;
 import java.util.List;
@@ -8,6 +9,7 @@ import java.util.UUID;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.renderer.BiomeColors;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
@@ -92,6 +94,9 @@ public final class StageLevel extends Level {
     @Nullable private RecipeManager recipes;
     private long subTick;
     private int nextRegionX;
+    /** Regions are this far apart on X, so a position's region is its X divided by it. */
+    private static final int REGION_SPACING = 4096;
+    private final Int2ObjectOpenHashMap<int[]> regionTints = new Int2ObjectOpenHashMap<>();
     private int nextEntityId = 1;
     private final BlockPos.MutableBlockPos scratch = new BlockPos.MutableBlockPos();
 
@@ -108,7 +113,7 @@ public final class StageLevel extends Level {
     /** A fresh origin far from every other region, so meshing and AO never see a neighbour they should not. */
     public BlockPos allocateRegion() {
         final BlockPos p = new BlockPos(nextRegionX, 0, 0);
-        nextRegionX += 4096;
+        nextRegionX += REGION_SPACING;
         return p;
     }
 
@@ -244,8 +249,28 @@ public final class StageLevel extends Level {
         return chunkSource.getLightEngine();
     }
 
+    /**
+     * Gives the region that starts at {@code origin} (see {@link #allocateRegion()}) its own grass, foliage and water
+     * colours (ARGB; 0 keeps the plains colour), so a node can look like a jungle or a swamp. Re-mesh afterwards.
+     */
+    public void tintRegion(final BlockPos origin, final int grass, final int foliage, final int water) {
+        regionTints.put(Math.floorDiv(origin.getX(), REGION_SPACING), new int[] {grass, foliage, water});
+    }
+
+    public void clearRegionTint(final BlockPos origin) {
+        regionTints.remove(Math.floorDiv(origin.getX(), REGION_SPACING));
+    }
+
     @Override
     public int getBlockTint(final BlockPos pos, final ColorResolver resolver) {
+        if (!regionTints.isEmpty()) {
+            final int[] t = regionTints.get(Math.floorDiv(pos.getX(), REGION_SPACING));
+            if (t != null) {
+                final int c = resolver == BiomeColors.GRASS_COLOR_RESOLVER ? t[0] : resolver == BiomeColors.FOLIAGE_COLOR_RESOLVER ? t[1]
+                    : resolver == BiomeColors.WATER_COLOR_RESOLVER ? t[2] : 0;
+                if (c != 0) return c;
+            }
+        }
         return resolver.getColor(biome.value(), pos.getX(), pos.getZ());
     }
 

@@ -6,6 +6,7 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
 import dev.fallingcloud.slate.core.Slate;
 import dev.fallingcloud.slate.core.stage.StageRenderContext;
+import dev.fallingcloud.slate.core.stage.StageSoft;
 import dev.fallingcloud.slate.core.theme.Theme;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -38,10 +39,16 @@ import org.joml.Vector3f;
  * <p>No entity is involved: the {@code PlayerModel} is posed directly, which is what lets this work on the title
  * screen where no {@code ClientLevel} exists. Poses: {@link Pose#STAND}, {@link Pose#SIT}, {@link Pose#WAVE}, each
  * with idle breathing and an optional head that follows the cursor.</p>
+ *
+ * <p>A subclass can hang things on the player ({@link #drawExtras}: a hat that follows the head, a pack on the
+ * back), and a node can show a part of the player only ({@link #show}: just an arm, to show a sleeve).</p>
  */
 public class PlayerNode extends StageNode {
 
     public enum Pose { STAND, SIT, WAVE }
+
+    /** The parts a player is made of, for {@link #show}. */
+    public enum Part { HEAD, BODY, RIGHT_ARM, LEFT_ARM, RIGHT_LEG, LEFT_LEG }
 
     private static final Quaternionf FLIP = Axis.YP.rotationDegrees(180f);
     private static final Vector3f HEAD = new Vector3f(0f, 1.62f, 0f);
@@ -53,6 +60,7 @@ public class PlayerNode extends StageNode {
     private Pose pose = Pose.STAND;
     private boolean lookAtCursor = true;
     private boolean breathe = true;
+    private java.util.Set<Part> shown = java.util.EnumSet.allOf(Part.class);
     private float sitDrop = 0.5f;
     private float lookYaw, lookPitch;
     private final Vector3f head = new Vector3f();
@@ -85,8 +93,33 @@ public class PlayerNode extends StageNode {
         named("player");
     }
 
-    /** The user playing this client. */
+    /** A skin that may change while the node lives: asked for every frame. */
+    public PlayerNode(final Supplier<PlayerSkin> skin) {
+        this.skin = skin;
+        bounds(-0.4f, 0f, -0.4f, 0.4f, 1.9f, 0.4f);
+        hoverFeel(0.03f, 1.03f);
+        named("player");
+    }
+
+    @Nullable private static Supplier<? extends PlayerNode> localFactory;
+
+    /**
+     * Hands over the making of {@link #local()}: a module that dresses the player (Slate Profile) gives the player
+     * as dressed, so every scene that shows "you" shows what you wear. Null puts the plain player back.
+     */
+    public static void localFactory(@Nullable final Supplier<? extends PlayerNode> factory) { localFactory = factory; }
+
+    /** The user playing this client, as they look: in their look when they wear one, else in their account's skin. */
     public static PlayerNode local() {
+        final Supplier<? extends PlayerNode> factory = localFactory;
+        if (factory != null) {
+            try {
+                final PlayerNode made = factory.get();
+                if (made != null) return made;
+            } catch (final Exception e) {
+                Slate.LOGGER.warn("[Slate] stage: the player's look could not be made: {}", e.toString());
+            }
+        }
         final User u = Minecraft.getInstance().getUser();
         return new PlayerNode(u.getProfileId(), u.getName());
     }
@@ -121,7 +154,7 @@ public class PlayerNode extends StageNode {
     }
 
     /** The 64×32 → 64×64 conversion vanilla applies to old skins (left limbs mirrored from the right ones). */
-    private static NativeImage upgradeLegacySkin(final NativeImage legacy) {
+    public static NativeImage upgradeLegacySkin(final NativeImage legacy) {
         final NativeImage image = new NativeImage(64, 64, true);
         image.copyFrom(legacy);
         legacy.close();
@@ -154,6 +187,21 @@ public class PlayerNode extends StageNode {
     public PlayerNode lookAtCursor(final boolean on) { this.lookAtCursor = on; return this; }
 
     public PlayerNode breathe(final boolean on) { this.breathe = on; return this; }
+
+    /** Draws these parts only (with what they wear); the rest of the player is left out. */
+    public PlayerNode show(final java.util.Set<Part> parts) {
+        this.shown = parts.isEmpty() ? java.util.EnumSet.allOf(Part.class) : java.util.EnumSet.copyOf(parts);
+        return this;
+    }
+
+    public boolean shows(final Part part) { return shown.contains(part); }
+
+    /**
+     * Called after the player was drawn, with the pose stack in the model's own space (the one the model's parts
+     * are posed in) and the model as it was posed: a subclass draws here what the player carries. To follow a part,
+     * {@code model.head.translateAndRotate(ctx.pose)} and draw in pixels (1/16 of a block).
+     */
+    protected void drawExtras(final StageRenderContext ctx, final PlayerModel<LivingEntity> model) {}
 
     /** How far a sitting player drops (blocks); 0.5 sits on the ground, ~0.3 on a slab or stair. */
     public PlayerNode sitDrop(final float blocks) { this.sitDrop = blocks; return this; }
@@ -196,7 +244,7 @@ public class PlayerNode extends StageNode {
 
     @Override
     protected void draw(final StageRenderContext ctx) {
-        final PlayerSkin s = skin.get();
+        final PlayerSkin s = skin();
         final ResourceLocation texture = s.texture();
         final PlayerModel<LivingEntity> m = model(s.model() == PlayerSkin.Model.SLIM);
         setupPose(m, ctx);
@@ -205,9 +253,16 @@ public class PlayerNode extends StageNode {
         ctx.pose.mulPose(FLIP);
         ctx.pose.scale(-1f, -1f, 1f);
         ctx.pose.translate(0f, -1.501f, 0f);
-        final VertexConsumer vc = ctx.buffers.getBuffer(RenderType.entityTranslucent(texture));
-        final int color = (Math.round(alpha * 255f) << 24) | 0xFFFFFF;
-        m.renderToBuffer(ctx.pose, vc, ctx.light, OverlayTexture.NO_OVERLAY, color);
+        if (ctx.soft) {
+            final com.mojang.blaze3d.vertex.BufferBuilder bb = StageSoft.begin(StageSoft.ENTITY);
+            m.renderToBuffer(ctx.pose, bb, ctx.light, OverlayTexture.NO_OVERLAY, 0xFFFFFFFF);
+            StageSoft.end(bb, StageSoft.ENTITY, texture, alpha(), false);
+        } else {
+            final VertexConsumer vc = ctx.buffers.getBuffer(RenderType.entityTranslucent(texture));
+            final int color = (Math.round(alpha() * 255f) << 24) | 0xFFFFFF;
+            m.renderToBuffer(ctx.pose, vc, ctx.light, OverlayTexture.NO_OVERLAY, color);
+        }
+        drawExtras(ctx, m);
         ctx.pose.popPose();
     }
 
@@ -265,6 +320,14 @@ public class PlayerNode extends StageNode {
         m.rightSleeve.copyFrom(m.rightArm);
         m.leftPants.copyFrom(m.leftLeg);
         m.rightPants.copyFrom(m.rightLeg);
+        if (shown.size() < Part.values().length) {
+            m.head.visible = m.hat.visible = shown.contains(Part.HEAD);
+            m.body.visible = m.jacket.visible = shown.contains(Part.BODY);
+            m.rightArm.visible = m.rightSleeve.visible = shown.contains(Part.RIGHT_ARM);
+            m.leftArm.visible = m.leftSleeve.visible = shown.contains(Part.LEFT_ARM);
+            m.rightLeg.visible = m.rightPants.visible = shown.contains(Part.RIGHT_LEG);
+            m.leftLeg.visible = m.leftPants.visible = shown.contains(Part.LEFT_LEG);
+        }
     }
 
     @Override

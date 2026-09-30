@@ -77,7 +77,7 @@ public final class Notifications {
     }
 
     static void streamStarted(final StreamInfo s) {
-        if (!cfg().notifyStreams) return;
+        if (!cfg().streams || !cfg().notifyStreams) return;
         SlateToasts.show(t("stream", s.owner().display()), Component.literal(s.title()), Icon.STREAM, () -> StreamViewer.watch(s.id(), true));
     }
 

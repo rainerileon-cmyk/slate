@@ -6,6 +6,7 @@ evaluationDependsOn(':multiplayer')
 evaluationDependsOn(':chat')
 evaluationDependsOn(':config')
 evaluationDependsOn(':building')
+evaluationDependsOn(':profile')
 
 base { archivesName = 'slate-dev' }
 
@@ -31,16 +32,25 @@ def harnessProperties = { run, File gameDir ->
         if (project.hasProperty('autoSkin')) run.systemProperty 'slate.autoSkin', project.autoSkin.toString()
         if (project.hasProperty('autoLayout')) run.systemProperty 'slate.autoLayout', project.autoLayout.toString()
         if (project.hasProperty('autoWorld')) run.systemProperty 'slate.autoWorld', project.autoWorld.toString()
+        if (project.hasProperty('autoWorldId')) run.systemProperty 'slate.autoWorldId', project.autoWorldId.toString()
+        if (project.hasProperty('autoLoadingShots')) run.systemProperty 'slate.autoLoadingShots', project.autoLoadingShots.toString()
         if (project.hasProperty('autoWorldScreens')) run.systemProperty 'slate.autoWorldScreens', project.autoWorldScreens.toString()
         if (project.hasProperty('autoFrames')) run.systemProperty 'slate.autoFrames', project.autoFrames.toString()
+        if (project.hasProperty('autoMotion')) run.systemProperty 'slate.autoMotion', project.autoMotion.toString()
+        if (project.hasProperty('autoIntro')) run.systemProperty 'slate.autoIntro', project.autoIntro.toString()
+        // -PsampleData=true: screens that show what the player has (friends, groups, looks) show a made-up set instead.
+        if (project.hasProperty('sampleData')) run.systemProperty 'slate.sampleData', project.sampleData.toString()
+        // -PautoGif=true: Slate Chat records a GIF as soon as the player is in a world (an unattended run has no key to press).
+        if (project.hasProperty('autoGif')) run.systemProperty 'slate.autoGif', project.autoGif.toString()
     }
 }
 
 // Which modules are on the dev runtime: all of them, or the ones named in -PslateModules=core,menu,config (the
-// install matrix of docs/LAYOUTS-PLAN.md §7; a module left out is absent, exactly like a missing jar). Core is
-// always on, and the modules a listed one depends on are added (chat needs multiplayer).
+// install matrix: a module left out is absent, exactly like a missing jar, which is how docs/LAYOUTS.md's rules for
+// missing modules are tested). Core is always on, and the modules a listed one depends on are added (chat needs
+// multiplayer).
 def slateModules = { ->
-    def all = ['core', 'menu', 'multiplayer', 'chat', 'config', 'building']
+    def all = ['core', 'menu', 'multiplayer', 'chat', 'config', 'building', 'profile']
     if (!project.hasProperty('slateModules')) return all
     def wanted = project.slateModules.toString().split(',').collect { it.trim() }.findAll { it }.toSet()
     wanted.add('core')
@@ -49,7 +59,7 @@ def slateModules = { ->
     if (unknown) throw new GradleException("unknown Slate module(s) in -PslateModules: ${unknown} (known: ${all})")
     return all.findAll { wanted.contains(it) }
 }
-ext.slateModuleIds = ['core': 'slate', 'menu': 'slate_menu', 'multiplayer': 'slate_multiplayer', 'chat': 'slate_chat', 'config': 'slate_config', 'building': 'slate_building']
+ext.slateModuleIds = ['core': 'slate', 'menu': 'slate_menu', 'multiplayer': 'slate_multiplayer', 'chat': 'slate_chat', 'config': 'slate_config', 'building': 'slate_building', 'profile': 'slate_profile']
 
 neoForge {
     mods {

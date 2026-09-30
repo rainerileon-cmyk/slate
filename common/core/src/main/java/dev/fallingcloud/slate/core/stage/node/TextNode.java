@@ -70,6 +70,7 @@ public class TextNode extends StageNode {
         ctx.pose.scale(size, -size, size);
         final float x = -font.width(sequence) / 2f;
         final float y = -font.lineHeight / 2f;
+        final float alpha = alpha();
         final int c = alpha < 1f ? (Math.round(((color >>> 24) & 0xFF) * alpha) << 24) | (color & 0xFFFFFF) : color;
         final int bg = alpha < 1f ? (Math.round(((background >>> 24) & 0xFF) * alpha) << 24) | (background & 0xFFFFFF) : background;
         final Font.DisplayMode mode = seeThrough ? Font.DisplayMode.SEE_THROUGH : Font.DisplayMode.NORMAL;

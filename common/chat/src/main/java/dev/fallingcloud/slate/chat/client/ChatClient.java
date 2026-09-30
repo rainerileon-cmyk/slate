@@ -40,10 +40,12 @@ public final class ChatClient {
         applyConfig();
         MediaCache.init();
         SlateKeys.register(VoiceRecorder.RECORD_KEY);
+        SlateKeys.register(GifRecorder.KEY);
         ScreenIds.register(ChatSettingsScreen.class, "slate_chat:settings", "Chat settings");
         CoreActions.SCREEN_FACTORIES.put("slate_chat:settings", ChatSettingsScreen::new);
         SlateEvents.CLIENT_TICK_END.register(() -> {
             VoiceRecorder.tick();
+            GifRecorder.tick();
             TypingIndicator.tick();
         });
         SlateEvents.HUD_RENDER.register((g, pt) -> VoiceRecorder.renderHud(g));

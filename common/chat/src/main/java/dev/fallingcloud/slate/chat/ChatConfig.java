@@ -61,6 +61,10 @@ public final class ChatConfig {
     public int thumbRows = 6;
     /** Longest voice message you can record, in seconds. */
     public int maxRecordSeconds = 30;
+    /** A recorded GIF: how long it may be in seconds, how many frames it has a second, and how wide it is in pixels. */
+    public int gifSeconds = 6;
+    public int gifFps = 12;
+    public int gifWidth = 480;
 
     // ---- history & extras
     /** Messages kept per server on disk and restored (greyed) when you rejoin. 0 disables. */

@@ -25,6 +25,14 @@ public interface SlatePlatform {
 
     List<ModInfo> allMods();
 
+    /**
+     * A file of an installed mod, by its path in the mod's jar ({@code assets/create/models/block/shaft.json}), as a
+     * path that can be read. Empty when the mod is not installed or has no such file.
+     */
+    default Optional<Path> modFile(final String modId, final String path) {
+        return Optional.empty();
+    }
+
     Path configDir();
 
     Path gameDir();

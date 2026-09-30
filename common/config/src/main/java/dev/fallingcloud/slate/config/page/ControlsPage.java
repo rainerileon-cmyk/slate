@@ -129,7 +129,13 @@ public final class ControlsPage extends OptionPageBase {
     protected boolean pills(final String tabKey) { return !KEYS_TAB.equals(tabKey); }
 
     private AbstractWidget toolbar(final int w) {
-        final int searchW = Math.max(90, w - 150 - 120 - 16);
+        // A narrow page (the Overhaul hub on a small window) keeps all three: the reset shrinks to its icon, the
+        // switch to what its words need, and the search takes the rest.
+        final boolean tight = w < 150 + 120 + 16 + 90;
+        final Component unboundLabel = Component.translatable("slate_config.controls.unbound_only");
+        final int toggleW = tight ? Math.min(150, Minecraft.getInstance().font.width(unboundLabel) + SlateToggle.SWITCH_W + 16) : 150;
+        final int resetW = tight ? 20 : 120;
+        final int searchW = Math.max(60, w - toggleW - resetW - 16);
         final ConfigSearchField search = new ConfigSearchField(0, 0, searchW, s -> {
             if (s.equals(keySearch)) return;
             keySearch = s;
@@ -139,15 +145,18 @@ public final class ControlsPage extends OptionPageBase {
         search.setValue(keySearch);
         search.placeholder(Component.translatable("slate_config.controls.search_keys"));
         keyField = search;
-        final SlateToggle unbound = new SlateToggle(0, 0, 150, Component.translatable("slate_config.controls.unbound_only"), unboundOnly, v -> { unboundOnly = v; rebuild(); });
-        final SlateButton reset = new SlateButton(0, 0, 120, Component.translatable("slate_config.controls.reset_keys"), () ->
+        final SlateToggle unbound = new SlateToggle(0, 0, toggleW, unboundLabel, unboundOnly, v -> { unboundOnly = v; rebuild(); });
+        final Runnable resetAll = () ->
             SlateModal.confirmDanger(Component.translatable("slate_config.controls.reset_keys"), Component.translatable("slate_config.controls.reset_keys.body"),
                 Component.translatable("slate_config.controls.reset_keys"), () -> {
                     for (final KeyMapping m : Minecraft.getInstance().options.keyMappings) m.setKey(m.getDefaultKey());
                     KeyMapping.resetMapping();
                     Minecraft.getInstance().options.save();
                     rebuild();
-                })).icon(Icon.UNDO).variant(SlateButton.Variant.DANGER);
+                });
+        final SlateButton reset = tight
+            ? new dev.fallingcloud.slate.core.widget.SlateIconButton(0, 0, 20, Icon.UNDO, Component.translatable("slate_config.controls.reset_keys"), resetAll).variant(SlateButton.Variant.DANGER)
+            : new SlateButton(0, 0, resetW, Component.translatable("slate_config.controls.reset_keys"), resetAll).icon(Icon.UNDO).variant(SlateButton.Variant.DANGER);
         final Toolbar t = new Toolbar(w, List.of(search, unbound, reset));
         keyToolbar = t;
         return t;

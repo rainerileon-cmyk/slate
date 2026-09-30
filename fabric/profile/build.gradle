@@ -1,0 +1,9 @@
+base { archivesName = 'slate-profile-fabric-1.21.1' }
+
+loom {
+    mods { slate_profile { sourceSet sourceSets.main } }
+}
+
+dependencies {
+    implementation project(path: ':core', configuration: 'namedElements')
+}

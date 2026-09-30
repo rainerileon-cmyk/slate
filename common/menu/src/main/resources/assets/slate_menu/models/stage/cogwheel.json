@@ -1,0 +1,50 @@
+{
+  "__comment": "Slate's stand-in for Create's cogwheel, used when Create is not installed: the same build (a shaft, a wooden wheel, eight teeth as four bars crossing in the middle) out of vanilla textures. Axis along Y.",
+  "textures": {
+    "particle": "minecraft:block/stripped_spruce_log_top",
+    "wood": "minecraft:block/stripped_spruce_log",
+    "rings": "minecraft:block/stripped_spruce_log_top",
+    "plank": "minecraft:block/spruce_planks",
+    "shaft": "minecraft:block/polished_andesite",
+    "cap": "minecraft:block/smooth_stone"
+  },
+  "elements": [
+    { "name": "shaft", "from": [6, 0, 6], "to": [10, 16, 10],
+      "faces": { "north": {"uv": [6, 0, 10, 16], "texture": "#shaft"}, "south": {"uv": [6, 0, 10, 16], "texture": "#shaft"},
+                 "east": {"uv": [6, 0, 10, 16], "texture": "#shaft"}, "west": {"uv": [6, 0, 10, 16], "texture": "#shaft"},
+                 "up": {"uv": [6, 6, 10, 10], "texture": "#cap"}, "down": {"uv": [6, 6, 10, 10], "texture": "#cap"} } },
+
+    { "name": "teeth_x", "from": [-1, 6.5, 6.5], "to": [17, 9.5, 9.5],
+      "faces": { "north": {"uv": [0, 6.5, 16, 9.5], "texture": "#plank"}, "south": {"uv": [0, 6.5, 16, 9.5], "texture": "#plank"},
+                 "east": {"uv": [6.5, 6.5, 9.5, 9.5], "texture": "#rings"}, "west": {"uv": [6.5, 6.5, 9.5, 9.5], "texture": "#rings"},
+                 "up": {"uv": [0, 6.5, 16, 9.5], "texture": "#plank"}, "down": {"uv": [0, 6.5, 16, 9.5], "texture": "#plank"} } },
+    { "name": "teeth_z", "from": [6.5, 6.5, -1], "to": [9.5, 9.5, 17],
+      "faces": { "north": {"uv": [6.5, 6.5, 9.5, 9.5], "texture": "#rings"}, "south": {"uv": [6.5, 6.5, 9.5, 9.5], "texture": "#rings"},
+                 "east": {"uv": [0, 6.5, 16, 9.5], "texture": "#plank"}, "west": {"uv": [0, 6.5, 16, 9.5], "texture": "#plank"},
+                 "up": {"uv": [0, 6.5, 16, 9.5], "rotation": 90, "texture": "#plank"}, "down": {"uv": [0, 6.5, 16, 9.5], "rotation": 90, "texture": "#plank"} } },
+    { "name": "teeth_diag_a", "from": [-1, 6.5, 6.5], "to": [17, 9.5, 9.5],
+      "rotation": { "angle": 45, "axis": "y", "origin": [8, 8, 8] },
+      "faces": { "north": {"uv": [0, 6.5, 16, 9.5], "texture": "#plank"}, "south": {"uv": [0, 6.5, 16, 9.5], "texture": "#plank"},
+                 "east": {"uv": [6.5, 6.5, 9.5, 9.5], "texture": "#rings"}, "west": {"uv": [6.5, 6.5, 9.5, 9.5], "texture": "#rings"},
+                 "up": {"uv": [0, 6.5, 16, 9.5], "texture": "#plank"}, "down": {"uv": [0, 6.5, 16, 9.5], "texture": "#plank"} } },
+    { "name": "teeth_diag_b", "from": [-1, 6.5, 6.5], "to": [17, 9.5, 9.5],
+      "rotation": { "angle": -45, "axis": "y", "origin": [8, 8, 8] },
+      "faces": { "north": {"uv": [0, 6.5, 16, 9.5], "texture": "#plank"}, "south": {"uv": [0, 6.5, 16, 9.5], "texture": "#plank"},
+                 "east": {"uv": [6.5, 6.5, 9.5, 9.5], "texture": "#rings"}, "west": {"uv": [6.5, 6.5, 9.5, 9.5], "texture": "#rings"},
+                 "up": {"uv": [0, 6.5, 16, 9.5], "texture": "#plank"}, "down": {"uv": [0, 6.5, 16, 9.5], "texture": "#plank"} } },
+
+    { "name": "wheel", "from": [2, 6.55, 2], "to": [14, 9.45, 14],
+      "faces": { "north": {"uv": [2, 6.5, 14, 9.5], "texture": "#wood"}, "south": {"uv": [2, 6.5, 14, 9.5], "texture": "#wood"},
+                 "east": {"uv": [2, 6.5, 14, 9.5], "texture": "#wood"}, "west": {"uv": [2, 6.5, 14, 9.5], "texture": "#wood"},
+                 "up": {"uv": [2, 2, 14, 14], "texture": "#rings"}, "down": {"uv": [2, 2, 14, 14], "texture": "#rings"} } },
+    { "name": "wheel_diag", "from": [2, 6.55, 2], "to": [14, 9.45, 14],
+      "rotation": { "angle": 45, "axis": "y", "origin": [8, 8, 8] },
+      "faces": { "north": {"uv": [2, 6.5, 14, 9.5], "texture": "#wood"}, "south": {"uv": [2, 6.5, 14, 9.5], "texture": "#wood"},
+                 "east": {"uv": [2, 6.5, 14, 9.5], "texture": "#wood"}, "west": {"uv": [2, 6.5, 14, 9.5], "texture": "#wood"},
+                 "up": {"uv": [2, 2, 14, 14], "texture": "#rings"}, "down": {"uv": [2, 2, 14, 14], "texture": "#rings"} } },
+    { "name": "hub", "from": [4.5, 5.8, 4.5], "to": [11.5, 10.2, 11.5],
+      "faces": { "north": {"uv": [4.5, 5.8, 11.5, 10.2], "texture": "#plank"}, "south": {"uv": [4.5, 5.8, 11.5, 10.2], "texture": "#plank"},
+                 "east": {"uv": [4.5, 5.8, 11.5, 10.2], "texture": "#plank"}, "west": {"uv": [4.5, 5.8, 11.5, 10.2], "texture": "#plank"},
+                 "up": {"uv": [4.5, 4.5, 11.5, 11.5], "texture": "#plank"}, "down": {"uv": [4.5, 4.5, 11.5, 11.5], "texture": "#plank"} } }
+  ]
+}

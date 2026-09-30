@@ -49,6 +49,8 @@ public abstract class OptionPageBase extends SidebarPage implements TabHost, Ent
     public enum Level { BASIC, ADVANCED, ALL }
 
     private static final int STRIP_GAP = 6;
+    /** Between rows that stand side by side (and between their lines). */
+    private static final int COLUMN_GAP = 4;
 
     protected SidebarScreen screen;
     protected Rect area;
@@ -336,18 +338,43 @@ public abstract class OptionPageBase extends SidebarPage implements TabHost, Ent
             y += d.getHeight() + 8;
         }
         if (collapsed) return y + 4;
+        final int columns = screen instanceof PageColumns pc ? Math.max(1, pc.columns(w)) : 1;
+        if (columns < 2) {
+            for (final Section.Item it : items) {
+                if (it.binding() != null) {
+                    OptionResolvers.publish(it.binding());
+                    final OptionRow row = new OptionRow(0, y, w, it.binding(), 0).onChanged(this::onRowChanged);
+                    rows.add(row);
+                    p.add(row, 0, y);
+                    y += OptionRow.HEIGHT + 2;
+                } else if (it.custom() != null) {
+                    final AbstractWidget cw = it.custom().apply(w);
+                    if (cw != null) { p.add(cw, 0, y + 2); y += cw.getHeight() + COLUMN_GAP; }
+                }
+            }
+            return y + 6;
+        }
+        // Side by side: rows fill the columns left to right, line by line; whatever is not a row takes a whole line.
+        final int colW = (w - COLUMN_GAP * (columns - 1)) / columns;
+        final OptionRow.Look look = colW < OptionRow.INLINE_MIN_WIDTH ? OptionRow.Look.STACKED : OptionRow.Look.TILE;
+        final int rowH = OptionRow.heightOf(look);
+        int col = 0;
         for (final Section.Item it : items) {
             if (it.binding() != null) {
                 OptionResolvers.publish(it.binding());
-                final OptionRow row = new OptionRow(0, y, w, it.binding(), 0).onChanged(this::onRowChanged);
+                final int x = col * (colW + COLUMN_GAP);
+                final OptionRow row = new OptionRow(x, y, colW, it.binding(), 0, look).onChanged(this::onRowChanged);
                 rows.add(row);
-                p.add(row, 0, y);
-                y += OptionRow.HEIGHT + 2;
+                p.add(row, x, y);
+                if (++col >= columns) { col = 0; y += rowH + COLUMN_GAP; }
             } else if (it.custom() != null) {
+                if (col > 0) { col = 0; y += rowH + COLUMN_GAP; }
+                // As far from what is over and under it as the tiles are from each other.
                 final AbstractWidget cw = it.custom().apply(w);
-                if (cw != null) { p.add(cw, 0, y + 2); y += cw.getHeight() + 6; }
+                if (cw != null) { p.add(cw, 0, y); y += cw.getHeight() + COLUMN_GAP; }
             }
         }
+        if (col > 0) y += rowH + COLUMN_GAP;
         return y + 6;
     }
 
